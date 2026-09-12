@@ -79,6 +79,7 @@ class Config:
         self.fast_timers = os.environ.get("HAP_FAST_TIMERS", "0") == "1"
         self.dev = os.environ.get("HAP_DEV", "1") == "1"
         self.public_url = os.environ.get("HAP_PUBLIC_URL", "http://localhost:5173")
+        self.engine = os.environ.get("HAP_ENGINE", "python")   # python | client (the Phaser game client drives the sims over the bridge)
         self.openai_key = os.environ.get("OPENAI_KEY") or os.environ.get("OPENAI_API_KEY") or None
         self.elevenlabs_key = os.environ.get("ELEVENLABS_API_KEY") or None
         if self.fast_timers:

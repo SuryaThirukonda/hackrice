@@ -15,8 +15,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 SAMPLE_LEN = 13
-Role = Literal["remote", "rail", "projector", "host"]
-ROLES: tuple[str, ...] = ("remote", "rail", "projector", "host")
+Role = Literal["remote", "rail", "projector", "host", "game"]
+ROLES: tuple[str, ...] = ("remote", "rail", "projector", "host", "game")
 
 
 class Payload(BaseModel):
@@ -84,8 +84,74 @@ class InputAction(Payload):
     t_client: float | None = None
 
 
+class GameTurnOpen(Payload):
+    turn_no: int
+    label: str = ""
+    markets: list[dict[str, Any]] = Field(default_factory=list)
+    betting: bool = True
+    input_window_s: float = 20.0
+    prompt: dict[str, Any] = Field(default_factory=dict)
+
+
+class GamePhase(Payload):
+    turn_no: int
+    phase: str
+    deadline_ts: int | None = None
+    prompt: dict[str, Any] = Field(default_factory=dict)
+    seat_id: str | None = None
+
+
+class GameDecisionRequest(Payload):
+    request_id: str
+    agent_id: str
+    options: list[dict[str, Any]]
+    default: str
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
+class GameTurnResult(Payload):
+    turn_no: int
+    outcome: str
+    market_winners: dict[str, list[str]] = Field(default_factory=dict)
+    detail: dict[str, Any] = Field(default_factory=dict)
+    score: dict[str, Any] = Field(default_factory=dict)
+    triggers: list[list[Any]] = Field(default_factory=list)
+    animation_s: float = 0.0
+
+
+class GameMatchEnd(Payload):
+    winner: str
+    score: dict[str, Any] = Field(default_factory=dict)
+    reason: str = "complete"
+
+
+class GameKb(Payload):
+    seat_id: str = "P1"
+    kind: str
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class GameRequestStart(Payload):
+    sport: str
+    mode: Literal["1p", "2p", "card"] = "1p"
+    tier: str | None = None
+    tier_b: str | None = None
+    scenario: str | None = None
+
+
 # Every client message type and the model that validates its payload.
 CLIENT_MESSAGES: dict[str, type[Payload]] = {
+    "game.hello": Payload,
+    "game.turn_open": GameTurnOpen,
+    "game.phase": GamePhase,
+    "game.decision_request": GameDecisionRequest,
+    "game.state": Payload,
+    "game.turn_result": GameTurnResult,
+    "game.match_end": GameMatchEnd,
+    "game.log": Payload,
+    "game.kb": GameKb,
+    "game.error": Payload,
+    "game.request_start": GameRequestStart,
     "session.hello": Hello,
     "session.ping": Ping,
     "session.resync": Resync,
@@ -130,6 +196,7 @@ SERVER_MESSAGES: tuple[str, ...] = (
     "pair.prompt", "pair.result",
     "voice.line", "sfx.play",
     "host.ack", "host.config", "host.diagnostics", "ladder.update",
+    "game.start", "game.turn_go", "game.gesture", "game.decision", "game.adjust", "game.pause", "game.resume", "game.abort", "game.config",
 )
 
 # Types the per-connection send queue may drop first when a client is slow (high-rate, superseded by the next one).

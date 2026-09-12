@@ -38,11 +38,13 @@ def build_arena(config: Config | None = None, clock: Clock | None = None, store=
 
 def _wire_optional_modules(arena: Arena) -> None:
     """Later milestones register here: motion, market, games, agents, voice, host."""
-    for name in ("motion.worker", "market.wiring", "games.wiring", "agents.wiring", "voice.wiring", "market.sponsor", "market.card", "market.pairing", "host"):
+    games_impl = "games.bridge" if getattr(arena.config, "engine", "python") == "client" else "games.wiring"
+    for name in ("motion.worker", "market.wiring", games_impl, "agents.wiring", "voice.wiring", "market.sponsor", "market.card", "market.pairing", "host"):
         try:
             mod = __import__(f"app.{name}", fromlist=["install"])
         except ImportError:
             continue
         install = getattr(mod, "install", None)
         if install:
-            arena.modules[name] = install(arena)
+            key = "games.wiring" if name == games_impl else name     # every module looks the games driver up under this key
+            arena.modules[key] = install(arena)

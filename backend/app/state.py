@@ -97,7 +97,7 @@ class ArenaState:
                 base["me"].update({"nickname": dev.nickname, "seat_id": dev.seat_id, "calibrated": dev.calibrated})
         if role in ("host", "projector"):
             base["devices"] = [d.public() for d in self.devices.values()]
-        if role == "host":
+        if role in ("host", "game"):
             base["seat_tokens"] = {s.seat_id: s.token for s in self.seats.values()}
             base["audio_unlocked"] = self.audio_unlocked
         return base

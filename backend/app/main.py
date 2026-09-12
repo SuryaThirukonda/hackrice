@@ -53,6 +53,18 @@ async def health():
             "connections": len(arena.loop.conns) if arena else 0, "seq": arena.loop.seq if arena else 0}
 
 
+@app.get("/api/qr.png")
+async def qr_png(text: str, size: int = 8):
+    """QR as PNG for the game client (phones scan the seat/rail URLs off the projector)."""
+    import io
+    import qrcode
+    from fastapi.responses import Response
+    img = qrcode.make(text[:512], box_size=max(2, min(16, size)), border=1)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return Response(buf.getvalue(), media_type="image/png", headers={"cache-control": "no-store"})
+
+
 @app.get("/api/seats")
 async def seats():
     assert arena

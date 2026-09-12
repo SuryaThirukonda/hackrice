@@ -10,6 +10,7 @@ export const SERVER_MESSAGES = [
   'pair.prompt', 'pair.result',
   'voice.line', 'sfx.play',
   'host.ack', 'host.config', 'host.diagnostics', 'ladder.update',
+  'game.start', 'game.turn_go', 'game.gesture', 'game.decision', 'game.adjust', 'game.pause', 'game.resume', 'game.abort', 'game.config',
 ] as const
 
 export const CLIENT_MESSAGES = [
@@ -18,12 +19,13 @@ export const CLIENT_MESSAGES = [
   'market.bet', 'sponsor.buy', 'crate.bid', 'card.vote', 'pair.request',
   'host.telemetry', 'host.start', 'host.pause', 'host.resume', 'host.next', 'host.force_scenario', 'host.set_param',
   'host.kick', 'host.release_seat', 'host.lock_seat', 'host.set_public_url', 'host.reload_config', 'host.toggle',
-  'host.set_seats', 'host.card', 'host.unlock_audio', 'host.adjust_chips', 'host.set_backend_url',
+  'host.set_seats', 'host.card', 'host.unlock_audio', 'host.adjust_chips',
+  'game.hello', 'game.turn_open', 'game.phase', 'game.decision_request', 'game.state', 'game.turn_result', 'game.match_end', 'game.log', 'game.kb', 'game.error', 'game.request_start', 'host.set_backend_url',
 ] as const
 
 export type ServerType = (typeof SERVER_MESSAGES)[number]
 export type ClientType = (typeof CLIENT_MESSAGES)[number]
-export type Role = 'remote' | 'rail' | 'projector' | 'host'
+export type Role = 'remote' | 'rail' | 'projector' | 'host' | 'game'
 
 // Motion sample: [t_phone_ms, ax, ay, az, agx, agy, agz, rx, ry, rz, alpha, beta, gamma]
 export type Sample = [number, number, number, number, number, number, number, number, number, number, number, number, number]

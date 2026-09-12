@@ -116,6 +116,8 @@ class SponsorModule:
         elif eff.get("grant") == "second_wind" and hasattr(m, "grant_second_wind"):
             m.grant_second_wind()
         m.sponsored_turn = True
+        if hasattr(m, "send_effect"):
+            m.send_effect(eff)
         self.loop.emit("sponsor.applied", {"move_id": move["id"], "label": move["label"], "target": move["target"], "buyer": self._nick(buyer), "effect": eff}, to="all")
         if self.arena.store is not None:
             self.arena.store.write("sponsor_moves", {"match_id": m.match_id, "turn_no": m.turn_no, "device_id": buyer, "move_id": move["id"], "target": move["target"], "price": price, "applied_ts": self.loop.clock.now()})

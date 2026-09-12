@@ -15,7 +15,8 @@
       "port": 8000,
       "env": {
         "HAP_FAST_TIMERS": "1",
-        "HAP_DEV": "1"
+        "HAP_DEV": "1",
+        "HAP_ENGINE": "client"
       }
     },
     {

@@ -64,6 +64,9 @@ class AdaptiveController:
     @staticmethod
     def apply(match, param: str, nudge: float) -> None:
         """Push the adjustment into the live policy objects that read tier params directly."""
+        if hasattr(match, "send_adjust"):          # game-client bridge: the sim lives in the Phaser client
+            match.send_adjust(param, nudge, "adaptive")
+            return
         if match.sport == "bowling":
             match.policy.p[param] = float(match.tier.params.get(param, 0.0)) + nudge
         elif match.sport == "boxing" and getattr(match, "b", None) is not None and match.b.house:

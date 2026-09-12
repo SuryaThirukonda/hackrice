@@ -2,36 +2,24 @@ import { useEffect, useState } from 'react'
 import { audio } from './audio'
 import { useArena } from '../lib/store'
 import { QR } from '../ui/QR'
-import { PlankMenu } from '../ui/ChannelGrid'
-import type { GameDef } from '../ui/games'
-import { PixiStage } from './stage/PixiStage'
+import { PhaserStage } from './stage/PhaserStage'
 import { OddsBoard } from './OddsBoard'
-import { BaseballBoard, CardVoteSplash, LeaderboardStrip, MarketBanners, Meter, PhaseBanner, ScoreCard, StudyingMeter, Subtitle, Versus } from './Overlays'
-import { FightHUD } from './FightHUD'
-import { KeyboardPlayer } from './KeyboardPlayer'
+import { CardVoteSplash, LeaderboardStrip, MarketBanners, StudyingMeter, Subtitle } from './Overlays'
 import './projector.css'
 
 export default function Projector() {
   const connect = useArena((s) => s.connect)
-  const socket = useArena((s) => s.socket)
   const seats = useArena((s) => s.seats)
   const railUrl = useArena((s) => s.railUrl)
   const connected = useArena((s) => s.connected)
   const match = useArena((s) => s.match)
   const statuses = useArena((s) => s.statuses)
   const voice = useArena((s) => s.voice)
-  const sfx = useArena((s) => s.sfx)
-  const tick = useArena((s) => s.tick)
+  const sfxEv = useArena((s) => s.sfx)
   const [unlocked, setUnlocked] = useState(false)
   useEffect(() => { connect({ role: 'projector' }) }, [connect])
   useEffect(() => { if (voice) audio.enqueue({ ...voice, ts: Date.now() } as never) }, [voice])
-  useEffect(() => { if (sfx) audio.sfx(sfx.name, sfx.gain) }, [sfx])
-  useEffect(() => {
-    const flags = (tick?.flags ?? {}) as { shake?: boolean; slowmo?: boolean }
-    const who = (tick as { who?: string; outcome?: string } | null)
-    if (who?.outcome === 'strike') audio.sfx('strike'); else if (flags.slowmo) audio.sfx('knockdown'); else if (flags.shake) audio.sfx('hit')
-  }, [tick])
-  const pick = (g: GameDef) => { socket?.send(g.card ? 'host.card' : 'host.start', g.card ? {} : { sport: g.sport }) }
+  useEffect(() => { if (sfxEv) audio.sfx(sfxEv.name, sfxEv.gain) }, [sfxEv])
   const live = match && match.phase !== 'ended'
   return (
     <div className="proj dark">
@@ -39,29 +27,17 @@ export default function Projector() {
         <div className="brand">The House Always Plays</div>
         <div className="clock">{live ? `${match.sport} · ${match.opponent.name}` : 'Lobby'}</div>
         <div className="top-right">
-          {!unlocked && <button className="pill blue" onClick={async () => setUnlocked(await audio.unlock())}>Unlock audio</button>}
+          {!unlocked && <button className="pill blue" onClick={async () => setUnlocked(await audio.unlock())}>Unlock voice</button>}
           <div className={`conn ${connected ? 'on' : 'off'}`}>{connected ? 'connected' : 'reconnecting'}</div>
         </div>
       </header>
       <main className="proj-stage">
-        {live ? (
-          <div className="tile stage-card">
-            <PixiStage />
-            <PhaseBanner />
-            <ScoreCard />
-            <FightHUD />
-            <BaseballBoard />
-            <StudyingMeter />
-            <Meter />
-            <Versus />
-          </div>
-        ) : (
-          <>
-            <PlankMenu onPick={pick} />
-            <CardVoteSplash />
-          </>
-        )}
-        <MarketBanners />
+        <div className="tile stage-card">
+          <PhaserStage />
+          <StudyingMeter />
+          <MarketBanners />
+          <CardVoteSplash />
+        </div>
       </main>
       <aside className="proj-side">
         {seats.map((s) => {
@@ -75,7 +51,6 @@ export default function Projector() {
             </div>
           )
         })}
-        <KeyboardPlayer />
         <OddsBoard />
       </aside>
       <footer className="proj-rail">

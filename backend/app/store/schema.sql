@@ -13,3 +13,4 @@ CREATE TABLE IF NOT EXISTS sponsor_moves(id INTEGER PRIMARY KEY AUTOINCREMENT, m
 CREATE TABLE IF NOT EXISTS voice_lines(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, speaker TEXT, priority INTEGER, text TEXT, cache_key TEXT, requested_ts REAL, played_ts REAL);
 CREATE INDEX IF NOT EXISTS ix_gestures_match ON gestures(match_id, turn_no);
 CREATE INDEX IF NOT EXISTS ix_ledger_device ON ledger(device_id);
+CREATE TABLE IF NOT EXISTS game_log(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, turn_no INTEGER, entries_json TEXT, ts REAL);
