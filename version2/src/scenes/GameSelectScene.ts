@@ -17,6 +17,12 @@ export class GameSelectScene extends Phaser.Scene {
   init(d: { mode?: string }): void { this.mode = d?.mode ?? '1p' }
 
   create(): void {
+    // Phaser scene instances are reused after returning from pre-fight. Drop references to
+    // the destroyed display objects before rebuilding the cards for this visit.
+    this.cards = []
+    this.previews = []
+    this.focusTweens = []
+    this.index = 0
     ensureTextures(this)
     const { width: W, height: H } = this.scale
     this.city = new ComicBackdrop(this, 11)
