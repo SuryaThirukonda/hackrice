@@ -1,0 +1,28 @@
+tts:
+  model_id: eleven_flash_v2_5
+  output_format: mp3_44100_128
+  timeout_s: 3.0
+  cache_dir: ../assets/audio/cache
+voices:
+  announcer_a: JBFqnCBsd6RMkjVDRZzb
+  announcer_b: onwK4e9ZLuTAKqWW03F9
+  cornerman: N2lVS1w4EtoT3dr4eOWO
+playback:
+  max_pending: 1
+  stale_ms: 6000
+  duck_gain: 0.3
+# priority 3 = highest. persona_line = use the opponent's own line from the same decision.
+triggers:
+  knockdown:        {priority: 3, speaker: announcer_a, persona_line: false, templates: ["Down goes {loser}!", "{loser} hits the canvas!"]}
+  strike:           {priority: 3, speaker: announcer_a, persona_line: false, templates: ["Strike! {player} clears the deck!", "All ten for {player}!"]}
+  home_run:         {priority: 3, speaker: announcer_a, persona_line: false, templates: ["That ball is gone! {player} goes deep!"]}
+  boss_twist:       {priority: 3, speaker: announcer_b, persona_line: true, templates: ["The House is changing the rules."]}
+  upset:            {priority: 2, speaker: announcer_b, persona_line: false, templates: ["Upset on the board! The rail did not see that coming."]}
+  big_payout:       {priority: 2, speaker: announcer_b, persona_line: false, templates: ["{winner} cashes {amount} chips!"]}
+  taunt:            {priority: 2, speaker: opponent,   persona_line: true, templates: ["Is that all you've got?"]}
+  turn_result:      {priority: 1, speaker: announcer_a, persona_line: false, templates: ["{outcome} for {player}."]}
+  match_start:      {priority: 2, speaker: announcer_a, persona_line: false, templates: ["{player} versus {opponent}. Bets are open!"]}
+  match_end:        {priority: 2, speaker: announcer_a, persona_line: false, templates: ["{winner} takes it!"]}
+moderation:
+  max_chars: 90
+  blocklist: ["kill yourself", "slur"]

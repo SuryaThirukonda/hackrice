@@ -1,0 +1,73 @@
+starting_stack: 500
+min_bet: 10
+default_stake: 25
+max_stake: 200
+bailout:
+  amount: 100
+  below: 10
+  cooldown_s: 60
+windows:
+  betting_s: 12
+  between_s: 2
+  resolving_s: 2.5
+odds_hz: 4
+card:
+  vote_s: 15
+  idle_start_s: 20
+sponsor:
+  max_swing: 0.35
+  warn_s: 2
+  crate_every_turns: 4
+  crate_bid_s: 15
+  price_min_mult: 0.5
+  price_max_mult: 2.0
+  advantage_k: 0.8
+moves:
+  - id: boss_dodge
+    label: Extra dodge charge
+    target: house
+    sport: boxing
+    effect: {param: dodge_p, delta: 0.25}
+    base_price: 60
+    cap_per_match: 2
+    cooldown_s: 20
+  - id: fast_pitch
+    label: Faster pitch
+    target: house
+    sport: baseball
+    effect: {param: speed_mult, delta: 0.15}
+    base_price: 50
+    cap_per_match: 2
+    cooldown_s: 20
+  - id: oil_shift
+    label: Shift the oil
+    target: house
+    sport: bowling
+    effect: {param: lane_drift, delta: 0.2}
+    base_price: 50
+    cap_per_match: 2
+    cooldown_s: 20
+  - id: extra_frame
+    label: Extra frame
+    target: human
+    sport: bowling
+    effect: {grant: extra_frame}
+    base_price: 80
+    cap_per_match: 1
+    cooldown_s: 60
+  - id: slow_pitch
+    label: Slow the pitch
+    target: human
+    sport: baseball
+    effect: {param: speed_mult, delta: -0.2}
+    base_price: 50
+    cap_per_match: 2
+    cooldown_s: 20
+  - id: second_wind
+    label: Second wind
+    target: human
+    sport: boxing
+    effect: {grant: second_wind}
+    base_price: 70
+    cap_per_match: 1
+    cooldown_s: 30

@@ -1,0 +1,15 @@
+PRAGMA journal_mode=WAL;
+CREATE TABLE IF NOT EXISTS devices(device_id TEXT PRIMARY KEY, role TEXT, nickname TEXT, ua TEXT, first_seen REAL, last_seen REAL);
+CREATE TABLE IF NOT EXISTS seats(id INTEGER PRIMARY KEY AUTOINCREMENT, seat_id TEXT, match_id TEXT, device_id TEXT, claimed_ts REAL, released_ts REAL);
+CREATE TABLE IF NOT EXISTS matches(match_id TEXT PRIMARY KEY, sport TEXT, seed INTEGER, opponent_tier TEXT, scenario TEXT, started_ts REAL, ended_ts REAL, winner TEXT);
+CREATE TABLE IF NOT EXISTS turns(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, turn_no INTEGER, phase_ts_json TEXT, outcome TEXT, detail_json TEXT);
+CREATE TABLE IF NOT EXISTS gestures(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, turn_no INTEGER, device_id TEXT, seat_id TEXT, kind TEXT, t_phone REAL, t_server REAL, power REAL, axis TEXT, sign INTEGER, duration_ms REAL, extra_json TEXT);
+CREATE TABLE IF NOT EXISTS motion_frames(id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT, t0 REAL, samples_json TEXT);
+CREATE TABLE IF NOT EXISTS agent_decisions(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, turn_no INTEGER, agent_id TEXT, option_id TEXT, source TEXT, latency_ms REAL, line TEXT);
+CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT, delta INTEGER, reason TEXT, ref_id TEXT, ts REAL);
+CREATE TABLE IF NOT EXISTS bets(bet_id TEXT PRIMARY KEY, market_id TEXT, device_id TEXT, outcome_id TEXT, stake INTEGER, ts REAL);
+CREATE TABLE IF NOT EXISTS markets(market_id TEXT PRIMARY KEY, match_id TEXT, turn_no INTEGER, kind TEXT, winner TEXT, pool INTEGER, rollover_in INTEGER, rollover_out INTEGER, settled_ts REAL);
+CREATE TABLE IF NOT EXISTS sponsor_moves(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, turn_no INTEGER, device_id TEXT, move_id TEXT, target TEXT, price INTEGER, applied_ts REAL);
+CREATE TABLE IF NOT EXISTS voice_lines(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT, speaker TEXT, priority INTEGER, text TEXT, cache_key TEXT, requested_ts REAL, played_ts REAL);
+CREATE INDEX IF NOT EXISTS ix_gestures_match ON gestures(match_id, turn_no);
+CREATE INDEX IF NOT EXISTS ix_ledger_device ON ledger(device_id);

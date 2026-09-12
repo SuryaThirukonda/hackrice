@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "app.main:app", "--port", "8000"],
+      "cwd": "backend",
+      "port": 8000,
+      "env": { "HAP_FAST_TIMERS": "1", "HAP_DEV": "1" }
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host"],
+      "cwd": "web",
+      "port": 5173
+    }
+  ]
+}

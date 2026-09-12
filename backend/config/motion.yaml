@@ -1,0 +1,61 @@
+# Motion pipeline tunables. Starting constants from docs/TECH_PLAN.md §6; tune on real phones with scripts/record_trace.py.
+batch_ms: 50
+ema_alpha: 0.5          # at 60 Hz; scaled by 60/hz
+nominal_hz: 60
+calib:
+  rest_seconds: 2.0
+  raise_seconds: 1.0
+  rate_check_seconds: 5.0
+  min_swing_ms2: 12.0
+  sigma_mult: 8.0
+  recalib_hz_change: 0.3
+swing:
+  omega_arm_dps: 90
+  arm_ms: 40
+  a_sat_ms2: 35
+  decay_ratio: 0.4
+  max_peak_ms: 250
+  cooldown_ms:
+    bowling: 600
+    baseball: 450
+    default: 500
+release:
+  beta_vertical_deg: 25
+  lane_window_ms: 400
+  lane_full_deg: 30
+  fallback_after_peak_ms: 120
+  zero_cross_timeout_ms: 300
+  spin_full_dps: 400
+punch:
+  a_fwd_ms2: 10
+  rise_ms: 80
+  quiet_ms2: 3
+  hook_yaw_dps: 250
+  a_sat_ms2: 30
+  cooldown_ms: 180
+block:
+  a_max_ms2: 1.5
+  upright_tol_deg: 20
+  on_ms: 200
+  off_ms: 100
+dodge:
+  gamma_delta_deg: 30
+  window_ms: 150
+  cooldown_ms: 400
+shake:
+  peaks: 3
+  window_ms: 1000
+  peak_ratio: 0.6
+flick:
+  max_ms: 120
+  reversal_ms: 100
+bump:
+  a_ms2: 25
+  max_ms: 60
+  w_max_dps: 80
+  pair_window_ms: 150
+  request_window_s: 5
+meter_hz: 15
+status_hz: 2
+frame_gap_pause_ms: 1500
+unclaimed_release_s: 20

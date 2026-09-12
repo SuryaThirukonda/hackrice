@@ -1,0 +1,15 @@
+.host { max-width: 1200px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.host-top { display: flex; justify-content: space-between; align-items: center; font-size: 22px; }
+.sec { padding: 18px 20px; }
+.sec h3 { margin: 0 0 12px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.row input { flex: 1; min-width: 240px; padding: 10px 14px; border-radius: 999px; border: 2px solid var(--line); font: inherit; }
+.row .pill { padding: 8px 14px; font-size: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px; }
+td { padding: 6px; border-top: 1px solid var(--line); }
+td .pill { padding: 4px 10px; font-size: 12px; }
+.url { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log { font-family: ui-monospace, monospace; font-size: 12px; max-height: 260px; overflow: auto; }
+.log .seq { color: var(--ink-2); } .log .d { color: var(--ink-2); }
+code { background: var(--bg-2); padding: 2px 6px; border-radius: 6px; }

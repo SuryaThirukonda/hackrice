@@ -1,0 +1,20 @@
+.full, .pickup, .play { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; text-align: center; }
+.msg { font-size: clamp(26px, 6vw, 44px); font-weight: 900; }
+.sub { font-size: 18px; color: var(--ink-2); font-weight: 700; max-width: 34ch; }
+.pickup { gap: 0; padding: 0; }
+.nicks { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 14px; }
+.nicks .pill { padding: 8px 16px; font-size: 15px; }
+.devnote { padding: 8px; font-size: 13px; color: var(--ink-2); font-weight: 700; }
+.bar { width: min(80vw, 520px); height: 22px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--blue); transition: width 120ms linear; }
+.play { justify-content: space-between; background: var(--bg); transition: background 80ms; }
+.play.input { background: #e6f7e2; }
+.play.flash { background: var(--blue); color: #fff; }
+.play .top { width: 100%; display: flex; justify-content: space-between; align-items: center; font-weight: 900; font-size: 18px; }
+.play .prompt { font-size: clamp(34px, 9vw, 72px); font-weight: 900; }
+.play .countdown { font-size: clamp(40px, 12vw, 96px); font-weight: 900; color: var(--blue-deep); line-height: 1; }
+.play.flash .countdown { color: #fff; }
+.meter { width: 100%; height: 34px; background: rgba(0,0,0,0.08); border-radius: 999px; overflow: hidden; }
+.meter .fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--yellow), var(--red)); transition: width 40ms linear; }
+.devbar { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.devbar .pill { padding: 6px 12px; font-size: 13px; }

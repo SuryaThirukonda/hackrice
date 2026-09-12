@@ -1,0 +1,20 @@
+# python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+backend/.pytest_cache/
+backend/.env
+backend/hap.db
+backend/hap.db-*
+backend/logs/
+# node
+web/node_modules/
+web/dist/
+# generated
+assets/audio/cache/
+traces/real/
+.DS_Store
+
+# secrets at repo root
+.env
