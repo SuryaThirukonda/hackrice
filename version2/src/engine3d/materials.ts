@@ -25,6 +25,7 @@ vec3 combineColor(vec3 albedo, vec3 sheenSpecularity, float clearcoatSpecularity
 }
 `
 export function applyToon(m: StandardMaterial): StandardMaterial {
+  m.shaderChunksVersion = '2.22'
   const g = m.getShaderChunks(SHADERLANGUAGE_GLSL)
   g.set('lightDiffuseLambertPS', TOON_LAMBERT)
   g.set('combinePS', TOON_COMBINE)

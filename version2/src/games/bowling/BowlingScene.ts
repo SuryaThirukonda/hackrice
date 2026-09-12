@@ -11,6 +11,7 @@ import { applyAim, BOWLING_HELP, BOWLING_KEYS, bowlingInput, defaultAim, keyLabe
 import { bowlingPractice, type PracticeStep, type PracticeView } from './tutorial'
 import { BowlingHud } from './hud/BowlingHud'
 import { BowlingWorld } from './render/BowlingWorld'
+import { lerpBowlingView } from './render/interp'
 import { BowlingGame } from './sim/game'
 import { TIERS } from './sim/bot'
 import { HZ } from './sim/constants'
@@ -31,6 +32,7 @@ export class BowlingScene extends Phaser.Scene {
   private detach: (() => void) | null = null
   private acc = 0
   private curr!: Snapshot
+  private prev!: Snapshot
   private aim: AimState = defaultAim()
   private charging = false
   private chargeStart = 0
@@ -59,7 +61,7 @@ export class BowlingScene extends Phaser.Scene {
     this.seed = seed
     const bot = d.practice ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
     this.sim = new BowlingGame({ seed, botB: bot })
-    this.curr = this.sim.snapshot()
+    this.prev = this.curr = this.sim.snapshot()
     const settings = loadSettings()
     sfx.enabled = settings.sound
     this.bindings = { ...BOWLING_KEYS, ...(settings.bindings.bowling as Partial<BowlingBindings> | undefined) }
@@ -195,18 +197,20 @@ export class BowlingScene extends Phaser.Scene {
     this.acc += Math.min(deltaMs, 100)
     const wasPhase = this.sim.phase, wasCurrent = this.sim.current, wasBall = this.sim.ball
     while (this.acc >= STEP_MS) {
+      this.prev = this.curr
       this.sim.step()
+      this.curr = this.sim.snapshot()
       if (this.sim.events.length) {
         const batch = this.sim.events
         for (const e of batch) this.onEvent(e, batch)
-        if (this.steps.length) { this.curr = this.sim.snapshot(); this.practice(batch) }
+        if (this.steps.length) this.practice(batch)
       }
       this.acc -= STEP_MS
     }
-    this.curr = this.sim.snapshot()
     if (this.sim.phase !== wasPhase || this.sim.current !== wasCurrent || this.sim.ball !== wasBall) this.updateTurn()
     if (this.steps.length && !this.sim.events.length) this.practice([])
-    this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path())
+    const view = lerpBowlingView(this.prev, this.curr, Math.min(1, this.acc / STEP_MS))
+    this.world.apply(view, this.humanTurn ? this.swayed() : null, dtS, this.path())
     this.hud.update(this.curr, dtS)
   }
 
@@ -249,6 +253,8 @@ export class BowlingScene extends Phaser.Scene {
 
   /** Dev/test hook: the event log so replays can be compared. */
   getEventLog(): string[] { return this.eventLog }
+  /** Dev/test hook: a copy of the authoritative simulation snapshot, never the interpolated render view. */
+  getSnapshot(): Snapshot { return structuredClone(this.sim.snapshot()) }
 
   private shutdown(): void {
     this.detach?.(); this.detach = null
