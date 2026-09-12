@@ -18,8 +18,9 @@ cd backend && uv run --env-file .env uvicorn app.main:app --port 8000 --reload
 cd web && npm run dev -- --host          # Vite :5173 proxies /api and /ws to :8000
 ```
 ```bash
-# human step: phones need an HTTPS origin for motion sensors. Paste the printed URL into the host page's "Public URL".
-npx wrangler tunnel quick-start --url http://localhost:5173     # or: cloudflared tunnel --url http://localhost:5173
+# human step: gives phones an HTTPS origin (required for motion sensors). Paste the printed URL into the host page.
+# Wrangler downloads cloudflared itself; no sudo needed. Plain `cloudflared tunnel --url http://localhost:5173` also works.
+npx wrangler tunnel quick-start --url http://localhost:5173
 ```
 
 ### Production (one process, no Vite)
@@ -35,6 +36,26 @@ same origin (`/ws`). Point the tunnel (or the Cloudflare Worker, below) at `:800
 `/audio/*` to the laptop's tunnel URL stored in KV. Deploying needs the user's `wrangler login`; see `cf/README.md`. The host
 page has an "Edge Worker backend" form (`host.set_backend_url`) that POSTs the tunnel URL to the Worker's `/backend/set`,
 so when the tunnel URL changes only that field changes.
+
+## Godot first-person phone game
+
+The standalone Godot project is now a playable first-person golf range. It
+accepts two low-latency Wii-style phone controllers: calibrated phone tilt
+aims the camera and golf swing power launches a physics ball. Start it with:
+
+```bash
+godot --path godot
+```
+
+With the Vite server and HTTPS tunnel above running, open
+`https://<tunnel>/controller?player=1` and
+`https://<tunnel>/controller?player=2` on the phones. Arrow keys provide a
+desktop aim fallback. Full setup, telemetry details, and tuning guidance are in
+[`docs/PHONE_CONTROLLER.md`](docs/PHONE_CONTROLLER.md).
+
+Golf shots also call the backend commentator. `OPENAI_KEY` generates a fresh
+short reaction and `ELEVENLABS_API_KEY` voices it; missing keys fall back to
+local lines and subtitles without blocking gameplay.
 
 ### Environment knobs (`backend/.env`, see `.env.example`)
 | Variable | Effect |

@@ -13,6 +13,7 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
       '/audio': 'http://localhost:8000',
       '/ws': { target: 'ws://localhost:8000', ws: true },
+      '/controller-ws': { target: 'ws://localhost:9080', ws: true },
     },
   },
   build: { outDir: 'dist', sourcemap: false },

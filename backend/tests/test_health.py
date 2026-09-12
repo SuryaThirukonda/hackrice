@@ -10,6 +10,15 @@ def test_health():
         assert r.status_code == 200 and r.json()["ok"] is True
 
 
+def test_godot_commentary_endpoint_has_offline_fallback():
+    with TestClient(app) as c:
+        r = c.post("/api/commentary", json={"player": "controller_1", "power": 82, "shot": 1})
+        assert r.status_code == 200
+        payload = r.json()
+        assert payload["text"] and "82" in payload["text"]
+        assert "url" in payload
+
+
 def test_config_loads_all_sections():
     cfg = Config.load()
     assert cfg.get("motion.swing.omega_arm_dps") == 90

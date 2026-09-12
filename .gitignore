@@ -18,3 +18,4 @@ traces/real/
 
 # secrets at repo root
 .env
+web/public/join-config.json

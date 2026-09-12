@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -16,12 +17,14 @@ from .config import BACKEND_DIR, Config
 from .protocol import ProtocolError, ROLES, parse_client
 from .store.db import Store
 from .wiring import Arena, build_arena
+from .voice.commentator import GameCommentator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("hap.main")
 
 config = Config.load()
 arena: Arena | None = None
+commentator = GameCommentator(config.openai_key)
 WEB_DIST = BACKEND_DIR.parent / "web" / "dist"
 AUDIO_CACHE = (BACKEND_DIR / config.get("voice.tts.cache_dir", "../assets/audio/cache")).resolve()
 
@@ -40,6 +43,9 @@ async def lifespan(app: FastAPI):
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
+        voice = arena.modules.get("voice.wiring")
+        if voice is not None:
+            await voice.close()
         if store:
             store.close()
 
@@ -69,6 +75,32 @@ async def qr_png(text: str, size: int = 8):
 async def seats():
     assert arena
     return {"seats": arena.state.seats_public(), "rail_url": arena.state.rail_url()}
+
+
+class CommentaryRequest(BaseModel):
+    event: str = Field(default="golf_shot", max_length=32)
+    player: str = Field(default="controller_1", max_length=32)
+    power: float = Field(ge=0, le=100)
+    shot: int = Field(default=1, ge=1)
+
+
+@app.post("/api/commentary")
+async def commentary(request: CommentaryRequest):
+    """Generate a short line, synthesize it through the shared ElevenLabs cache."""
+    assert arena
+    voice = arena.modules.get("voice.wiring")
+    event = request.model_dump()
+    text = await commentator.line(event)
+    if voice is None:
+        return {"text": text, "url": None, "duration_ms": 1200, "cached": False}
+    voice_id = voice.voices.get("announcer_a", "")
+    audio = await voice.tts.synth(voice_id, text)
+    return {
+        "text": text,
+        "url": audio.get("url"),
+        "duration_ms": audio.get("duration_ms", 1200),
+        "cached": audio.get("cached", False),
+    }
 
 
 @app.websocket("/ws")

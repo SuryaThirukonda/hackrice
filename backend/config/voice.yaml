@@ -1,5 +1,5 @@
 tts:
-  model_id: eleven_flash_v2_5
+  model_id: eleven_multilingual_v2
   output_format: mp3_44100_128
   timeout_s: 3.0
   cache_dir: ../assets/audio/cache
