@@ -1,7 +1,19 @@
-# Godot Phone Controller Receiver
+# Godot Phone Sports Club
 
-Minimal Godot 4.x receiver and diagnostic scene for two Wii-style phone
-controllers. Networking lives entirely in the autoloaded
+Current main scene uses `scripts/match_scene.gd` and separate boxing, golf,
+and bowling rule models. See `../docs/HANDOFF.md` for current match controls.
+Godot sets the phone sport. Both human-vs-human and human-vs-AI have automatic
+turn progression. The setup notes below describe the earlier range receiver.
+
+From the repository root, run regressions with:
+
+```sh
+HAP_CONTROLLER_PORT=19089 godot --headless --path godot res://tests/match_rules.tscn
+HAP_CONTROLLER_PORT=19089 godot --headless --path godot res://tests/controller_ui.tscn
+```
+
+Godot 4.x first-person golf range for two Wii-style phone controllers.
+Networking lives entirely in the autoloaded
 `ControllerManager`; game scenes only need to subscribe to its signals.
 
 ## Run
@@ -10,10 +22,10 @@ controllers. Networking lives entirely in the autoloaded
 2. Open Godot Project Manager, choose **Import**, and select:
 
    ```text
-   /Users/atrjar/hackrice_parentFolder/hackrice/godot/project.godot
+   /path/to/hackrice/godot/project.godot
    ```
 
-3. Click **Run Project** or press **F6/F5**. The diagnostic scene starts and
+3. Click **Run Project** or press **F6/F5**. The golf range starts and
    `ControllerManager` listens on all interfaces on TCP port `9080`.
 4. If macOS asks whether Godot may accept incoming connections, choose
    **Allow**.
@@ -74,10 +86,20 @@ at `-1`.
 Motion telemetry is optional debug traffic. Stale motion (`seq` less than or
 equal to the last accepted sequence on that connection) is ignored.
 
+### Aim stick
+
+```json
+{"type":"stick","controllerId":"controller_1","seq":42,"t":59344.0,"stick":[0.31,-0.18],"calibrated":true}
+```
+
+`stick` is a screen-relative two-axis vector clamped to the unit circle. It is
+derived from phone tilt relative to the pose held during calibration and sent
+at up to 30 Hz independently of debug motion telemetry.
+
 ### Gesture
 
 ```json
-{"type":"gesture","controllerId":"controller_1","seq":42,"eventId":"controller_1_42","t":59347.4,"gesture":"punch","power":81,"direction":[0.82,0.14,-0.31],"peakAcceleration":19.4,"peakRotation":122.7,"duration":118}
+{"type":"gesture","controllerId":"controller_1","seq":43,"eventId":"controller_1_43","t":59347.4,"gesture":"punch","power":81,"direction":[0.82,0.14,-0.31],"peakAcceleration":19.4,"peakRotation":122.7,"duration":118}
 ```
 
 Supported gesture names are `punch`, `golf_swing`, and `bowling_swing`.
@@ -112,7 +134,7 @@ directly comparable.
 ### Controller action
 
 ```json
-{"type":"action","controllerId":"controller_1","seq":43,"eventId":"controller_1_action_43","t":59401.2,"sport":"boxing","action":"block_start"}
+{"type":"action","controllerId":"controller_1","seq":44,"eventId":"controller_1_action_44","t":59401.2,"sport":"boxing","action":"block_start"}
 ```
 
 Supported actions are `block_start`, `block_end`, `emergency_power`,
@@ -151,6 +173,7 @@ Available signals:
 - `controller_connected(controller_id)`
 - `controller_disconnected(controller_id)`
 - `motion_received(controller_id, motion)`
+- `stick_received(controller_id, stick)`
 - `gesture_received(controller_id, gesture)`
 - `controller_action(controller_id, action, payload)`
 - `punch(controller_id, power, direction)`
@@ -162,3 +185,33 @@ Available signals:
 Read a safe copy of current diagnostic state with
 `ControllerManager.get_controller_state("controller_1")` or
 `ControllerManager.get_all_controller_states()`.
+
+The included `main.gd` maps stick input to yaw/pitch and `golf_swing` power to
+a physics impulse. When both phones are connected, the most recently aimed or
+swung controller becomes active and each player's balls use a distinct color.
+
+## AI commentator
+
+Run the backend alongside Godot:
+
+```bash
+cd backend
+uv run --env-file .env uvicorn app.main:app --port 8000 --reload
+```
+
+Copy `backend/.env.example` to `backend/.env` and set:
+
+- `OPENAI_KEY` for fresh event-aware commentary text.
+- `ELEVENLABS_API_KEY` for spoken commentary using the configured announcer
+  voice and on-disk MP3 cache.
+
+The feature degrades safely: ElevenLabs without OpenAI voices deterministic
+play-by-play, and no keys still produces on-screen fallback commentary. Set
+`HAP_COMMENTARY_URL` when the backend is not at `http://127.0.0.1:8000`.
+
+Verify the configured key/voice with one short cached phrase:
+
+```bash
+cd backend
+uv run --env-file .env python -m scripts.verify_elevenlabs
+```

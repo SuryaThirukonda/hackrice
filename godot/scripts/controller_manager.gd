@@ -6,6 +6,7 @@ extends Node
 signal controller_connected(controller_id: String)
 signal controller_disconnected(controller_id: String)
 signal motion_received(controller_id: String, motion: Dictionary)
+signal stick_received(controller_id: String, stick: Vector2)
 signal gesture_received(controller_id: String, gesture: Dictionary)
 signal controller_action(controller_id: String, action: String, payload: Dictionary)
 signal punch(controller_id: String, power: float, direction: Vector3)
@@ -14,7 +15,7 @@ signal bowling_swing(controller_id: String, power: float, direction: Vector3)
 signal block_changed(controller_id: String, blocking: bool)
 signal emergency_power(controller_id: String)
 
-const PORT := 9080
+const DEFAULT_PORT := 9080
 const BIND_ADDRESS := "*"
 const CONTROLLER_IDS := ["controller_1", "controller_2"]
 const MAX_EVENT_IDS := 256
@@ -26,22 +27,44 @@ var _controllers: Dictionary = {}
 var _seen_event_ids: Dictionary = {}
 var _event_id_order: Dictionary = {}
 var _listen_error := OK
+var _port := DEFAULT_PORT
+var active_sport := "golf"
+var guards := {"controller_1":false,"controller_2":false}
+
+func set_guard_feedback(id: String, active: bool) -> void:
+	if guards.get(id,false)==active: return
+	guards[id]=active
+	for peer in _peers:
+		if peer["controller_id"]==id:
+			_send_json(peer,{"type":"game_state","sport":active_sport,"blocking":active})
+
+
+func set_active_sport(sport: String) -> void:
+	if sport not in ["boxing", "golf", "bowling"]: return
+	active_sport = sport
+	guards={"controller_1":false,"controller_2":false}
+	for peer_record in _peers:
+		if not String(peer_record["controller_id"]).is_empty():
+			_send_json(peer_record, {"type": "game_state", "sport": active_sport,"blocking":false})
 
 
 func _ready() -> void:
+	var configured_port := OS.get_environment("HAP_CONTROLLER_PORT")
+	if configured_port.is_valid_int():
+		_port = int(configured_port)
 	for controller_id in CONTROLLER_IDS:
 		_controllers[controller_id] = _new_controller_state(controller_id)
 		_seen_event_ids[controller_id] = {}
 		_event_id_order[controller_id] = []
 
-	_listen_error = _server.listen(PORT, BIND_ADDRESS)
+	_listen_error = _server.listen(_port, BIND_ADDRESS)
 	if _listen_error != OK:
 		push_error(
 			"ControllerManager could not listen on port %d: %s"
-			% [PORT, error_string(_listen_error)]
+			% [_port, error_string(_listen_error)]
 		)
 	else:
-		print("ControllerManager listening for WebSockets on port %d" % PORT)
+		print("ControllerManager listening for WebSockets on port %d" % _port)
 
 
 func _process(_delta: float) -> void:
@@ -96,6 +119,10 @@ func get_listen_error() -> int:
 	return _listen_error
 
 
+func get_port() -> int:
+	return _port
+
+
 func get_controller_state(controller_id: String) -> Dictionary:
 	if not _controllers.has(controller_id):
 		return {}
@@ -136,6 +163,11 @@ func _new_controller_state(controller_id: String) -> Dictionary:
 			"rtt_now_ms": -1.0,
 			"rtt_median_ms": -1.0,
 			"rtt_p95_ms": -1.0,
+		},
+		"stick": {
+			"vector": [0.0, 0.0],
+			"calibrated": false,
+			"last_receive_time_ms": 0,
 		},
 		"sensor": {
 			"rate_hz": 0.0,
@@ -215,6 +247,11 @@ func _handle_message(peer_record: Dictionary, message: Dictionary) -> void:
 			return
 
 	match message_type:
+		"stick":
+			if not message.has("controllerId"):
+				_send_error(peer_record, "controller_id_required", "stick requires controllerId")
+				return
+			_handle_stick(controller_id, message)
 		"motion":
 			if not message.has("controllerId"):
 				_send_error(
@@ -308,6 +345,8 @@ func _send_hello_ack(peer_record: Dictionary, controller_id: String) -> void:
 		"ok": true,
 		"controllerId": controller_id,
 		"serverTime": Time.get_ticks_msec(),
+		"sport": active_sport,
+		"blocking": guards.get(controller_id,false),
 	})
 
 
@@ -324,6 +363,27 @@ func _handle_motion(controller_id: String, message: Dictionary) -> void:
 	_touch_controller(controller_id, message)
 	_update_sensor_state(state, message)
 	motion_received.emit(controller_id, message.duplicate(true))
+
+
+func _handle_stick(controller_id: String, message: Dictionary) -> void:
+	var sequence := _read_sequence(message)
+	if sequence < 0:
+		return
+	var state: Dictionary = _controllers[controller_id]
+	if sequence <= int(state["last_sequence"]):
+		return
+	var pair := _read_pair(message.get("stick", []))
+	var vector := Vector2(pair[0], pair[1])
+	if vector.length_squared() > 1.0:
+		vector = vector.normalized()
+	state["last_sequence"] = sequence
+	state["stick"] = {
+		"vector": [vector.x, vector.y],
+		"calibrated": bool(message.get("calibrated", false)),
+		"last_receive_time_ms": Time.get_ticks_msec(),
+	}
+	_touch_controller(controller_id, message)
+	stick_received.emit(controller_id, vector)
 
 
 func _handle_gesture(controller_id: String, message: Dictionary) -> void:
@@ -522,6 +582,15 @@ func _read_triplet(value: Variant) -> Array:
 		_read_number(value[0], 0.0),
 		_read_number(value[1], 0.0),
 		_read_number(value[2], 0.0),
+	]
+
+
+func _read_pair(value: Variant) -> Array:
+	if typeof(value) != TYPE_ARRAY or value.size() < 2:
+		return [0.0, 0.0]
+	return [
+		clampf(_read_number(value[0], 0.0), -1.0, 1.0),
+		clampf(_read_number(value[1], 0.0), -1.0, 1.0),
 	]
 
 

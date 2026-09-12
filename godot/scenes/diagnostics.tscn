@@ -1,0 +1,206 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/diagnostics.gd" id="1_main"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.025, 0.035, 0.065, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 34.0
+offset_top = 28.0
+offset_right = -34.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "PHONE WII REMOTE  /  GODOT RECEIVER"
+
+[node name="Subtitle" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.59, 0.66, 0.78, 1)
+theme_override_font_sizes/font_size = 16
+text = "Two-controller WebSocket diagnostic • gesture events dispatch directly from ControllerManager"
+
+[node name="ServerStatus" type="Label" parent="Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.95, 0.66, 1)
+theme_override_font_sizes/font_size = 15
+text = "STARTING RECEIVER…"
+
+[node name="TopSpacer" type="Control" parent="Margin/Layout"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="Cards" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 22
+
+[node name="Controller1Card" type="PanelContainer" parent="Margin/Layout/Cards"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="Content" type="VBoxContainer" parent="Margin/Layout/Cards/Controller1Card"]
+layout_mode = 2
+theme_override_constants/separation = 11
+
+[node name="Player" type="Label" parent="Margin/Layout/Cards/Controller1Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 25
+text = "PLAYER 1  /  controller_1"
+
+[node name="P1Connection" type="Label" parent="Margin/Layout/Cards/Controller1Card/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "○ DISCONNECTED"
+
+[node name="Divider" type="HSeparator" parent="Margin/Layout/Cards/Controller1Card/Content"]
+layout_mode = 2
+
+[node name="P1Metrics" type="Label" parent="Margin/Layout/Cards/Controller1Card/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 166)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.79, 0.84, 0.92, 1)
+theme_override_font_sizes/font_size = 15
+text = "CONNECTIONS  0    PACKETS  0    GESTURES  0\nSEQ  -1        PACKET AGE  —\nSENSOR  0.0 Hz    INTERVAL  0.0 ms\nACCEL  [+0.0, +0.0, +0.0]    |a| 0.0\nROT     [+0.0, +0.0, +0.0]    |r| 0.0\nRTT NOW / MED / P95   — / — / —"
+vertical_alignment = 1
+
+[node name="GestureSpacer" type="Control" parent="Margin/Layout/Cards/Controller1Card/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LastEventTitle" type="Label" parent="Margin/Layout/Cards/Controller1Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.57, 0.65, 0.76, 1)
+theme_override_font_sizes/font_size = 13
+text = "LAST GESTURE"
+
+[node name="P1Gesture" type="Label" parent="Margin/Layout/Cards/Controller1Card/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "WAITING FOR INPUT"
+
+[node name="P1Direction" type="Label" parent="Margin/Layout/Cards/Controller1Card/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.76, 0.81, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "DIRECTION  X +0.00   Y +0.00   Z +0.00"
+
+[node name="P1Power" type="ProgressBar" parent="Margin/Layout/Cards/Controller1Card/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+show_percentage = false
+
+[node name="Controller2Card" type="PanelContainer" parent="Margin/Layout/Cards"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="Content" type="VBoxContainer" parent="Margin/Layout/Cards/Controller2Card"]
+layout_mode = 2
+theme_override_constants/separation = 11
+
+[node name="Player" type="Label" parent="Margin/Layout/Cards/Controller2Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.68, 1, 1)
+theme_override_font_sizes/font_size = 25
+text = "PLAYER 2  /  controller_2"
+
+[node name="P2Connection" type="Label" parent="Margin/Layout/Cards/Controller2Card/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "○ DISCONNECTED"
+
+[node name="Divider" type="HSeparator" parent="Margin/Layout/Cards/Controller2Card/Content"]
+layout_mode = 2
+
+[node name="P2Metrics" type="Label" parent="Margin/Layout/Cards/Controller2Card/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 166)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.79, 0.84, 0.92, 1)
+theme_override_font_sizes/font_size = 15
+text = "CONNECTIONS  0    PACKETS  0    GESTURES  0\nSEQ  -1        PACKET AGE  —\nSENSOR  0.0 Hz    INTERVAL  0.0 ms\nACCEL  [+0.0, +0.0, +0.0]    |a| 0.0\nROT     [+0.0, +0.0, +0.0]    |r| 0.0\nRTT NOW / MED / P95   — / — / —"
+vertical_alignment = 1
+
+[node name="GestureSpacer" type="Control" parent="Margin/Layout/Cards/Controller2Card/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LastEventTitle" type="Label" parent="Margin/Layout/Cards/Controller2Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.57, 0.65, 0.76, 1)
+theme_override_font_sizes/font_size = 13
+text = "LAST GESTURE"
+
+[node name="P2Gesture" type="Label" parent="Margin/Layout/Cards/Controller2Card/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "WAITING FOR INPUT"
+
+[node name="P2Direction" type="Label" parent="Margin/Layout/Cards/Controller2Card/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.76, 0.81, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "DIRECTION  X +0.00   Y +0.00   Z +0.00"
+
+[node name="P2Power" type="ProgressBar" parent="Margin/Layout/Cards/Controller2Card/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+show_percentage = false
+
+[node name="FooterSpacer" type="Control" parent="Margin/Layout"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+
+[node name="Footer" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.46, 0.53, 0.65, 1)
+theme_override_font_sizes/font_size = 13
+text = "Signals: controller_connected • controller_disconnected • motion_received • gesture_received • punch • golf_swing • bowling_swing"
+horizontal_alignment = 1
+

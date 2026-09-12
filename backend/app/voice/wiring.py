@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import random
 from pathlib import Path
@@ -105,6 +106,14 @@ class VoiceModule:
                 self.arena.store.write("voice_lines", {"match_id": item["match_id"], "speaker": item["speaker"], "priority": item["priority"], "text": item["text"],
                                                        "cache_key": res.get("cache_key"), "requested_ts": item["requested_ms"] / 1000, "played_ts": self.loop.clock.now()})
         self._start_next()
+
+    async def close(self) -> None:
+        close = getattr(self.tts, "close", None)
+        if close is None:
+            return
+        result = close()
+        if inspect.isawaitable(result):
+            await result
 
 
 def install(arena) -> VoiceModule:

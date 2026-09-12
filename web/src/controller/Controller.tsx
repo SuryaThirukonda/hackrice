@@ -26,7 +26,9 @@ import {
   type Vector3,
 } from './motionProcessor'
 import { applyEmergencyPower } from './actions'
+import { TiltStickProcessor, type StickSnapshot } from './tiltStick'
 import './controller.css'
+import './play.css'
 
 type Player = 1 | 2
 type MotionState = 'off' | 'requesting' | 'enabled' | 'denied' | 'unavailable'
@@ -116,6 +118,26 @@ export default function Controller() {
   const [emergencyArmed, setEmergencyArmed] = useState(false)
   const [lastAction, setLastAction] = useState('')
   const socketRef = useRef<ControllerSocket | null>(null)
+  const movementRef = useRef<[number, number]>([0, 0])
+  const [heldDirection, setHeldDirection] = useState('')
+  const move = (direction: string, x: number, y: number) => {
+    movementRef.current = [x, y]
+    setHeldDirection(direction)
+  }
+  useEffect(() => {
+    const stop = () => { movementRef.current = [0, 0]; setHeldDirection('') }
+    const timer = window.setInterval(() => socketRef.current?.sendStick({
+      vector: movementRef.current, raw: movementRef.current,
+      calibration: 'calibrated', calibrationProgress: 1,
+    }), 40)
+    window.addEventListener('blur', stop)
+    document.addEventListener('visibilitychange', stop)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('blur', stop)
+      document.removeEventListener('visibilitychange', stop)
+    }
+  }, [])
   const sourceRef = useRef<MotionSource | null>(null)
   const telemetryRef = useRef(debugMode)
   const flashTimerRef = useRef<number | null>(null)
@@ -131,8 +153,12 @@ export default function Controller() {
     next.setDetectionEnabled(false)
     return next
   })
+  const [tiltStick] = useState(() => new TiltStickProcessor())
   const [snapshot, setSnapshot] = useState<MotionSnapshot>(
     () => processor.getSnapshot(),
+  )
+  const [stickSnapshot, setStickSnapshot] = useState<StickSnapshot>(
+    () => tiltStick.getSnapshot(),
   )
 
   useEffect(() => {
@@ -179,12 +205,13 @@ export default function Controller() {
   useEffect(() => {
     const refresh = () => {
       setSnapshot(processor.getSnapshot())
+      setStickSnapshot(tiltStick.getSnapshot())
       setAccelerationMode(sourceRef.current?.accelerationMode ?? 'waiting')
     }
     refresh()
     const timer = window.setInterval(refresh, CONTROLLER_CONFIG.ui.refreshMs)
     return () => window.clearInterval(timer)
-  }, [processor])
+  }, [processor, tiltStick])
 
   useEffect(() => () => {
     sourceRef.current?.stop()
@@ -208,6 +235,7 @@ export default function Controller() {
 
     sourceRef.current?.stop()
     processor.reset()
+    tiltStick.reset()
     setAccelerationMode('waiting')
     setSnapshot(processor.getSnapshot())
     setMotionState('requesting')
@@ -219,6 +247,7 @@ export default function Controller() {
     try {
       await source.start((sample) => {
         const processed = processor.push(sample)
+        tiltStick.push(sample)
         const socket = socketRef.current
         socket?.setSensorHz(processed.sensorHz)
         if (telemetryRef.current) socket?.sendMotion(processed)
@@ -259,6 +288,8 @@ export default function Controller() {
         }
       },
       onMetrics: setRtt,
+      onSport: nextSport => { if (sportRef.current !== nextSport) selectSport(nextSport) },
+      onBlocking: active => { blockingRef.current = active; setBlocking(active) },
     })
     socket.setSensorHz(processor.getSnapshot().sensorHz)
     socketRef.current = socket
@@ -345,6 +376,7 @@ export default function Controller() {
   const startAttempt = () => {
     if (sportRef.current === 'boxing' || snapshot.calibration !== 'calibrated') return
     cancelAttempt()
+    sendControllerAction('placeholder_primary', 'Aim locked')
     setLastGesture(null)
     setFlash(null)
     attemptPhaseRef.current = 'countdown'
@@ -420,6 +452,7 @@ export default function Controller() {
   const calibrate = () => {
     cancelAttempt()
     processor.startCalibration()
+    tiltStick.startCalibration()
     setSnapshot(processor.getSnapshot())
     setLastGesture(null)
     setFlash(null)
@@ -462,7 +495,7 @@ export default function Controller() {
         ? String(lastGesture.gesture.power)
         : '—'
   const scoreMessage = sport === 'boxing'
-    ? 'Punch in any direction. Each punch produces one score.'
+    ? 'First punch after calibration sets forward. Retract freely — only forward power counts.'
     : attemptPhase === 'countdown'
       ? 'Get ready…'
       : attemptPhase === 'capturing'
@@ -471,14 +504,51 @@ export default function Controller() {
           ? lastGesture
             ? 'Attempt complete.'
             : 'No complete motion detected. Try again.'
-          : 'Press Start Motion when you are ready.'
+          : 'Press A when you are ready.'
+
+
+  if (!debugMode) return (
+    <main className={`play-remote sport-${sport}`}>
+      <header className="remote-top"><a href="/">‹ Sports club</a><span className={connectionState === 'connected' ? 'live' : ''}>● {connectionState === 'connected' ? 'Connected' : 'Not connected'}</span></header>
+      <div className="remote-title"><span className="remote-badge">{SPORTS.find(s => s.value === sport)?.icon}</span><h1>Controller {player}</h1><p>Your move. Your power.</p></div>
+      <p className="sport-status">{connectionState === 'connected' ? `${sport === 'golf' ? 'Mini golf' : sport === 'boxing' ? 'Boxing' : 'Bowling'} · set by Godot` : 'Connect to sync sport with Godot'}</p>
+      <section className="remote-setup" aria-label="Connect your controller">
+        {motionState !== 'enabled' && <button disabled={motionState === 'requesting'} onClick={enableMotion}>① Enable motion</button>}
+        {connectionState !== 'connected' && <button disabled={connectDisabled} onClick={connect}>② Connect</button>}
+        {motionState === 'enabled' && snapshot.calibration !== 'calibrated' && <button disabled={snapshot.calibration === 'calibrating'} onClick={calibrate}>③ {snapshot.calibration === 'calibrating' ? 'Hold still…' : 'Calibrate'}</button>}
+        <p role="status">{motionError || (snapshot.calibration !== 'calibrated' ? snapshot.calibrationMessage : 'Ready! Hold your phone securely and give yourself space.')}</p>
+      </section>
+      <section className="remote-score" aria-live="polite"><small>{attemptActive ? 'Get ready' : 'Your power'}</small><strong>{scoreValue}</strong><p>{scoreMessage}</p></section>
+      <section className="console-shell" aria-label="Gamepad">
+        <div className="console-mark">MOTION CLUB <span>● ● ●</span></div>
+        <div className="console-controls">
+          <div className="dpad" aria-label="Move character">
+            {([{label:'Up',x:0,y:-1},{label:'Left',x:-1,y:0},{label:'Right',x:1,y:0},{label:'Down',x:0,y:1}] as const).map(d => <button key={d.label} className={`dpad-${d.label.toLowerCase()}`} aria-label={d.label} aria-pressed={heldDirection === d.label}
+              onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); move(d.label,d.x,d.y) }}
+              onPointerUp={() => move('',0,0)} onPointerCancel={() => move('',0,0)} onLostPointerCapture={() => move('',0,0)}
+              onKeyDown={e => { if(e.key === ' ' || e.key === 'Enter') {e.preventDefault();move(d.label,d.x,d.y)} }}
+              onKeyUp={() => move('',0,0)} onBlur={() => move('',0,0)}>{d.label}</button>)}
+            <span className="dpad-center">✦</span>
+          </div>
+          <div className="face-buttons">
+            <div><button className="face-a" aria-label={sport === 'boxing' ? 'A Block' : 'A Start motion'} aria-pressed={blocking} disabled={sport !== 'boxing' && !attemptReady} onClick={sport === 'boxing' ? toggleBlock : startAttempt}>A</button></div>
+            <div><button className="face-b" aria-label={sport === 'boxing' ? 'B Emergency power' : attemptActive ? 'B Cancel motion' : 'B Toggle aim mode'} aria-pressed={emergencyArmed} onClick={sport === 'boxing' ? armEmergencyPower : () => { if (attemptActive) cancelAttempt(); else sendControllerAction('placeholder_secondary', 'Aim / movement toggled') }}>B</button></div>
+          </div>
+        </div>
+        <div className="console-grille">▰ ▰ ▰ ▰ ▰</div>
+      </section>
+      <p className="remote-feedback" role="status">{lastAction || (sport === 'boxing' ? 'Punch toward your opponent. Recalibrate if you change your grip.' : 'B switches move / aim. In aim mode: Left/Right aim, Up/Down club or hook. A locks aim — swing on GO.')}</p>
+      <details className="remote-options"><summary>Controller settings</summary><button onClick={calibrate} disabled={motionState !== 'enabled'}>Recalibrate</button><button onClick={disconnect}>Disconnect</button><button onClick={() => selectPlayer(player === 1 ? 2 : 1)}>Use Controller {player === 1 ? 2 : 1} (testing)</button><a href={`/controller?player=${player}&debug=1${fakeMode ? '&fake=1' : ''}`}>Motion diagnostics</a></details>
+      {fakeMode && <section className="remote-options"><p>Desktop test input</p>{(['jab','hook','swing'] as const).map(g => <button key={g} onClick={() => triggerSynthetic(g)} disabled={motionState !== 'enabled'}>{g}</button>)}</section>}
+    </main>
+  )
 
   return (
     <main className={`controller-page player-${player}`}>
       <header className="controller-header">
         <div>
           <div className="controller-eyebrow">PHONE CONTROLLER</div>
-          <h1>Player {player}</h1>
+          <h1>Controller {player}</h1>
         </div>
         <div className={`connection-pill state-${connectionState}`}>
           <span className="status-dot" />
@@ -498,27 +568,14 @@ export default function Controller() {
                 aria-pressed={player === value}
                 onClick={() => selectPlayer(value)}
               >
-                P{value}
+                Controller {value}
               </button>
             ))}
           </div>
         </div>
         <div className="field-group">
           <div className="field-label">Sport</div>
-          <div className="segmented sports">
-            {SPORTS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={sport === option.value ? 'selected' : ''}
-                aria-pressed={sport === option.value}
-                onClick={() => selectSport(option.value)}
-              >
-                <span aria-hidden="true">{option.icon}</span>
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <strong>{sport} · controlled by Godot</strong>
         </div>
         {sport === 'boxing' ? (
           <div className="field-group direction-group direction-locked">
@@ -556,6 +613,13 @@ export default function Controller() {
         <StateCard label="Connection" value={connectionLabel(connectionState)} active={connectionState === 'connected'} />
         <StateCard label="Motion" value={motionState} active={motionState === 'enabled'} />
         <StateCard label="Calibration" value={snapshot.calibration} active={snapshot.calibration === 'calibrated'} />
+        <StateCard
+          label="Aim"
+          value={stickSnapshot.calibration === 'calibrated'
+            ? `${stickSnapshot.vector[0].toFixed(2)}, ${stickSnapshot.vector[1].toFixed(2)}`
+            : stickSnapshot.calibration}
+          active={stickSnapshot.calibration === 'calibrated'}
+        />
       </section>
 
       <section className="controller-actions" aria-label="Controller actions">
@@ -709,7 +773,7 @@ export default function Controller() {
         <section className="controller-panel fake-panel">
           <div>
             <div className="field-label">Desktop synthetic input</div>
-            <small>Enable motion, calibrate during the quiet lead-in, then select the matching sport.</small>
+            <small>Enable motion and calibrate during the quiet lead-in. Godot selects the sport automatically.</small>
           </div>
           <div className="fake-buttons">
             <button type="button" onClick={() => triggerSynthetic('jab')} disabled={motionState !== 'enabled'}>Jab</button>
@@ -730,7 +794,7 @@ export default function Controller() {
           <div className="gesture-power">{flash.gesture.power}</div>
           <div className="gesture-power-label">POWER</div>
           <div className="gesture-delivery">
-            {flash.sent ? `SENT TO PLAYER ${player}` : 'LOCAL ONLY · DISCONNECTED'}
+            {flash.sent ? `SENT TO CONTROLLER ${player}` : 'LOCAL ONLY · DISCONNECTED'}
           </div>
         </div>
       )}

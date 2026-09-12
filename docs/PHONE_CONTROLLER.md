@@ -1,8 +1,18 @@
 # Phone Wii Remote
 
+Current match update: Godot automatically selects the sport; no phone selector.
+Boxing learns forward from the first deliberate punch after calibration, scores
+only the forward peak, and suppresses recoil (including return braking). Keep
+the same grip; recalibrate if you change it. A toggles block, B boosts.
+For golf/bowling, A locks aim and starts the motion countdown. B cancels an
+active countdown or toggles aim mode while idle. D-pad left/right adjusts aim,
+up/down selects club/hook in aim mode; otherwise it moves. Godot handles turns.
+These mappings supersede the historical control descriptions below.
+
 The `/controller` page turns up to two iPhones into low-latency motion
-controllers for the Godot diagnostic project. Gesture detection runs on the
-phone, and only compact gesture events are sent immediately to Godot.
+controllers for the Godot first-person golf range. Gesture detection and
+calibrated tilt processing run on the phone. Compact stick and gesture events
+are sent immediately to Godot.
 
 ## Start the complete test setup
 
@@ -14,8 +24,8 @@ Both phones and the Mac must be on the same Wi-Fi network.
    godot --path godot
    ```
 
-   Allow incoming connections if macOS asks. The diagnostic scene listens on
-   local port `9080` and shows a card for each controller.
+   Allow incoming connections if macOS asks. The golf range listens on local
+   port `9080`; arrow keys can test first-person aim without a phone.
 
 2. Start the controller website:
 
@@ -45,7 +55,10 @@ Both phones and the Mac must be on the same Wi-Fi network.
    - Select its player and sport.
    - Tap **Enable Motion** and grant the iOS permission.
    - Tap **Connect**. The matching Godot card should show connected.
-   - Tap **Calibrate** and hold the phone still for about 1.2 seconds.
+   - Hold the phone in a comfortable neutral aiming pose, tap **Calibrate**,
+     and keep it still for about 1.2 seconds.
+   - Tilt from that neutral pose to aim the first-person camera. A deadzone and
+     smoothing suppress hand jitter.
    - For golf or bowling, tap **Start Motion**, wait through the three-second
      countdown, then move during the two-second `GO` window. The best complete
      motion is sent once and shown as the attempt score.
@@ -85,7 +98,13 @@ exercises the same detector, WebSocket, controller-ID, and Godot signal path.
 
 ## Data and latency
 
-Each browser sensor event is processed immediately. The visible telemetry UI
+Each browser sensor event is processed immediately. Calibrated screen-relative
+tilt is sent as a `stick: [x, y]` vector in `[-1, 1]` at up to 30 Hz. This aim
+channel is independent of the optional raw telemetry switch. The receiver
+discards stale stick state after 250 ms so interrupted streams cannot leave the
+camera drifting.
+
+The visible telemetry UI
 refreshes at 10 Hz independently of sensor processing.
 
 Confirmed gestures are sent once as small JSON messages containing:

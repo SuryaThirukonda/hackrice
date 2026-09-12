@@ -156,6 +156,10 @@ class GestureDetector {
   private cooldownUntil = 0
   private cooldownRearmed = true
   private previousAcceleration = 0
+  // Learned once from a deliberate forward punch, not re-learned on recoil.
+  private opponentDirection: Vector3 | null = null
+  private retracting = false
+  private neutralSince: number | null = null
 
   constructor(sport: Sport, directionMode: DirectionMode) {
     this.sport = sport
@@ -164,15 +168,18 @@ class GestureDetector {
 
   setSport(sport: Sport): void {
     this.sport = sport
-    this.reset()
+    this.reset(true)
   }
 
   setDirectionMode(directionMode: DirectionMode): void {
     this.directionMode = directionMode
-    this.reset()
+    this.reset(true)
   }
 
-  reset(): void {
+  reset(clearForward = false): void {
+    if (clearForward) this.opponentDirection = null
+    this.retracting = false
+    this.neutralSince = null
     this.state = 'idle'
     this.active = null
     this.armedSince = null
@@ -192,9 +199,28 @@ class GestureDetector {
       sample.acceleration,
       this.directionMode,
     )
-    const movementAcceleration = magnitude(profiledAcceleration)
+    const movementAcceleration = this.sport === 'boxing' && this.opponentDirection
+      ? positiveProjection(profiledAcceleration, this.opponentDirection)
+      : magnitude(profiledAcceleration)
     const previousAcceleration = this.previousAcceleration
     this.previousAcceleration = movementAcceleration
+
+    if (this.sport === 'boxing' && this.opponentDirection) {
+      if (dot(profiledAcceleration, this.opponentDirection) < -config.rearmAcceleration) {
+        this.retracting = true
+        this.neutralSince = null
+      }
+      if (this.retracting) {
+        // Retraction braking may accelerate forward too. Require a brief
+        // neutral grip before a new punch, rather than scoring that braking.
+        if (magnitude(profiledAcceleration) <= config.releaseAcceleration) {
+          this.neutralSince ??= sample.t
+          if (sample.t - this.neutralSince >= 100) this.retracting = false
+        } else this.neutralSince = null
+        // Let the original forward gesture finish on its negative release.
+        if (this.retracting && this.state !== 'tracking') return null
+      }
+    }
 
     if (this.state === 'cooldown') {
       if (movementAcceleration <= config.rearmAcceleration) {
@@ -222,6 +248,9 @@ class GestureDetector {
         return null
       }
       if (movementAcceleration < config.startAcceleration) return null
+      if (this.sport === 'boxing' && !this.opponentDirection) {
+        this.opponentDirection = normalize(profiledAcceleration)
+      }
       this.beginGesture(sample, profiledAcceleration)
       return null
     }
@@ -258,7 +287,7 @@ class GestureDetector {
       active.peakAccelerationAt = sample.t
       active.peakAccelerationVector = [...profiledAcceleration]
     }
-    if (positiveRotation > active.peakRotation) {
+    if (positiveRotation > active.peakRotation && (this.sport !== 'boxing' || positiveAcceleration > 0)) {
       active.peakRotation = positiveRotation
       active.peakRotationVector = [...sample.rotation]
     }
@@ -308,7 +337,8 @@ class GestureDetector {
   }
 
   private beginGesture(sample: ProcessedMotion, profiledAcceleration: Vector3): void {
-    const accelerationDirection = normalize(profiledAcceleration)
+    const accelerationDirection = this.sport === 'boxing' && this.opponentDirection
+      ? this.opponentDirection : normalize(profiledAcceleration)
     const rotationDirection = normalize(sample.rotation)
     const positiveAcceleration = positiveProjection(
       profiledAcceleration,
@@ -408,7 +438,7 @@ export class MotionProcessor {
   }
 
   reset(): void {
-    this.detector.reset()
+    this.detector.reset(true)
     this.lastSampleTime = null
     this.filterInitialized = false
     this.receiveTimes = []
@@ -420,7 +450,7 @@ export class MotionProcessor {
   }
 
   startCalibration(): void {
-    this.detector.reset()
+    this.detector.reset(true)
     this.filterInitialized = false
     this.calibrationStartedAt = null
     this.calibrationCount = 0

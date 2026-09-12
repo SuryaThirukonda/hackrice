@@ -18,10 +18,11 @@ npx wrangler tunnel quick-start http://localhost:5173
 
 Pages: `http://localhost:5173/projector`, `/host`, `/rail`, `/remote?seat=P1&tok=...` (scan a seat QR on the projector, or open `/host` for the join URLs). Add `&fake=1` to the remote URL on a laptop for synthetic motion.
 
-## Godot phone controllers
+## Godot first-person phone game
 
-The standalone Godot diagnostic project accepts two low-latency Wii-style
-phone controllers for golf, bowling, and boxing. Start it with:
+The standalone Godot project is now a playable first-person golf range. It
+accepts two low-latency Wii-style phone controllers: calibrated phone tilt
+aims the camera and golf swing power launches a physics ball. Start it with:
 
 ```bash
 godot --path godot
@@ -29,9 +30,13 @@ godot --path godot
 
 With the Vite server and HTTPS tunnel above running, open
 `https://<tunnel>/controller?player=1` and
-`https://<tunnel>/controller?player=2` on the phones. Full setup, desktop fake
-controls, telemetry details, and tuning guidance are in
+`https://<tunnel>/controller?player=2` on the phones. Arrow keys provide a
+desktop aim fallback. Full setup, telemetry details, and tuning guidance are in
 [`docs/PHONE_CONTROLLER.md`](docs/PHONE_CONTROLLER.md).
+
+Golf shots also call the backend commentator. `OPENAI_KEY` generates a fresh
+short reaction and `ELEVENLABS_API_KEY` voices it; missing keys fall back to
+local lines and subtitles without blocking gameplay.
 
 ## Modes
 

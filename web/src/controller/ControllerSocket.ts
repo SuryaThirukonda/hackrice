@@ -1,5 +1,6 @@
 import { CONTROLLER_CONFIG, type Sport } from './config'
 import type { DetectedGesture, ProcessedMotion, Vector3 } from './motionProcessor'
+import type { StickSnapshot } from './tiltStick'
 
 export type ControllerId = 'controller_1' | 'controller_2'
 export type ControllerAction =
@@ -27,6 +28,8 @@ export interface ControllerSocketOptions {
   controllerId: ControllerId
   onState: (state: ControllerConnectionState, detail?: string) => void
   onMetrics: (metrics: RttMetrics) => void
+  onSport?: (sport: Sport) => void
+  onBlocking?: (blocking: boolean) => void
 }
 
 type WireObject = Record<string, unknown>
@@ -104,6 +107,8 @@ export class ControllerSocket {
   private controllerId: ControllerId
   private onState: ControllerSocketOptions['onState']
   private onMetrics: ControllerSocketOptions['onMetrics']
+  private onSport: ControllerSocketOptions['onSport']
+  private onBlocking: ControllerSocketOptions['onBlocking']
   private ws: WebSocket | null = null
   private acknowledged = false
   private manuallyClosed = true
@@ -116,11 +121,14 @@ export class ControllerSocket {
   private rttSamples: number[] = []
   private sensorHz = 0
   private lastMotionSentAt = Number.NEGATIVE_INFINITY
+  private lastStickSentAt = Number.NEGATIVE_INFINITY
 
   constructor(options: ControllerSocketOptions) {
     this.controllerId = options.controllerId
     this.onState = options.onState
     this.onMetrics = options.onMetrics
+    this.onSport = options.onSport
+    this.onBlocking = options.onBlocking
   }
 
   connect(): void {
@@ -175,6 +183,24 @@ export class ControllerSocket {
       metrics: this.wireMetrics(),
     })
     if (sent) this.lastMotionSentAt = now
+    return sent
+  }
+
+  sendStick(stick: StickSnapshot): boolean {
+    if (!this.canSend()) return false
+    const now = performance.now()
+    const minimumInterval = 1_000 / CONTROLLER_CONFIG.stick.maxHz
+    if (now - this.lastStickSentAt < minimumInterval) return false
+    const sent = this.sendSequenced({
+      v: CONTROLLER_CONFIG.socket.protocolVersion,
+      type: 'stick',
+      controllerId: this.controllerId,
+      t: rounded(now),
+      stick: [rounded(stick.vector[0]), rounded(stick.vector[1])],
+      calibrated: stick.calibration === 'calibrated',
+      metrics: this.wireMetrics(),
+    })
+    if (sent) this.lastStickSentAt = now
     return sent
   }
 
@@ -278,6 +304,13 @@ export class ControllerSocket {
   }
 
   private handleMessage(message: WireObject, socket: WebSocket): void {
+    if ((message.type === 'game_state' && this.acknowledged)
+      || (message.type === 'hello' && message.ok === true && message.controllerId === this.controllerId)) {
+      if (message.sport === 'boxing' || message.sport === 'golf' || message.sport === 'bowling') {
+        this.onSport?.(message.sport)
+      }
+      if (typeof message.blocking === 'boolean') this.onBlocking?.(message.blocking)
+    }
     if (
       message.type === 'hello'
       && message.ok === true
@@ -288,6 +321,7 @@ export class ControllerSocket {
       this.clearHelloTimer()
       this.onState('connected')
       this.lastMotionSentAt = Number.NEGATIVE_INFINITY
+      this.lastStickSentAt = Number.NEGATIVE_INFINITY
       this.startPings()
       return
     }

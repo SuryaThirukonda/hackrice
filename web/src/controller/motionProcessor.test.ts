@@ -103,6 +103,26 @@ function swingFrames(
 }
 
 describe('MotionProcessor', () => {
+  it('suppresses the positive braking pulse at the end of a retraction', () => {
+    const { processor, events, nextTime } = calibratedProcessor('boxing')
+    let t = feedVectors(processor, nextTime, [...punchFrames(22), ...quietFrames(20)])
+    t = feedVectors(processor, t, punchFrames(70).map(f => ({ acceleration: [0,-f.acceleration[1],0] as Vector3 })))
+    feedVectors(processor, t, [...punchFrames(45), ...quietFrames(20)])
+    expect(events).toHaveLength(1)
+  })
+  it('never counts a delayed stronger retraction as a second punch', () => {
+    const { processor, events, nextTime } = calibratedProcessor('boxing')
+    let t = feedVectors(processor, nextTime, [...punchFrames(22), ...quietFrames(40)])
+    const forwardPower = events[0].power
+    t = feedVectors(processor, t, [
+      ...punchFrames(90).map(f => ({ acceleration: [0, -f.acceleration[1], 0] as Vector3, rotation: f.rotation })),
+      ...quietFrames(40),
+    ])
+    expect(events).toHaveLength(1)
+    expect(events[0].power).toBe(forwardPower)
+    feedVectors(processor, t, [...punchFrames(22), ...quietFrames(12)])
+    expect(events).toHaveLength(2)
+  })
   it('reports all six dominant directions without changing their vectors', () => {
     expect(classifyDirection([1, 0.2, 0])).toEqual({ dominantAxis: 'x', directionLabel: 'right' })
     expect(classifyDirection([-1, 0.2, 0])).toEqual({ dominantAxis: 'x', directionLabel: 'left' })

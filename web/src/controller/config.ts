@@ -56,6 +56,12 @@ export const CONTROLLER_CONFIG = {
     maxAccelerationNoise: 1.15,
     maxRotationNoise: 18,
   },
+  stick: {
+    maxTiltDegrees: 28,
+    deadzone: 0.1,
+    smoothing: 0.3,
+    maxHz: 30,
+  },
   detectors: {
     boxing: {
       gesture: 'punch',
