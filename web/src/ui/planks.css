@@ -1,0 +1,33 @@
+/* Wooden-plank jungle menu (inspired by classic mobile game menus; drawn in CSS, no external art). */
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&display=swap');
+.jungle { position: relative; width: 100%; height: 100%; min-height: 420px; border-radius: 28px; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(ellipse at 50% 20%, #7fd35b 0%, #3f9b3a 35%, #1f5f2c 70%, #143f20 100%); box-shadow: inset 0 0 0 6px #8b5a2b, inset 0 0 0 10px #c98a4b, var(--shadow); }
+.jungle::before, .jungle::after { content: ''; position: absolute; inset: -40px; pointer-events: none;
+  background:
+    radial-gradient(ellipse 140px 60px at 8% 12%, #5ecb4a 0%, transparent 70%),
+    radial-gradient(ellipse 120px 50px at 92% 10%, #63d14c 0%, transparent 70%),
+    radial-gradient(ellipse 160px 70px at 5% 90%, #2f8f3a 0%, transparent 70%),
+    radial-gradient(ellipse 160px 70px at 95% 92%, #2f8f3a 0%, transparent 70%),
+    radial-gradient(ellipse 90px 220px at 0% 50%, #43a63f 0%, transparent 70%),
+    radial-gradient(ellipse 90px 220px at 100% 50%, #43a63f 0%, transparent 70%); }
+.jungle::after { background: repeating-linear-gradient(115deg, transparent 0 34px, rgba(0,0,0,0.05) 34px 36px); mix-blend-mode: multiply; }
+.jungle .sign { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 26px 30px 30px; }
+.jungle .sign::before { content: ''; position: absolute; top: -22px; left: 50%; width: 6px; height: 40px; background: linear-gradient(#e0b56b, #8b5a2b); transform: translateX(-50%); border-radius: 3px; }
+.jungle .sign-title { font-family: 'Lilita One', 'Nunito', system-ui, sans-serif; font-size: 42px; color: #fff4d6; letter-spacing: 0.04em; text-shadow: 0 3px 0 #6b3d16, 0 6px 12px rgba(0,0,0,0.35); margin-bottom: 4px; }
+.plank { position: relative; display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; width: min(520px, 80vw); min-height: 76px; padding: 8px 14px; border: 0; cursor: pointer;
+  font-family: 'Lilita One', 'Nunito', system-ui, sans-serif; font-size: 34px; letter-spacing: 0.06em; color: #4a2a0f;
+  background: linear-gradient(180deg, #d9a05a 0%, #c48447 30%, #b7763b 55%, #c98a4b 80%, #a8672f 100%);
+  border-radius: 14px / 40px; box-shadow: inset 0 3px 0 rgba(255,235,190,0.55), inset 0 -4px 0 #7a4519, 0 8px 0 #5a2f0e, 0 14px 18px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 0 rgba(255,230,180,0.6), 0 -1px 0 rgba(80,40,10,0.6); transition: transform 90ms ease, box-shadow 90ms ease; }
+.plank::before, .plank::after { content: ''; position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f3e2c0, #7d7d7d 55%, #3b3b3b); transform: translateY(-50%); box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.plank::before { left: 16px; } .plank::after { right: 16px; }
+.plank:nth-child(odd) { transform: rotate(-1.4deg); } .plank:nth-child(even) { transform: rotate(1.2deg); }
+.plank:hover, .plank:focus-visible { transform: rotate(0deg) translateY(-3px) scale(1.02); outline: none; box-shadow: inset 0 3px 0 rgba(255,235,190,0.55), inset 0 -4px 0 #7a4519, 0 11px 0 #5a2f0e, 0 20px 22px rgba(0,0,0,0.4); }
+.plank:active { transform: translateY(4px); box-shadow: inset 0 3px 0 rgba(255,235,190,0.55), inset 0 -4px 0 #7a4519, 0 4px 0 #5a2f0e, 0 8px 12px rgba(0,0,0,0.35); }
+.plank .art { font-size: 34px; text-align: center; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
+.plank .name { text-align: center; }
+.plank .sub { grid-column: 2; font-family: 'Nunito', system-ui, sans-serif; font-size: 13px; letter-spacing: 0; font-weight: 800; color: #6b3d16; text-shadow: none; text-align: center; margin-top: -4px; }
+.plank.disabled { filter: saturate(0.4) brightness(0.8); cursor: default; }
+.vine { position: absolute; z-index: 0; width: 220px; height: 220px; border-radius: 50%; border: 10px solid transparent; border-top-color: #2f8f3a; border-left-color: #2f8f3a; pointer-events: none; opacity: 0.9; }
+.vine.tl { top: -60px; left: -50px; transform: rotate(-20deg); } .vine.br { bottom: -70px; right: -60px; transform: rotate(160deg); }
+.leaf { position: absolute; z-index: 0; width: 90px; height: 44px; background: linear-gradient(90deg, #6fd25a, #2f8f3a); border-radius: 100% 0 100% 0; pointer-events: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.15); }

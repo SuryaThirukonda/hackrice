@@ -77,6 +77,13 @@ class SetNickname(Payload):
     nickname: str = Field(min_length=1, max_length=24)
 
 
+class InputAction(Payload):
+    """Direct input from a keyboard remote (desktop testing): bypasses the motion detectors."""
+    kind: Literal["swing", "release", "punch", "block_on", "block_off", "dodge", "parry", "bump", "shake", "flick"]
+    params: dict[str, Any] = Field(default_factory=dict)
+    t_client: float | None = None
+
+
 # Every client message type and the model that validates its payload.
 CLIENT_MESSAGES: dict[str, type[Payload]] = {
     "session.hello": Hello,
@@ -85,6 +92,7 @@ CLIENT_MESSAGES: dict[str, type[Payload]] = {
     "session.nickname": SetNickname,
     "motion.frame": MotionFrame,
     "motion.calib_done": Payload,
+    "input.action": InputAction,
     "market.bet": Bet,
     "sponsor.buy": SponsorBuy,
     "crate.bid": CrateBid,

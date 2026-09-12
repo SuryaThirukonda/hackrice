@@ -207,7 +207,7 @@ async def auto_play(a: argparse.Namespace, c: Client, st: Streamer) -> None:
             target_local = target_server - c.offset_ms
             seg, peak_off = gen_segment("swing", peak=rng.uniform(20, 34))
             st.enqueue(seg, at_local_ms=target_local - peak_off)
-        if sport == "boxing" and a.block_on_telegraph and d.get("house", {}).get("state") == "telegraph":
+        if sport == "boxing" and a.block_on_telegraph and d.get("fighters", {}).get("house", {}).get("state") == "telegraph":
             seg, _ = gen_segment("block", seconds=0.6)
             st.enqueue(seg)
 

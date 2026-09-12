@@ -94,8 +94,9 @@ def test_dodge_requires_no_forward_spike():
 
 def test_bump_and_shake_and_flick_idle_set():
     assert kinds(run(compose(calibration_sequence(60, "flat"), synth.bump(60)), "idle"))["bump"] == 1
-    assert kinds(run(compose(calibration_sequence(60, "flat"), synth.shake(60)), "idle"))["shake"] == 1
-    assert kinds(run(compose(calibration_sequence(60, "flat"), synth.flick(60)), "idle"))["flick"] == 1
+    assert kinds(run(compose(calibration_sequence(60, "flat"), synth.shake(60)), "dice"))["shake"] == 1
+    assert kinds(run(compose(calibration_sequence(60, "flat"), synth.flick(60)), "dice"))["flick"] == 1
+    assert kinds(run(compose(calibration_sequence(60, "upright"), synth.swing(60)), "idle"))["swing"] == 1
 
 
 def test_committed_traces_match_headers():

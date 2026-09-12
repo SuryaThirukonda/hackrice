@@ -61,6 +61,7 @@ export class ArenaSocket {
         if (env.seq > this.lastSeq) this.lastSeq = env.seq
       }
       if (env.t === 'session.pong') this.onPong(env.d as { t_client: number; t_server: number })
+      if (env.t === 'session.welcome' && (env.d as { seat_token?: string }).seat_token) this.token = (env.d as { seat_token: string }).seat_token
       this.dispatch(env, env.t)
     }
     ws.onclose = () => {

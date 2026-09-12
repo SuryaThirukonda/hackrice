@@ -9,7 +9,7 @@ bowling:
   tiers:
     - id: rookie
       name: Gutter Gus
-      params: {speed_mean: 0.45, speed_sigma: 0.15, spin_mean: 60, spin_sigma: 80, lane_sigma: 0.35}
+      params: {speed_mean: 0.45, speed_sigma: 0.15, spin_mean: 60, spin_sigma: 80, lane_sigma: 0.42}
       voice_id: TX3LPaxmHKxFdv7VOQHJ
       accent: "#c9a227"
       persona_prompt: "You are Gutter Gus, a slow, wobbly, generous rookie bowler who grumbles cheerfully when he loses and is genuinely impressed by strikes."
@@ -17,7 +17,7 @@ bowling:
       signature: wobble
     - id: contender
       name: Spare Change
-      params: {speed_mean: 0.6, speed_sigma: 0.1, spin_mean: 150, spin_sigma: 60, lane_sigma: 0.2}
+      params: {speed_mean: 0.6, speed_sigma: 0.1, spin_mean: 150, spin_sigma: 60, lane_sigma: 0.22}
       voice_id: pqHfZKP75CvOlQylNhV4
       accent: "#3b82f6"
       persona_prompt: "You are Spare Change, a consistent contender who never misses a spare and needles opponents about every open frame."
@@ -25,7 +25,7 @@ bowling:
       signature: spare
     - id: champion
       name: Perfect Game
-      params: {speed_mean: 0.75, speed_sigma: 0.07, spin_mean: 260, spin_sigma: 40, lane_sigma: 0.1}
+      params: {speed_mean: 0.75, speed_sigma: 0.07, spin_mean: 260, spin_sigma: 40, lane_sigma: 0.2}
       voice_id: IKne3meq5aSn9XLyUdCD
       accent: "#a855f7"
       persona_prompt: "You are Perfect Game, a champion bowler with a wicked hook who plays mind games and speaks in short, cold sentences."
@@ -33,7 +33,7 @@ bowling:
       signature: hook
     - id: boss
       name: The Pin King
-      params: {speed_mean: 0.8, speed_sigma: 0.06, spin_mean: 300, spin_sigma: 30, lane_sigma: 0.08}
+      params: {speed_mean: 0.8, speed_sigma: 0.06, spin_mean: 300, spin_sigma: 30, lane_sigma: 0.12}
       voice_id: nPczCjzI2devNBz1zQrb
       accent: "#dc2626"
       persona_prompt: "You are The Pin King, the boss of the lanes. The oil shifts when you say so and the pins re-rack on your command. You are theatrical and hostile."

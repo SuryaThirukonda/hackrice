@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useArena } from '../lib/store'
 import { DeviceMotionSource, MotionStreamer, enterPlayMode, hasDeviceMotion, type MotionSource } from '../lib/motion'
 import { SyntheticMotionSource, type FakeGesture } from '../lib/fakeMotion'
+import { CONTROLS, KeyboardController, type KbState } from '../lib/keyboard'
 import './remote.css'
 
 const NICKS = ['Ace', 'Lucky', 'Slugger', 'Champ', 'Rookie', 'Hawk', 'Dice', 'Nova']
@@ -22,6 +23,7 @@ export default function Remote() {
   const [screen, setScreen] = useState<'pickup' | 'calibrate' | 'play' | 'taken' | 'denied'>('pickup')
   const [meter, setMeter] = useState(0)
   const [flash, setFlash] = useState<string | null>(null)
+  const [kb, setKb] = useState<KbState | null>(null)
   const streamer = useRef<MotionStreamer | null>(null)
   const source = useRef<MotionSource | null>(null)
   const useFake = fake || !hasDeviceMotion()
@@ -55,11 +57,10 @@ export default function Remote() {
 
   const trigger = (g: FakeGesture) => (source.current as SyntheticMotionSource | null)?.trigger?.(g)
   useEffect(() => {
-    if (!useFake) return
-    const map: Record<string, FakeGesture> = { ' ': 'swing', j: 'jab', h: 'hook', b: 'block', n: 'unblock', d: 'dodge', s: 'shake', u: 'bump', f: 'flick' }
-    const onKey = (e: KeyboardEvent) => { const g = map[e.key]; if (g && screen === 'play') { e.preventDefault(); trigger(g) } }
-    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
-  }, [useFake, screen])
+    if (!useFake || !socket || screen !== 'play') return
+    const c = new KeyboardController(socket, () => (useArena.getState().match?.sport ?? null), setKb)
+    c.attach(); return () => c.detach()
+  }, [useFake, socket, screen])
 
   if (!seat || !tok) return <Full><div className="msg">Scan a seat QR on the projector to play.</div><a className="pill" href="/rail">Join the rail instead</a></Full>
   if (screen === 'taken') return <Full><div className="msg">That seat is taken.</div><div className="sub">Scan the rail QR to bet on the match instead.</div><a className="pill blue" href={welcome?.rail_url ?? '/rail'}>Go to the rail</a></Full>
@@ -89,6 +90,8 @@ export default function Remote() {
       <div className="meter"><div className="fill" style={{ width: `${Math.min(100, meter / 30 * 100)}%` }} /></div>
       {useFake && (
         <div className="devbar">
+          <div className="kb-keys">{(sport !== 'idle' ? CONTROLS[sport] ?? [] : []).map((c) => <span key={c.key}><kbd>{c.key}</kbd> {c.does}</span>)}{kb?.charge != null && <span>charge {Math.round(kb.charge * 100)}%</span>}{kb?.guard && <span>GUARD</span>}</div>
+          <div className="devnote">Synthetic motion (runs the detectors):</div>
           {(['swing', 'jab', 'hook', 'block', 'unblock', 'dodge', 'shake', 'bump', 'flick'] as FakeGesture[]).map((g) => <button key={g} className="pill" onClick={() => trigger(g)}>{g}</button>)}
         </div>
       )}

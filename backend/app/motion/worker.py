@@ -100,6 +100,7 @@ class MotionModule:
         self._last_phase: dict[str, str] = {}
         self.loop.on("motion.frame", self.on_frame)
         self.loop.on("motion.calib_done", self.on_calib_done)
+        self.loop.on("input.action", self.on_input_action)
         self.loop.on("host.toggle", self.on_toggle)
         self.loop.schedule_every(1.0 / float(self.cfg.get("status_hz", 2)), self.emit_status, key="motion.status")
         self.rooms.on_seat_change.append(self.on_seat_change)
@@ -127,8 +128,12 @@ class MotionModule:
                 self.state.toggles[k] = bool(v)
 
     def on_calib_done(self, i: Intent) -> None:
-        # The phone says the user has held still; calibration completes from data, this only nudges the UI.
-        pass
+        """Phones calibrate from data; a keyboard remote sends this to declare itself ready (no motion stream)."""
+        dev = self.state.devices.get(i.device_id or "")
+        if dev and not dev.calibrated:
+            dev.calibrated = True
+            self.rooms.touch_frame(dev.device_id, self.loop.clock.now())
+            self.loop.emit("motion.calib", {"phase": "done", "progress": 1.0, "calib": {"keyboard": True, "done": True}}, to=("device", dev.device_id))
 
     def on_frame(self, i: Intent) -> None:
         dev_id = i.device_id
@@ -170,6 +175,25 @@ class MotionModule:
         if p.calibrated and now - self._last_meter.get(dev_id, 0.0) >= interval:
             self._last_meter[dev_id] = now
             self.loop.emit("motion.meter", {"seat_id": dev.seat_id, "device_id": dev_id, "mag": round(p.meter, 2), "thr": round(p.calibrator.calib.a_thr, 2)}, to="projector")
+
+    def on_input_action(self, i: Intent) -> None:
+        """Keyboard remote: build the gesture the detectors would have produced and run the same fan-out."""
+        dev = self.state.devices.get(i.device_id or "")
+        if not dev:
+            return
+        self.rooms.touch_frame(dev.device_id, self.loop.clock.now())
+        dev.calibrated = True
+        kind, params = i.d["kind"], dict(i.d.get("params", {}))
+        power = float(params.pop("power", 0.7))
+        offset = self.rooms.offset_ms(dev.device_id)
+        t_client = i.d.get("t_client")
+        t_server = (float(t_client) + offset) if t_client else float(self.loop.clock.now_ms())
+        g = Gesture(kind, t_phone=t_server - offset, power=power, axis="y", sign=1, duration_ms=float(params.pop("duration_ms", 80)), extra=params)
+        g.device_id, g.seat_id, g.t_server = dev.device_id, dev.seat_id, t_server
+        dev.last_gesture = kind if kind != "punch" else f"punch:{params.get('type', 'jab')}"
+        self.loop.emit("motion.gesture", g.to_dict() | {"source": "keyboard"}, to=["projector", "host", ("device", dev.device_id)])
+        for h in self.gesture_handlers:
+            h(g)
 
     def emit_status(self) -> None:
         rows = []

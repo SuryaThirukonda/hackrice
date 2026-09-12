@@ -59,6 +59,12 @@ class Rooms:
                 return s
         return None
 
+    def seat_of_device(self, device_id: str) -> Seat | None:
+        for s in self.state.seats.values():
+            if s.status == "claimed" and s.device_id == device_id:
+                return s
+        return None
+
     def claimed_seats(self) -> list[Seat]:
         return [s for s in self.state.seats.values() if s.status == "claimed"]
 
@@ -121,11 +127,11 @@ class Rooms:
         seat: Seat | None = None
         reason: str | None = None
         if dev.role == "remote":
-            seat = self.seat_by_token(d.get("token"))
+            seat = self.seat_by_token(d.get("token")) or self.seat_of_device(dev.device_id)
             if seat is None:
                 reason = "taken"
             elif seat.status == "claimed" and seat.device_id == dev.device_id:
-                pass  # reconnect with the rotated private token
+                pass  # same phone reconnecting (rotated private token, or the stale QR URL after a refresh)
             elif seat.status == "open":
                 self._claim(seat, dev)
             else:
@@ -163,7 +169,8 @@ class Rooms:
             return
         dev = self.state.devices.get(s.device_id)
         gap = self.loop.clock.now() - max(s.last_frame_ts, s.claimed_ts)
-        if dev is None or (not dev.connected and gap > self.config.get("motion.unclaimed_release_s", 20) - 0.01) or (not dev.calibrated and gap > self.config.get("motion.unclaimed_release_s", 20) - 0.01):
+        limit = self.config.get("motion.unclaimed_release_s", 20) - 0.01
+        if dev is None or (not dev.connected and gap > limit) or (dev.connected and not dev.calibrated and gap > limit):
             self.release_seat(seat_id)
         else:
             self._arm_release(s)

@@ -1,4 +1,5 @@
 import { GAMES, type GameDef } from './games'
+import './planks.css'
 
 export function ChannelGrid({ onPick, compact = false }: { onPick?: (g: GameDef) => void; compact?: boolean }) {
   return (
@@ -11,6 +12,28 @@ export function ChannelGrid({ onPick, compact = false }: { onPick?: (g: GameDef)
           {!compact && <div className="sub">{g.sub}</div>}
         </div>
       ))}
+    </div>
+  )
+}
+
+/** The dashboard menu: a wooden sign with one plank per minigame on a jungle ground. */
+export function PlankMenu({ onPick, title = 'Pick a game' }: { onPick?: (g: GameDef) => void; title?: string }) {
+  return (
+    <div className="jungle">
+      <div className="vine tl" /><div className="vine br" />
+      <div className="leaf" style={{ top: 30, left: 60, transform: 'rotate(-30deg)' }} /><div className="leaf" style={{ top: 70, right: 50, transform: 'rotate(200deg)' }} />
+      <div className="leaf" style={{ bottom: 40, left: 120, transform: 'rotate(20deg)' }} /><div className="leaf" style={{ bottom: 60, right: 140, transform: 'rotate(150deg)' }} />
+      <div className="sign">
+        <div className="sign-title">{title}</div>
+        {GAMES.map((g) => (
+          <button key={g.id} className={`plank ${g.ready ? '' : 'disabled'}`} onClick={() => g.ready && onPick?.(g)} disabled={!g.ready}>
+            <span className="art">{g.art}</span>
+            <span className="name">{g.name}</span>
+            <span />
+            <span className="sub">{g.sub}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

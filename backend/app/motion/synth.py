@@ -304,8 +304,8 @@ def catalog(hz: float = 60) -> dict[str, tuple[list[list[float]], dict[str, Any]
         "punch_hook": (compose(pose_cal("upright"), punch(hz, "hook"), rest(hz, 0.3, pose="upright", sigma=0.05)), {"sport": "boxing", "expect": {"punch": 1}, "punch_type": "hook"}),
         "block": (compose(pose_cal("upright"), unblock(hz), rest(hz, 0.3, pose="flat"), block(hz, 1.0), unblock(hz)), {"sport": "boxing", "expect": {"block_on": 1, "block_off": 1}}),
         "dodge": (compose(pose_cal("upright"), dodge(hz)), {"sport": "boxing", "expect": {"dodge": 1}}),
-        "shake": (compose(pose_cal("flat"), shake(hz)), {"sport": "idle", "expect": {"shake": 1}}),
-        "flick": (compose(pose_cal("flat"), flick(hz)), {"sport": "idle", "expect": {"flick": 1}}),
+        "shake": (compose(pose_cal("flat"), shake(hz)), {"sport": "dice", "expect": {"shake": 1}}),
+        "flick": (compose(pose_cal("flat"), flick(hz)), {"sport": "dice", "expect": {"flick": 1}}),
         "bump": (compose(pose_cal("flat"), bump(hz)), {"sport": "idle", "expect": {"bump": 1}}),
     }
     return items

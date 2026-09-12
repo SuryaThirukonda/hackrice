@@ -4,17 +4,43 @@
     {
       "name": "backend",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "uvicorn", "app.main:app", "--port", "8000"],
+      "runtimeArgs": [
+        "run",
+        "uvicorn",
+        "app.main:app",
+        "--port",
+        "8000"
+      ],
       "cwd": "backend",
       "port": 8000,
-      "env": { "HAP_FAST_TIMERS": "1", "HAP_DEV": "1" }
+      "env": {
+        "HAP_FAST_TIMERS": "1",
+        "HAP_DEV": "1"
+      }
     },
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--host"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--host"
+      ],
       "cwd": "web",
       "port": 5173
+    },
+    {
+      "name": "edge",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler",
+        "dev",
+        "--port",
+        "8787"
+      ],
+      "cwd": "cf",
+      "port": 8787
     }
   ]
 }

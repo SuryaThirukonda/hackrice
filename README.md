@@ -12,7 +12,8 @@ cd web && npm run dev -- --host
 ```
 ```bash
 # human step: gives phones an HTTPS origin (required for motion sensors). Paste the printed URL into the host page.
-cloudflared tunnel --url http://localhost:5173
+# Wrangler downloads cloudflared itself; no sudo needed. Plain `cloudflared tunnel --url http://localhost:5173` also works.
+npx wrangler tunnel quick-start --url http://localhost:5173
 ```
 
 Pages: `http://localhost:5173/projector`, `/host`, `/rail`, `/remote?seat=P1&tok=...` (scan a seat QR on the projector, or open `/host` for the join URLs). Add `&fake=1` to the remote URL on a laptop for synthetic motion.
@@ -32,4 +33,4 @@ cd web && npm run build
 
 ## Human-only steps (need real phones)
 
-Install `cloudflared` (`curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/c.deb && sudo dpkg -i /tmp/c.deb`), `mkcert` for the offline fallback, iOS permission tap in Safari, and detector threshold tuning with `backend/scripts/record_trace.py` against real swings.
+Run the quick tunnel above (or install `cloudflared`), `mkcert` for the offline fallback, iOS permission tap in Safari, and detector threshold tuning with `backend/scripts/record_trace.py` against real swings.

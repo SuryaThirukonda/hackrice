@@ -33,7 +33,7 @@ FAST_TIMER_OVERRIDES: dict[str, Any] = {
 }
 
 GAME_DEFAULTS: dict[str, Any] = {
-    "bowling": {"quick_frames": 5, "k_hook": 0.8, "gutter": 0.92, "pocket": 0.28, "roll_animation_s": 2.5},
+    "bowling": {"quick_frames": 5, "k_hook": 0.8, "gutter": 0.92, "pocket": 0.28, "roll_animation_s": 2.5, "input_window_s": 20},
     "baseball": {"innings": 3, "outs_per_half": 3, "pitches": {
         "fastball": {"travel_ms": 900, "brk": 0.0, "height": 0.5},
         "changeup": {"travel_ms": 1250, "brk": 0.0, "height": 0.5},

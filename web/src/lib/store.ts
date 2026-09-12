@@ -54,6 +54,7 @@ export const useArena = create<ArenaState>((set, get) => ({
 
   connect: (opts) => {
     const existing = get().socket
+    if (existing && existing.role === opts.role && (existing.token === (opts.token ?? null) || existing.role !== 'remote')) return existing
     if (existing) existing.close()
     const s = new ArenaSocket(opts)
     s.on('*', (env) => get().apply(env))
@@ -94,7 +95,7 @@ export const useArena = create<ArenaState>((set, get) => ({
       case 'agent.studying': patch.studying = { ...get().studying, [(d as { agent_id: string }).agent_id]: d }; break
       case 'market.window': { const m = d as unknown as Market; patch.markets = { ...get().markets, [m.market_id]: m }; break }
       case 'market.odds': { const o = d as { market_id: string; pools: Record<string, number> }; const m = get().markets[o.market_id]; if (m) patch.markets = { ...get().markets, [o.market_id]: { ...m, outcomes: m.outcomes.map((x) => ({ ...x, pool: o.pools[x.id] ?? x.pool })) } }; break }
-      case 'market.settle': { const s = d as { market_id: string; winner: string | string[] }; const m = get().markets[s.market_id]; patch.settle = d; if (m) patch.markets = { ...get().markets, [s.market_id]: { ...m, open: false, status: 'settled', winner: Array.isArray(s.winner) ? s.winner.join(',') : s.winner } }; break }
+      case 'market.settle': { const s = d as { market_id: string; winner: string | string[] }; const m = get().markets[s.market_id]; patch.settle = d; if (m) patch.markets = { ...get().markets, [s.market_id]: { ...m, open: false, status: 'settled', winner: s.winner } }; break }
       case 'market.bet_ack': patch.betAck = d; if (typeof (d as { balance?: number }).balance === 'number') patch.balance = (d as { balance: number }).balance; break
       case 'market.balance': patch.balance = (d as { balance: number }).balance; break
       case 'market.leaderboard': patch.leaderboard = (d as { rows: LeaderRow[] }).rows; break
@@ -111,9 +112,13 @@ export const useArena = create<ArenaState>((set, get) => ({
       case 'host.diagnostics': if (d.devices) patch.devices = d.devices; if (d.motion) patch.diagnostics = d.motion; break
       default: break
     }
-    if (env.t !== 'motion.meter' && env.t !== 'match.tick' && env.t !== 'session.pong') patch.log = [...get().log.slice(-(MAX_LOG - 1)), env]
+    if (env.t !== 'motion.meter' && env.t !== 'match.tick' && env.t !== 'session.pong' && !d.__open && !d.__closed) patch.log = [...get().log.slice(-(MAX_LOG - 1)), env]
     set(patch)
   },
 }))
 
 export function useSocket(): ArenaSocket | null { return useArena((s) => s.socket) }
+
+// Debug handle for the in-app browser and the desktop-test remote: window.__hap.getState().lastGesture
+declare global { interface Window { __hap?: typeof useArena } }
+if (typeof window !== 'undefined') window.__hap = useArena

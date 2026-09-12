@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useArena } from '../lib/store'
-import { ChannelGrid } from '../ui/ChannelGrid'
+import { PlankMenu } from '../ui/ChannelGrid'
 import type { GameDef } from '../ui/games'
 import './host.css'
 
@@ -24,7 +24,7 @@ export default function Host() {
       <header className="host-top"><b>Host</b><span className={`conn ${connected ? 'on' : 'off'}`}>{connected ? 'connected' : 'reconnecting'}</span></header>
       <section className="tile sec">
         <h3>Start a game</h3>
-        <ChannelGrid onPick={pick} compact />
+        <div style={{ height: 480 }}><PlankMenu onPick={pick} title="Start a game" /></div>
         <div className="row">
           <button className="pill" onClick={() => send('host.pause')}>Pause</button>
           <button className="pill" onClick={() => send('host.resume')}>Resume</button>
@@ -63,7 +63,7 @@ export default function Host() {
       </section>
       <section className="tile sec">
         <h3>Event log</h3>
-        <div className="log">{log.slice(-30).reverse().map((e) => <div key={e.seq}><span className="seq">{e.seq}</span> {e.t} <span className="d">{JSON.stringify(e.d).slice(0, 140)}</span></div>)}</div>
+        <div className="log">{log.slice(-30).reverse().map((e, i) => <div key={`${e.seq}-${i}`}><span className="seq">{e.seq}</span> {e.t} <span className="d">{JSON.stringify(e.d).slice(0, 140)}</span></div>)}</div>
       </section>
     </div>
   )

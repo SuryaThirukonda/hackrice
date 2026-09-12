@@ -14,7 +14,7 @@ export const SERVER_MESSAGES = [
 
 export const CLIENT_MESSAGES = [
   'session.hello', 'session.ping', 'session.resync', 'session.nickname',
-  'motion.frame', 'motion.calib_done',
+  'motion.frame', 'motion.calib_done', 'input.action',
   'market.bet', 'sponsor.buy', 'crate.bid', 'card.vote', 'pair.request',
   'host.telemetry', 'host.start', 'host.pause', 'host.resume', 'host.next', 'host.force_scenario', 'host.set_param',
   'host.kick', 'host.release_seat', 'host.lock_seat', 'host.set_public_url', 'host.reload_config', 'host.toggle',
@@ -35,7 +35,7 @@ export interface Seat { seat_id: string; label: string; status: 'open' | 'claime
 export interface Welcome { device_id: string; role: Role; nickname: string | null; seat_id: string | null; seat_token: string | null; seat_label: string | null; hand: string | null; reason: string | null; public_url: string; rail_url: string; server_ts: number; mode: string; dev: boolean; balance: number }
 export interface DeviceInfo { device_id: string; role: Role; nickname: string | null; connected: boolean; seat_id: string | null; hz: number; offset_ms: number; calibrated: boolean; last_gesture: string | null }
 export interface Outcome { id: string; label: string; pool: number }
-export interface Market { market_id: string; kind: string; label: string; outcomes: Outcome[]; closes_ts: number; open: boolean; turn_no?: number; winner?: string | null; status?: string }
+export interface Market { market_id: string; kind: string; label: string; outcomes: Outcome[]; closes_ts: number; open: boolean; turn_no?: number; winner?: string | string[] | null; status?: string; pool?: number; match_id?: string | null }
 export interface MatchSummary { match_id: string; sport: 'bowling' | 'baseball' | 'boxing'; seed: number; human_seats: string[]; opponent: { tier: string; name: string; accent?: string }; players?: Record<string, string>; phase?: string; turn_no?: number; deadline_ts?: number; score?: Record<string, unknown>; paused?: boolean; card?: boolean; fighters?: Record<string, unknown> }
 export interface LeaderRow { device_id: string; nickname: string; chips: number; titles: string[] }
 export interface Snapshot { public_url: string; rail_url: string; seats: Seat[]; match: MatchSummary | null; markets: Market[]; leaderboard: LeaderRow[]; ladder: Record<string, Record<string, number>>; studying: Record<string, unknown>; card: Record<string, unknown> | null; crate: Record<string, unknown> | null; toggles: Record<string, boolean>; me?: { device_id: string; balance: number; nickname?: string | null; seat_id?: string | null; calibrated?: boolean }; devices?: DeviceInfo[]; seat_tokens?: Record<string, string>; audio_unlocked?: boolean }

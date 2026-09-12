@@ -419,8 +419,10 @@ class DetectorSet:
         elif sport == "all":
             d = [SwingDetector(cfg, calib, "default", release=True), PunchDetector(cfg, calib), BlockDetector(cfg, calib),
                  DodgeDetector(cfg, calib), ShakeDetector(cfg, calib), FlickDetector(cfg, calib), BumpDetector(cfg, calib)]
-        else:
+        elif sport == "dice":
             d = [ShakeDetector(cfg, calib), FlickDetector(cfg, calib), BumpDetector(cfg, calib)]
+        else:  # idle: between matches the swing meter and bump-to-pair still work; shake/flick are for dice games only
+            d = [SwingDetector(cfg, calib, "default", release=True), BumpDetector(cfg, calib)]
         self.detectors = d
 
     @classmethod

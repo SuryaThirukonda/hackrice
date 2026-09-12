@@ -25,6 +25,16 @@ def test_reconnect_with_private_token_resumes_seat(arena, make_client):
     assert r1b.last("session.welcome").d["seat_id"] == "P1"
 
 
+def test_same_device_with_stale_qr_token_resumes_seat(arena, make_client):
+    tok = token_of(arena, "P1")
+    r1 = make_client("remote", token=tok)
+    r1.disconnect()
+    again = make_client("remote", device_id=r1.device_id, token=tok)   # page refresh keeps the old URL
+    assert again.last("session.welcome").d["seat_id"] == "P1"
+    other = make_client("remote", token=tok)                             # a different phone with the old QR is refused
+    assert other.last("session.welcome").d["reason"] == "taken"
+
+
 def test_release_regenerates_token_and_url(arena, make_client, clock):
     proj = make_client("projector")
     old = token_of(arena, "P1")
