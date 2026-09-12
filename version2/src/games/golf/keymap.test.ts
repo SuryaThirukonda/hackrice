@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { KeyState } from '../../input/keys'
-import { ACC_SWEEP_S, GOLF_HELP, GOLF_KEYS, POWER_SWEEP_S, SwingMeter, golfInput } from './keymap'
+import { ACC_SWEEP_S, ACC_SWEET, GOLF_HELP, GOLF_KEYS, POWER_SWEEP_S, SwingMeter, golfInput } from './keymap'
 
 /** Drive a KeyState through frames: each frame is a list of 'down:Code' / 'up:Code' strings applied before the input is read. */
 function frames(script: string[][]): ReturnType<typeof golfInput>[] {
@@ -80,6 +80,17 @@ describe('SwingMeter', () => {
     run(m, ACC_SWEEP_S / 2); expect(m.value).toBeCloseTo(1, 5)
     run(m, ACC_SWEEP_S / 2); expect(m.value).toBeCloseTo(-1, 5)
     for (let i = 0; i < 300; i++) { m.update(0.011); expect(Math.abs(m.value)).toBeLessThanOrEqual(1) }
+  })
+  it('a stop inside the green window is forgiven to a perfect shot; outside it keeps the raw value', () => {
+    expect(ACC_SWEET).toBeGreaterThanOrEqual(0.05); expect(ACC_SWEET).toBeLessThanOrEqual(0.1)
+    const inside = new SwingMeter(); inside.press(); inside.press()
+    run(inside, ACC_SWEEP_S / 4 + (ACC_SWEET * 0.6) * ACC_SWEEP_S / 4) // value ≈ +0.6 * ACC_SWEET
+    expect(Math.abs(inside.value)).toBeLessThan(ACC_SWEET); inside.press()
+    expect(inside.result()!.accuracy).toBe(0)
+    const outside = new SwingMeter(); outside.press(); outside.press()
+    run(outside, ACC_SWEEP_S / 4 + 0.3 * ACC_SWEEP_S / 4) // value ≈ 0.3
+    expect(outside.value).toBeCloseTo(0.3, 1); outside.press()
+    expect(outside.result()!.accuracy).toBeCloseTo(0.3, 1)
   })
   it('does not advance while idle or done', () => {
     const m = new SwingMeter(); run(m, 1); expect(m.value).toBe(0)

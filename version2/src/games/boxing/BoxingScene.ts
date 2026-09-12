@@ -69,6 +69,8 @@ export class BoxingScene extends Phaser.Scene {
     const bot = d.practice ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
     this.match = new BoxingMatch({ seed, botB: d.mode === 'card' ? TIERS.pro : bot, botA: d.mode === 'card' ? TIERS.pro : null })
     this.prev = this.curr = this.match.snapshot()
+    // class fields outlive scene restarts: clear everything that belongs to a previous fight (a Fight Night link must not drive a 1P match)
+    this.link = null; this.book = null; this.betting = false; this.betPlaced = null; this.betMarket = ''; this.betLeft = 0; this.roundsWon = [0, 0]; this.stepIx = 0; this.guide = []
     const settings = loadSettings()
     sfx.enabled = settings.sound
     this.bindings = { ...BOXING_KEYS, ...(settings.bindings.boxing as Partial<BoxingBindings> | undefined) }
@@ -134,7 +136,7 @@ export class BoxingScene extends Phaser.Scene {
     switch (e.kind) {
       case 'countdown': sfx.countdown(e.n); this.hud.countdownNumber(e.n); break
       case 'bell':
-        sfx.bell(e.end ? 2 : 1)
+        sfx.bell(e.end ? 2 : 1); w?.cheer()
         if (!e.end) { this.hud.showCard(`ROUND ${e.round}`, P.gold, 'fight!', 700) } else this.hud.showCard('ROUND OVER', P.blue, `round ${e.round}`, 1400)
         if (e.end && this.card) {
           const w = this.roundWinner()
@@ -156,14 +158,14 @@ export class BoxingScene extends Phaser.Scene {
       }
       case 'stagger': sfx.stagger(); if (e.who === 'b') this.hud.burst('STAGGER!', P.orange, 60); break
       case 'guard_break': sfx.parry(); this.hud.burst('GUARD BREAK!', P.magenta, 60); w?.guardBreakFx(this.curr, e.who); break
-      case 'gassed': if (e.who === 'a') sfx.gassed(); break
+      case 'gassed': if (e.who === 'a') { sfx.gassed(); this.hud.gassed() } break
       case 'knockdown':
-        sfx.knockdown(); w?.shake(1.4); this.hitStop = 250; w?.knockdownFx(this.curr, e.who)
+        sfx.knockdown(); w?.shake(1.4); this.hitStop = 250; w?.knockdownFx(this.curr, e.who); w?.cheer()
         this.hud.showCard(e.who === 'b' ? 'DOWN!' : 'YOU ARE DOWN!', e.who === 'b' ? P.gold : P.red, e.ko ? 'that looks final' : 'get up before ten', 1200)
         break
       case 'count': sfx.count(); break
       case 'getup': sfx.bell(1); this.hud.showCard('UP!', P.green, 'back to it', 600); break
-      case 'ko': sfx.ko(); this.hud.showCard('K.O.!', P.magenta, e.who === 'b' ? `${this.hud.names[1]} goes down` : `${this.hud.names[0]} goes down`, 0); this.time.delayedCall(1800, () => this.finish()); break
+      case 'ko': sfx.ko(); w?.cheer(); this.hud.showCard('K.O.!', P.magenta, e.who === 'b' ? `${this.hud.names[1]} goes down` : `${this.hud.names[0]} goes down`, 0); this.time.delayedCall(1800, () => this.finish()); break
       case 'decision': sfx.bell(3); this.time.delayedCall(600, () => this.finish()); break
       default: break
     }

@@ -1,7 +1,9 @@
-import { AppBase, CULLFACE_NONE, Entity, FOG_LINEAR, Mesh, MeshInstance, type GraphicsDevice, type StandardMaterial } from 'playcanvas'
+import { AppBase, CULLFACE_NONE, Color, Entity, FOG_LINEAR, Mesh, MeshInstance, StandardMaterial, type GraphicsDevice, type Texture } from 'playcanvas'
 import { col, flatMat, matteMat, unlitMat } from '../../../engine3d/materials'
-import { grassTex, noiseTex } from '../../../engine3d/textures'
-import { part, pivot } from '../../../engine3d/primitives'
+import { cloudTex, glowTex, grassTex, noiseTex, patchTex, ridgeTex, skyTex } from '../../../engine3d/textures'
+import { billboard, decal, part, pivot, setDefaultBatch } from '../../../engine3d/primitives'
+import { Rng } from '../../boxing/sim/rng'
+import { surfaceAt } from '../sim/holes'
 import { P } from '../../../theme'
 import type { GolfSnapshot, Hole, Player, Theme, V2, V3 } from '../sim/types'
 import { THEMES, buildProp, type ThemePalette } from './themes'
@@ -64,16 +66,23 @@ function flatPoly(device: GraphicsDevice, poly: V2[], y: number, mat: StandardMa
 
 const hex6 = (n: number): string => '#' + n.toString(16).padStart(6, '0')
 const shade = (n: number, k: number): number => { const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * k))), g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * k))), b = Math.min(255, Math.max(0, Math.round((n & 255) * k))); return (r << 16) | (g << 8) | b }
-/** Turf material with a small grass texture (custom polygon meshes carry planar uvs). */
-function turf(device: GraphicsDevice, hex: number, two = false): StandardMaterial { const m = matteMat(hex, { diffuseMap: grassTex(device, hex6(hex), hex6(shade(hex, 0.72)), 64, hex & 1023), tiling: 1, toon: false }); if (two) { m.cull = CULLFACE_NONE; m.update() } return m }
+const mix = (a: number, b: number, t: number): number => { const ch = (sh: number) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t); return (ch(16) << 16) | (ch(8) << 8) | ch(0) }
+/** Turf material with a small grass texture (custom polygon meshes carry planar uvs); `stripe` adds mowing stripes. */
+function turf(device: GraphicsDevice, hex: number, two = false, stripe = 0): StandardMaterial { const m = matteMat(hex, { diffuseMap: grassTex(device, hex6(hex), hex6(shade(hex, 0.72)), 64, hex & 1023, stripe), tiling: 1, toon: false }); if (two) { m.cull = CULLFACE_NONE; m.update() } return m }
+/** Unlit textured material for the sky dome (emissive map, fog-free, tonemap-free). */
+function skyMat(tex: Texture): StandardMaterial { const m = new StandardMaterial(); m.useLighting = false; m.diffuse = new Color(0, 0, 0); m.emissive = new Color(1, 1, 1); m.emissiveMap = tex; m.emissiveIntensity = 0.8; m.useTonemap = false; m.useFog = false; m.useSkybox = false; m.cull = CULLFACE_NONE; m.update(); return m }
 
 /** Turf, hazard, tree and sky materials for one theme. */
-interface ThemeMats { rough: StandardMaterial; course: StandardMaterial; fairway: StandardMaterial; water: StandardMaterial; sand: StandardMaterial; green: StandardMaterial; trunk: StandardMaterial; canopy: StandardMaterial; sky: StandardMaterial; horizon: StandardMaterial }
+interface ThemeMats { rough: StandardMaterial; course: StandardMaterial; fairway: StandardMaterial; water: StandardMaterial; sand: StandardMaterial; green: StandardMaterial; trunk: StandardMaterial; canopies: StandardMaterial[]; sky: StandardMaterial; ridges: Texture[]; patch: Texture; cloud: Texture; sun: Texture | null; shadow: Texture }
 function themeMats(t: ThemePalette, device: GraphicsDevice): ThemeMats {
   const water = matteMat(t.water, { gloss: 0.85, specular: 0.8, metalness: 0.2, toon: false }); water.cull = CULLFACE_NONE; water.update()
   return {
-    rough: turf(device, t.rough), course: turf(device, t.course, true), fairway: turf(device, t.fairway, true), water, sand: matteMat(t.sand, { diffuseMap: noiseTex(device, hex6(t.sand), hex6(shade(t.sand, 0.85)), 0.3, 64, 77), tiling: 1, toon: false }), green: turf(device, t.green),
-    trunk: flatMat(t.trunk), canopy: flatMat(t.canopy), sky: unlitMat(t.skyTop, true), horizon: unlitMat(t.skyHorizon, true),
+    rough: turf(device, t.rough), course: turf(device, t.course, true), fairway: turf(device, t.fairway, true, 0.07), water, sand: matteMat(t.sand, { diffuseMap: noiseTex(device, hex6(t.sand), hex6(shade(t.sand, 0.85)), 0.3, 64, 77), tiling: 1, toon: false }), green: turf(device, t.green),
+    trunk: flatMat(t.trunk), canopies: [0.9, 1, 1.1].map((k) => flatMat(shade(t.canopy, k))),
+    sky: skyMat(skyTex(device, hex6(t.skyTop), hex6(t.skyMid), hex6(t.skyHorizon), hex6(shade(t.rough, 0.9)))),
+    // three ridge lines stepping from the canopy colour toward the horizon haze
+    ridges: [0.15, 0.4, 0.62].map((k, i) => ridgeTex(device, hex6(mix(t.canopy, t.skyHorizon, k)), 5 + i)),
+    patch: patchTex(device, hex6(shade(t.sand, 0.82)), 9), cloud: cloudTex(device, 3), sun: t.sun ? glowTex(device, t.sun.color) : null, shadow: glowTex(device, '#000000'),
   }
 }
 
@@ -91,18 +100,18 @@ export class CourseScene {
   private props: Entity[] = []
   private wind: V2 = { x: 0, z: 0 }
   private sky: Entity
-  private horizon: Entity
+  private cards: { e: Entity; drift: number }[] = [] // camera-facing cloud and sun cards
   private theme: Theme | null = null
   /** Theme materials are built on first use and kept for the life of the scene. */
   private themeCache = new Map<Theme, ThemeMats>()
   private mats = { cup: unlitMat(0x141414), pole: flatMat(0xfff1cf), flag: flatMat(P.red), tee: flatMat(P.blue), sock: flatMat(P.orange) }
 
-  constructor(root: Entity, device: GraphicsDevice) {
-    this.root = root; this.device = device
+  private batch: number
+  constructor(root: Entity, device: GraphicsDevice, batch = -1) {
+    this.root = root; this.device = device; this.batch = batch
     const m = this.matsFor('meadow')
-    this.sky = part(root, 'sky', 'sphere', m.sky, { scale: { x: 1600, y: 1600, z: 1600 }, outline: false })
-    // a squashed inner sphere reads as a glow band around the horizon from anywhere on the course
-    this.horizon = part(root, 'horizon', 'sphere', m.horizon, { pos: { x: 0, y: -20, z: 0 }, scale: { x: 1500, y: 160, z: 1500 }, outline: false })
+    // gradient sky dome (radius 800): zenith -> mid -> warm horizon -> ground tone below the horizon
+    this.sky = part(root, 'sky', 'sphere', m.sky, { scale: { x: 1600, y: 1600, z: 1600 }, outline: false, shadows: false })
     this.balls = {
       a: part(root, 'ballA', 'sphere', flatMat(0xffffff), { scale: { x: BALL_DRAW_R * 2, y: BALL_DRAW_R * 2, z: BALL_DRAW_R * 2 } }),
       b: part(root, 'ballB', 'sphere', flatMat(0xfff1a0), { scale: { x: BALL_DRAW_R * 2, y: BALL_DRAW_R * 2, z: BALL_DRAW_R * 2 } }),
@@ -121,13 +130,12 @@ export class CourseScene {
     return m
   }
 
-  /** Swap the sky dome and fog to a theme's palette. Fog starts well past the 80 m ring the other games use, so it never shows there. */
+  /** Swap the sky dome and fog to a theme's palette. Fog is tinted to the horizon so distance fades toward the sky (aerial perspective). */
   private applyTheme(theme: Theme): void {
     if (this.theme === theme) return
     this.theme = theme
     const m = this.matsFor(theme), t = THEMES[theme]
     if (this.sky.render) this.sky.render.material = m.sky
-    if (this.horizon.render) this.horizon.render.material = m.horizon
     const scene = AppBase.getApplication()?.scene
     if (scene) { scene.fog.type = FOG_LINEAR; scene.fog.color = col(t.fog.color); scene.fog.start = t.fog.start; scene.fog.end = t.fog.end }
   }
@@ -135,14 +143,48 @@ export class CourseScene {
   /** Rebuild the static hole geometry (turf layers, hazards, flag, trees, props, tee, wind sock) in the hole's theme. */
   setHole(hole: Hole): void {
     if (this.holeRoot) { this.holeRoot.destroy(); this.holeRoot = null }
-    this.hole = hole; this.canopies = []; this.props = []
+    this.hole = hole; this.canopies = []; this.props = []; this.cards = []
     this.applyTheme(hole.theme)
-    const tm = this.matsFor(hole.theme)
+    const tm = this.matsFor(hole.theme), pal = THEMES[hole.theme]
     const h = pivot(this.root, 'hole')
     this.holeRoot = h
+    setDefaultBatch(this.batch) // static hole scenery; parts that animate opt out with batch: -1
+    const rng = new Rng(hole.windSeedOffset * 7919)
     const xs = hole.course.map((p) => p.x), zs = hole.course.map((p) => p.z)
-    const minX = Math.min(...xs) - 150, maxX = Math.max(...xs) + 150, minZ = Math.min(...zs) - 150, maxZ = Math.max(...zs) + 150
+    const minX = Math.min(...xs) - 900, maxX = Math.max(...xs) + 900, minZ = Math.min(...zs) - 900, maxZ = Math.max(...zs) + 900
     part(h, 'rough', 'box', tm.rough, { pos: { x: (minX + maxX) / 2 * MX, y: -0.1, z: (minZ + maxZ) / 2 }, scale: { x: maxX - minX, y: 0.2, z: maxZ - minZ }, outline: false })
+    // horizon: three rings of ridge cards at increasing distance, each paler, so the sky edge is never a straight line
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2
+    const ext = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 2 + 110
+    tm.ridges.forEach((tex, ring) => {
+      const r = Math.min(760, ext * (1 + ring * 0.45)), n = 12, w = ((2 * Math.PI * r) / n) * 1.18, hh = r * 0.14 * (1 - ring * 0.12)
+      for (let i = 0; i < n; i++) {
+        const a = ((i + ring * 0.37) / n) * Math.PI * 2
+        decal(h, 'ridge', tex, { pos: { x: (cx + Math.sin(a) * r) * MX, y: hh / 2 - 1, z: cz + Math.cos(a) * r }, w, h: hh, euler: { x: 90, y: -a * RAD * MX, z: 0 }, fog: true })
+      }
+    })
+    // clouds and the sun disc: camera-facing cards high over the course (drift with the wind)
+    if (pal.clouds) for (let i = 0; i < 3; i++) {
+      const a = rng.range(0, Math.PI * 2), r = rng.range(260, 460), w = rng.range(170, 260)
+      const e = billboard(h, 'cloud', tm.cloud, w, w * 0.5, 0xffffff) // billboards never batch (they turn each frame)
+      e.setLocalPosition((cx + Math.sin(a) * r) * MX, rng.range(150, 200), cz + Math.cos(a) * r)
+      this.cards.push({ e, drift: rng.range(0.3, 0.7) })
+    }
+    if (pal.sun && tm.sun) {
+      const az = pal.sun.az / RAD, alt = pal.sun.alt / RAD, r = 700
+      const e = billboard(h, 'sun', tm.sun, 150, 150, 0xffffff, true)
+      e.setLocalPosition((cx + Math.sin(az) * Math.cos(alt) * r) * MX, Math.sin(alt) * r, cz + Math.cos(az) * Math.cos(alt) * r)
+      this.cards.push({ e, drift: 0 })
+    }
+    // worn dirt patches in the rough off the fairway line
+    for (let i = 0, tries = 0; i < 5 && tries < 40; tries++) {
+      const v = hole.fairway[rng.int(0, hole.fairway.length - 1)], side = rng.next() < 0.5 ? -1 : 1
+      const q = { x: v.x + side * rng.range(14, 55), z: v.z + rng.range(-20, 20) }
+      if (surfaceAt(hole, q) !== 'rough' && surfaceAt(hole, q) !== 'ob') continue
+      const sz = rng.range(12, 26)
+      decal(h, 'patch', tm.patch, { pos: { x: q.x * MX, y: 0.012, z: q.z }, w: sz, h: sz * rng.range(0.6, 1), euler: { x: 0, y: rng.range(0, 360), z: 0 }, opacity: 0.75, fog: true })
+      i++
+    }
     h.addChild(flatPoly(this.device, hole.course, Y.course, tm.course, 'course'))
     h.addChild(flatPoly(this.device, hole.fairway, Y.fairway, tm.fairway, 'fairway'))
     hole.water.forEach((w, i) => h.addChild(flatPoly(this.device, w, Y.water, tm.water, `water${i}`)))
@@ -152,19 +194,33 @@ export class CourseScene {
     part(h, 'cup', 'cylinder', this.mats.cup, { pos: { x: c.x, y: Y.green + 0.01, z: c.z }, scale: { x: 0.4, y: 0.02, z: 0.4 }, outline: false })
     part(h, 'pole', 'cylinder', this.mats.pole, { pos: { x: c.x, y: Y.green + 1.2, z: c.z }, scale: { x: 0.06, y: 2.4, z: 0.06 }, outline: false })
     const flagPivot = pivot(h, 'flagPivot', { x: c.x, y: Y.green + 2.15, z: c.z })
-    part(flagPivot, 'flag', 'box', this.mats.flag, { pos: { x: 0.42, y: 0, z: 0 }, scale: { x: 0.8, y: 0.5, z: 0.04 }, outlineK: 0.02 })
+    part(flagPivot, 'flag', 'box', this.mats.flag, { pos: { x: 0.42, y: 0, z: 0 }, scale: { x: 0.8, y: 0.5, z: 0.04 }, outlineK: 0.02, batch: -1 })
     this.flag = flagPivot
     for (const dx of [-1, 1]) part(h, 'teeMarker', 'sphere', this.mats.tee, { pos: { x: hole.tee.x * MX + dx, y: GROUND_TOP + 0.15, z: hole.tee.z }, scale: { x: 0.3, y: 0.3, z: 0.3 } })
-    for (const t of hole.trees) {
-      part(h, 'trunk', 'cylinder', tm.trunk, { pos: { x: t.x * MX, y: 1.5, z: t.z }, scale: { x: 0.7, y: 3, z: 0.7 }, outlineK: 0.08 })
-      this.canopies.push(part(h, 'canopy', 'cone', tm.canopy, { pos: { x: t.x * MX, y: 6.4, z: t.z }, scale: { x: 5, y: 7, z: 5 }, outlineK: 0.14 }))
+    // trees: each authored tree seeds a small cluster (renderer only; the sim never reads trees), every one with its own
+    // scale, canopy tone and a soft ground shadow so they sit on the turf instead of floating
+    const tree = (x: number, z: number, s: number, tone: number, squash: number) => {
+      part(h, 'trunk', 'cylinder', tm.trunk, { pos: { x: x * MX, y: 1.5 * s, z }, scale: { x: 0.7 * s, y: 3 * s, z: 0.7 * s }, outlineK: 0.08 })
+      this.canopies.push(part(h, 'canopy', 'cone', tm.canopies[tone], { pos: { x: x * MX, y: 6.4 * s, z }, scale: { x: 5 * s * squash, y: 7 * s, z: (5 * s) / squash }, outlineK: 0.14, batch: -1 }))
+      decal(h, 'treeShadow', tm.shadow, { pos: { x: x * MX + 0.8 * s, y: 0.03, z: z - 0.6 * s }, w: 5.5 * s, h: 4 * s, opacity: 0.35, fog: true })
     }
+    hole.trees.forEach((t, i) => {
+      const tr = new Rng(hole.windSeedOffset * 97 + i)
+      tree(t.x, t.z, tr.range(0.8, 1.3), tr.int(0, 2), tr.range(0.88, 1.12))
+      const extra = tr.int(2, 4)
+      for (let k = 0; k < extra; k++) {
+        const a = tr.range(0, Math.PI * 2), d = tr.range(4, 9), q = { x: t.x + Math.sin(a) * d, z: t.z + Math.cos(a) * d }
+        if (surfaceAt(hole, q) !== 'rough') continue
+        tree(q.x, q.z, tr.range(0.65, 1.15), tr.int(0, 2), tr.range(0.88, 1.12))
+      }
+    })
     for (const pr of hole.props ?? []) this.props.push(buildProp(h, pr, pr.p.x * MX, GROUND_TOP, pr.p.z))
     // wind sock beside the tee: pole, then a cone hanging from a pivot that rotates to the wind
     const sx = (hole.tee.x + 5) * MX, sz = hole.tee.z + 2
     part(h, 'sockPole', 'cylinder', this.mats.pole, { pos: { x: sx, y: 2, z: sz }, scale: { x: 0.1, y: 4, z: 0.1 }, outline: false })
     this.sockPivot = pivot(h, 'sockPivot', { x: sx, y: 4, z: sz })
-    part(this.sockPivot, 'sock', 'cone', this.mats.sock, { pos: { x: 0, y: 0.7, z: 0 }, scale: { x: 0.45, y: 1.4, z: 0.45 }, outlineK: 0.02 })
+    part(this.sockPivot, 'sock', 'cone', this.mats.sock, { pos: { x: 0, y: 0.7, z: 0 }, scale: { x: 0.45, y: 1.4, z: 0.45 }, outlineK: 0.02, batch: -1 })
+    setDefaultBatch(-1)
     this.setWind(this.wind)
     this.setPreview(null)
   }
@@ -201,9 +257,13 @@ export class CourseScene {
     }
   }
 
-  update(t: number, dt: number): void {
-    void dt
+  update(t: number, dt: number, cam: V3): void {
     const k = Math.min(1, Math.hypot(this.wind.x, this.wind.z) / 6)
+    for (const c of this.cards) {
+      const p = c.e.getLocalPosition()
+      if (c.drift > 0) c.e.setLocalPosition(p.x + this.wind.x * MX * c.drift * dt, p.y, p.z + this.wind.z * c.drift * dt)
+      c.e.lookAt(cam.x, p.y, cam.z); c.e.rotateLocal(0, 180, 0)
+    }
     const sway = Math.sin(t * 1.3) * 1.5 * k
     for (let i = 0; i < this.canopies.length; i++) { const e = this.canopies[i]; e.setLocalEulerAngles(0, 0, sway + Math.sin(t * 1.7 + i) * 0.6 * k) }
     this.sockPivot?.setLocalEulerAngles(this.sockPitch, this.sockYaw, Math.sin(t * 5) * 4 * k)

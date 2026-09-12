@@ -10,7 +10,7 @@ export function golfPages(b: GolfBindings = GOLF_KEYS): TutorialPage[] {
   const row = (a: keyof GolfBindings): TutorialRow => { const h = GOLF_HELP.find((x) => x.action === a)!; return { keys: b[a].map(keyLabel).join(' / '), label: h.label, hint: h.hint } }
   return [
     { heading: 'CLUBS', rows: [row('clubUp'), row('clubDown')], note: 'Driver 230 m, 3 wood 200, 5 iron 160, 7 iron 135, wedge 90 at full power on a flat lie. Rough loses 15%, sand 40%. On the green you putt; from sand you cannot.' },
-    { heading: 'SWING', rows: [row('aimLeft'), row('aimRight'), row('swing')], note: 'Three presses: one starts the meter, the second sets power as it sweeps up and back, the third sets accuracy: stop on the centre mark or the ball pulls or pushes.' },
+    { heading: 'SWING', rows: [row('aimLeft'), row('aimRight'), row('swing')], note: 'Three presses: one starts the meter, the second sets power as it sweeps up and back, the third sets accuracy: stop inside the green window for a straight shot, or the ball pulls or pushes.' },
     { heading: 'COURSE', rows: [row('view')], note: 'Three holes, wind on every hole (watch the sock). Water costs a stroke and a drop short of the hazard; out of bounds costs a stroke and a replay. Farthest from the cup plays next; pick up at par + 4.' },
   ]
 }

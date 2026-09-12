@@ -13,7 +13,7 @@ function frames(script: string[][], bindings = BOWLING_KEYS): BowlingInput[] {
   }
   return out
 }
-const IDLE: BowlingInput = { moveLane: 0, aim: 0, hook: 0, meterPress: false, meterDown: false, meterRelease: false, confirm: false }
+const IDLE: BowlingInput = { moveLane: 0, aim: 0, hook: 0, meterPress: false, meterDown: false, meterRelease: false, confirm: false, sheet: false }
 
 describe('bowling keymap', () => {
   it('every binding produces exactly its field', () => {
@@ -23,6 +23,7 @@ describe('bowling keymap', () => {
     expect(one('ArrowLeft')).toEqual({ ...IDLE, hook: -1 }); expect(one('ArrowRight')).toEqual({ ...IDLE, hook: 1 })
     expect(one('Space')).toEqual({ ...IDLE, meterPress: true, meterDown: true })
     expect(one('Enter')).toEqual({ ...IDLE, confirm: true })
+    expect(one('Tab')).toEqual({ ...IDLE, sheet: true })
     expect(one('KeyZ')).toEqual(IDLE)
   })
   it('held axes stay on while held; hook and confirm fire once per press', () => {

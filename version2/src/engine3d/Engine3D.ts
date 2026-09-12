@@ -1,6 +1,6 @@
-import { AppBase, AppOptions, BAKE_COLOR, BatchManager, CameraComponentSystem, Color, DEVICETYPE_WEBGL2, Entity, FILLMODE_NONE, FOG_LINEAR, FOG_NONE, LIGHTFALLOFF_INVERSESQUARED, LIGHTFALLOFF_LINEAR, LightComponentSystem, Lightmapper, ParticleSystemComponentSystem, RESOLUTION_AUTO, RenderComponentSystem, SHADOW_PCF3_32F, TONEMAP_ACES, createGraphicsDevice, type Texture } from 'playcanvas'
+import { AppBase, AppOptions, BAKE_COLOR, BatchManager, CameraComponentSystem, Color, DEVICETYPE_WEBGL2, Entity, FILLMODE_NONE, FOG_LINEAR, FOG_NONE, LightComponentSystem, Lightmapper, ParticleSystemComponentSystem, RESOLUTION_AUTO, RenderComponentSystem, SHADOW_PCF3_32F, TONEMAP_ACES, createGraphicsDevice } from 'playcanvas'
 import { col } from './materials'
-import { envAtlasFromGradient, type SkyGradient } from './env'
+import type { SkyGradient } from './env'
 import { Post, type Quality } from './post'
 
 export interface WorldLook { sky: SkyGradient; fog?: { color: number; start: number; end: number }; tint?: number; saturation?: number; exposure?: number; ambient?: number }
@@ -15,13 +15,10 @@ export class Engine3D {
   readonly canvas: HTMLCanvasElement
   readonly app: AppBase
   readonly camera: Entity
-  /** Key (warm, shadows), fill (cool), rim (behind the subject). */
+  /** The single warm key light (shadows only on the high setting). */
   readonly key: Entity
-  readonly fill: Entity
-  readonly rim: Entity
   readonly post: Post
   private worlds: Entity[] = []
-  private atlases = new Map<string, Texture>()
   quality: Quality = 'high'
 
   private constructor(canvas: HTMLCanvasElement, app: AppBase) {
@@ -29,18 +26,11 @@ export class Engine3D {
     this.camera = new Entity('camera')
     this.camera.addComponent('camera', { clearColor: new Color(0, 0, 0, 0), clearColorBuffer: true, fov: 60, nearClip: 0.05, farClip: 80, toneMapping: TONEMAP_ACES })
     app.root.addChild(this.camera)
+    // one warm directional key plus flat ambient: the cheapest lighting the toon materials can read (no fill, rim or IBL)
     this.key = new Entity('key')
-    this.key.addComponent('light', { type: 'directional', color: col(0xfff4dc), intensity: 1.35, castShadows: true, shadowDistance: 16, shadowResolution: 1024, shadowType: SHADOW_PCF3_32F, shadowBias: 0.06, normalOffsetBias: 0.05, shadowIntensity: 0.8, numCascades: 1 })
+    this.key.addComponent('light', { type: 'directional', color: col(0xfff4dc), intensity: 1.55, castShadows: false, shadowDistance: 14, shadowResolution: 1024, shadowType: SHADOW_PCF3_32F, shadowBias: 0.06, normalOffsetBias: 0.05, shadowIntensity: 0.7, numCascades: 1 })
     this.key.setEulerAngles(52, 30, 0)
     app.root.addChild(this.key)
-    this.fill = new Entity('fill')
-    this.fill.addComponent('light', { type: 'omni', color: col(0x6f86c9), intensity: 0.5, range: 20, falloffMode: LIGHTFALLOFF_LINEAR, castShadows: false })
-    this.fill.setPosition(-4, 3, 4)
-    app.root.addChild(this.fill)
-    this.rim = new Entity('rim')
-    this.rim.addComponent('light', { type: 'spot', color: col(0xffd7a0), intensity: 2.2, range: 14, innerConeAngle: 22, outerConeAngle: 40, falloffMode: LIGHTFALLOFF_INVERSESQUARED, castShadows: false })
-    this.rim.setPosition(0, 4, -5); this.rim.lookAt(0, 1, 0)
-    app.root.addChild(this.rim)
     app.scene.ambientLight = col(0x33395a)
     app.scene.exposure = 1.15
     this.post = new Post(app, this.camera.camera!)
@@ -72,13 +62,12 @@ export class Engine3D {
     return e
   }
 
-  /** Quality: high = shadows + full post incl. SSAO; medium = no SSAO, smaller RT; low = no post, no shadows. */
+  /** Quality: high = 1K key-light shadows + vignette/grading post; medium (default) and low = direct render, no shadows, no post. Pixel ratio is always 1. */
   setQuality(q: Quality): void {
     this.quality = q
     this.post.setQuality(q)
-    this.key.light!.castShadows = q !== 'low'
-    this.key.light!.shadowResolution = q === 'high' ? 2048 : 1024
-    this.app.graphicsDevice.maxPixelRatio = q === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : 1
+    this.key.light!.castShadows = q === 'high'
+    this.app.graphicsDevice.maxPixelRatio = 1
   }
 
   /** A root entity for one game's content; disabled until shown. */
@@ -89,26 +78,19 @@ export class Engine3D {
     this.worlds.push(w)
     return w
   }
-  /** Per-world look: environment lighting from a gradient sky (cached by name), fog, grading, exposure. */
+  /** Per-world look: fog, grading, exposure and a flat ambient (raised a little because there is no fill light). Environment lighting is skipped: it costs a cubemap sample per pixel. */
   applyLook(name: string, look: WorldLook): void {
-    let atlas = this.atlases.get(name)
-    if (!atlas) { atlas = envAtlasFromGradient(this.app.graphicsDevice, look.sky); this.atlases.set(name, atlas) }
-    this.app.scene.envAtlas = atlas
-    this.app.scene.skyboxIntensity = 1
+    void name
+    this.app.scene.envAtlas = null
     const f = this.app.scene.fog
     if (look.fog) { f.type = FOG_LINEAR; f.color = col(look.fog.color); f.start = look.fog.start; f.end = look.fog.end } else f.type = FOG_NONE
     this.app.scene.exposure = look.exposure ?? 1.15
-    this.app.scene.ambientLight = col(look.ambient ?? 0x33395a)
+    const a = col(look.ambient ?? 0x33395a); a.r = Math.min(1, a.r * 1.45); a.g = Math.min(1, a.g * 1.45); a.b = Math.min(1, a.b * 1.45)
+    this.app.scene.ambientLight = a
     this.post.grade(look.tint ?? 0xffffff, look.saturation ?? 1.08)
   }
-  /** Aim the light rig at a subject: key from above-front-left, fill opposite, rim behind toward the camera. */
-  aimLights(target: { x: number; y: number; z: number }, camPos: { x: number; z: number }): void {
-    const dx = camPos.x - target.x, dz = camPos.z - target.z, d = Math.hypot(dx, dz) || 1
-    const ux = dx / d, uz = dz / d // unit vector from target toward the camera
-    this.fill.setPosition(target.x + ux * 4 - uz * 4, target.y + 2.5, target.z + uz * 4 + ux * 4)
-    this.rim.setPosition(target.x - ux * 5, target.y + 3.5, target.z - uz * 5)
-    this.rim.lookAt(target.x, target.y, target.z)
-  }
+  /** Kept for callers: the single key light is fixed, so there is nothing to aim any more. */
+  aimLights(target: { x: number; y: number; z: number }, camPos: { x: number; z: number }): void { void target; void camPos }
   private batchIds = new Map<string, number>()
   /** Batch group id for static geometry sharing materials (one draw call per material). Dynamic groups re-transform on the CPU each frame. */
   batchGroup(name: string, dynamic = false, size = 40): number {

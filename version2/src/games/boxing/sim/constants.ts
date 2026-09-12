@@ -21,8 +21,8 @@ export const KNOCK_EPS = 0.01
 
 export interface FrameData { windup: number; active: number; recover: number; reach: number; dmg: number; stamina: number; blockCost: number; knock: number; hitstun: number }
 export const FRAME: Record<PunchKind, FrameData> = {
-  jab: { windup: 12, active: 6, recover: 24, reach: 1.2, dmg: 6, stamina: 5, blockCost: 4, knock: 0.9, hitstun: 10 },
-  cross: { windup: 24, active: 8, recover: 40, reach: 1.3, dmg: 12, stamina: 10, blockCost: 8, knock: 1.8, hitstun: 18 },
+  jab: { windup: 12, active: 6, recover: 24, reach: 1.2, dmg: 6, stamina: 9, blockCost: 4, knock: 0.9, hitstun: 10 },
+  cross: { windup: 24, active: 8, recover: 40, reach: 1.3, dmg: 12, stamina: 16, blockCost: 8, knock: 1.8, hitstun: 18 },
 }
 export const CANCEL_WINDOW = 6 // recover ticks left in which a new punch may start
 
@@ -32,7 +32,8 @@ export const MOMENTUM_KNOCK = 0.6
 export const STAGGER_BONUS = 1.25
 export const BLOCK_DMG_MUL = 0.15
 export const BLOCK_KNOCK_MUL = 0.35
-export const BLOCK_HOLD_DRAIN = 2 // stamina per second while guard is up
+export const BLOCK_HOLD_DRAIN = 4 // stamina per second while guard is up
+export const REGEN_GUARD = 3 // stamina per second regained while guarding (net -1/s with the hold drain)
 export const GUARD_BREAK_STAGGER = 60
 export const GUARD_RECOVER_STAMINA = 15
 export const STAGGER_DMG = 11

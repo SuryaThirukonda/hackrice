@@ -1,10 +1,10 @@
 import type { KeyState } from '../../input/keys'
 import { SHOT_LIMITS } from './sim/constants'
 
-export interface BowlingBindings { left: string[]; right: string[]; aimL: string[]; aimR: string[]; hookL: string[]; hookR: string[]; roll: string[]; confirm: string[] }
+export interface BowlingBindings { left: string[]; right: string[]; aimL: string[]; aimR: string[]; hookL: string[]; hookR: string[]; roll: string[]; confirm: string[]; sheet: string[] }
 export const BOWLING_KEYS: BowlingBindings = {
   left: ['KeyA'], right: ['KeyD'], aimL: ['KeyQ'], aimR: ['KeyE'],
-  hookL: ['ArrowLeft'], hookR: ['ArrowRight'], roll: ['Space'], confirm: ['Enter'],
+  hookL: ['ArrowLeft'], hookR: ['ArrowRight'], roll: ['Space'], confirm: ['Enter'], sheet: ['Tab'],
 }
 /** Human-readable labels for tutorials and overlays, generated from the same table. */
 export const BOWLING_HELP: { action: keyof BowlingBindings; label: string; hint: string }[] = [
@@ -16,11 +16,12 @@ export const BOWLING_HELP: { action: keyof BowlingBindings; label: string; hint:
   { action: 'hookR', label: 'Hook right (tap)', hint: 'the ball curves right after the oil line' },
   { action: 'roll', label: 'Lock, then charge', hint: 'tap once to stop the sweeping line; hold and release for power' },
   { action: 'confirm', label: 'Lock the line', hint: 'alternative to the first tap' },
+  { action: 'sheet', label: 'Full scoresheet', hint: 'toggle the ten-frame sheet; the top strip shows the live frame and totals' },
 ]
 export const keyLabel = (code: string): string => code.replace('Key', '').replace('Arrow', '').replace('Space', 'Space')
 
 export type Axis = -1 | 0 | 1
-export interface BowlingInput { moveLane: Axis; aim: Axis; hook: Axis; meterPress: boolean; meterDown: boolean; meterRelease: boolean; confirm: boolean }
+export interface BowlingInput { moveLane: Axis; aim: Axis; hook: Axis; meterPress: boolean; meterDown: boolean; meterRelease: boolean; confirm: boolean; sheet: boolean }
 export interface AimState { lanePos: number; angleDeg: number; hook: number }
 
 /** Remembers whether the charge key was held last frame so the release edge can be detected from held state alone. */
@@ -45,6 +46,7 @@ export function bowlingInput(k: KeyState, b: BowlingBindings = BOWLING_KEYS, met
     meterDown,
     meterRelease: meter.sample(meterDown),
     confirm: k.justPressed(...b.confirm),
+    sheet: k.justPressed(...b.sheet),
   }
 }
 

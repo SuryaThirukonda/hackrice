@@ -81,7 +81,7 @@ export class SettingsScene extends Phaser.Scene {
       add(new ComicButton(this, W / 2 + 250, y, value, () => { this.row = i; this.activate() }, { color: this.row === i ? P.gold : P.paper, w: 300, h: 26, size: 14 }))
     }
     line(0, 'SOUND', this.s.sound ? 'ON' : 'OFF')
-    line(1, '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
+    line(1, '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'high' ? ' (shadows + vignette)' : ' (direct render, no shadows)'))
     rows.forEach((r, i) => line(i + 2, r.label.toUpperCase(), this.waiting && this.row === i + 1 ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
     line(rows.length + 2, 'RESET KEYS', 'defaults')
     add(this.add.text(W / 2, H - 46, '↑↓ rows · Enter change · Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))

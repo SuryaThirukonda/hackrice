@@ -304,7 +304,7 @@ export class GolfScene extends Phaser.Scene {
   }
 
   private hudState() {
-    return { club: this.club, heading: this.myTurn() ? this.heading : this.headingToCup(this.round.current), myTurn: this.myTurn(), meter: { state: this.meter.state, value: this.meter.value, power: this.meter.power }, nHoles: this.nHoles }
+    return { club: this.club, heading: this.myTurn() ? this.heading : this.headingToCup(this.round.current), myTurn: this.myTurn(), meter: { state: this.meter.state, value: this.meter.value, power: this.meter.power, accuracy: this.meter.accuracy }, nHoles: this.nHoles }
   }
 
   /** Guided practice: advance the prompt when the current step's condition is met. */

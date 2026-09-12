@@ -2,16 +2,16 @@ import Phaser from 'phaser'
 import { DISPLAY, FONT, HEX, P } from '../../../theme'
 import { actionBurst, ComicButton, comicPanel, MenuNav } from '../../../ui/widgets'
 import { pauseOverlay, type PauseAction, type PauseRow } from '../../../ui/pauseOverlay'
-import type { MeterState } from '../keymap'
+import { ACC_SWEET, type MeterState } from '../keymap'
 import { carryTable } from '../sim/clubs'
 import type { Club, GolfSnapshot, Hole, V2 } from '../sim/types'
 
 export const CLUB_NAMES: Record<Club, string> = { driver: 'DRIVER', wood3: '3 WOOD', iron5: '5 IRON', iron7: '7 IRON', wedge: 'WEDGE', putter: 'PUTTER' }
-const MAP = 220
+const MAP = 170
 const RAD = Math.PI / 180
 
 /** Per-frame scene state the HUD draws that the sim snapshot does not carry. */
-export interface HudState { club: Club; heading: number; myTurn: boolean; meter: { state: MeterState; value: number; power: number }; nHoles: number }
+export interface HudState { club: Club; heading: number; myTurn: boolean; meter: { state: MeterState; value: number; power: number; accuracy: number }; nHoles: number }
 
 export const toParText = (n: number): string => (n === 0 ? 'E' : n > 0 ? `+${n}` : `${n}`)
 
@@ -52,10 +52,10 @@ export class GolfHud {
     const add = <T extends Phaser.GameObjects.GameObject>(g: T): T => { this.static.push(g); return g }
     const label = (x: number, y: number, text: string, size: number, color: number, origin: [number, number] = [0, 0]) =>
       add(s.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, color: HEX(color), fontStyle: '900' }).setOrigin(origin[0], origin[1]).setDepth(101))
-    // hole banner
-    add(comicPanel(s, W / 2 - 230, 12, 460, 74, P.paper, -1.5).setDepth(100))
-    this.holeTxt = add(s.add.text(W / 2, 38, 'HOLE 1 · PAR 3', { fontFamily: DISPLAY, fontSize: '26px', color: HEX(P.ink) }).setOrigin(0.5).setDepth(101).setAngle(-1.5))
-    this.distTxt = add(s.add.text(W / 2, 68, '150 m to the cup', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5).setDepth(101).setAngle(-1.5))
+    // hole banner (top-left, under the player block, so the centre of the screen stays clear)
+    add(comicPanel(s, 30, 104, 330, 56, P.paper, -1, 0.85).setDepth(100))
+    this.holeTxt = add(s.add.text(42, 118, 'HOLE 1 · PAR 3', { fontFamily: DISPLAY, fontSize: '19px', color: HEX(P.ink) }).setOrigin(0, 0.5).setDepth(101).setAngle(-1))
+    this.distTxt = add(s.add.text(42, 144, '150 m to the cup', { fontFamily: FONT, fontSize: '13px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0, 0.5).setDepth(101).setAngle(-1))
     // players
     this.nameA = add(s.add.text(30, 14, this.names[0], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.blue), stroke: HEX(P.ink), strokeThickness: 6 }).setDepth(101))
     this.nameB = add(s.add.text(W - 30, 14, this.names[1], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 6 }).setOrigin(1, 0).setDepth(101))
@@ -63,17 +63,17 @@ export class GolfHud {
     this.strokesB = label(W - 30, 48, 'STROKES 0', 16, P.ink, [1, 0])
     this.turnTxt = add(s.add.text(30, 74, '', { fontFamily: DISPLAY, fontSize: '20px', color: HEX(P.gold), stroke: HEX(P.ink), strokeThickness: 5 }).setDepth(101))
     // club (bottom-left)
-    add(comicPanel(s, 30, H - 132, 250, 80, P.paper, 1).setDepth(100))
+    add(comicPanel(s, 30, H - 132, 250, 80, P.paper, 1, 0.85).setDepth(100))
     this.clubTxt = add(s.add.text(44, H - 120, '7 IRON', { fontFamily: DISPLAY, fontSize: '30px', color: HEX(P.ink) }).setDepth(101).setAngle(1))
     this.carryTxt = label(44, H - 84, 'carries 135 m · W/S to change', 13, P.ink)
     // wind (top-right, under the name)
-    this.windBox = { x: W - 30 - 180, y: 76 }
-    add(comicPanel(s, this.windBox.x, this.windBox.y, 180, 56, P.paper, 1).setDepth(100))
-    this.windTxt = label(this.windBox.x + 14, this.windBox.y + 10, 'WIND\n0.0 m/s', 14, P.ink)
+    this.windBox = { x: W - 30 - 150, y: 76 }
+    add(comicPanel(s, this.windBox.x, this.windBox.y, 150, 48, P.paper, 1, 0.85).setDepth(100))
+    this.windTxt = label(this.windBox.x + 12, this.windBox.y + 8, 'WIND\n0.0 m/s', 13, P.ink)
     // scorecard (right)
-    const sy = 150, sx = W - 30 - 230
-    add(comicPanel(s, sx, sy, 230, 150, P.paper, -1).setDepth(100))
-    this.cardCols = [40, 92, 140, 190].map((cx, i) => add(s.add.text(sx + cx, sy + 12, '', { fontFamily: FONT, fontSize: '14px', color: HEX(i === 2 ? P.blue : i === 3 ? P.red : P.ink), fontStyle: '900', align: 'center', lineSpacing: 2 }).setOrigin(0.5, 0).setDepth(101)))
+    const sy = 138, sx = W - 30 - 200
+    add(comicPanel(s, sx, sy, 200, 120, P.paper, -1, 0.85).setDepth(100))
+    this.cardCols = [34, 80, 122, 166].map((cx, i) => add(s.add.text(sx + cx, sy + 10, '', { fontFamily: FONT, fontSize: '13px', color: HEX(i === 2 ? P.blue : i === 3 ? P.red : P.ink), fontStyle: '900', align: 'center', lineSpacing: 1 }).setOrigin(0.5, 0).setDepth(101)))
     // minimap (bottom-right)
     this.mapBox = { x: W - 30 - MAP, y: H - 56 - MAP }
     // swing meter (bottom-centre)
@@ -125,7 +125,7 @@ export class GolfHud {
   /** Arrow relative to the aim heading: up = tailwind, down = headwind. */
   private windArrow(g: Phaser.GameObjects.Graphics, wind: V2, heading: number): void {
     const ws = Math.hypot(wind.x, wind.z)
-    const cx = this.windBox.x + 140, cy = this.windBox.y + 28
+    const cx = this.windBox.x + 118, cy = this.windBox.y + 24
     g.fillStyle(P.paper).fillCircle(cx, cy, 20); g.lineStyle(3, P.ink).strokeCircle(cx, cy, 20)
     if (ws < 0.05) return
     const rel = Math.atan2(wind.x, wind.z) - heading * RAD
@@ -149,17 +149,21 @@ export class GolfHud {
     } else {
       const pw = Math.max(0, Math.min(1, m.power)) * (b.w - 8)
       g.fillStyle(P.gold, 0.35).fillRoundedRect(b.x + 4, b.y + 4, pw, b.h - 8, 5)
-      const cx = b.x + b.w / 2
-      g.fillStyle(P.green).fillRect(cx - 5, b.y + 2, 10, b.h - 4) // sweet spot
-      const x = cx + (m.state === 'accuracy' ? m.value : 0) * (b.w / 2 - 10)
-      g.fillStyle(m.state === 'done' ? P.blue : P.red).fillRect(x - 3, b.y - 4, 6, b.h + 8)
+      const cx = b.x + b.w / 2, travel = b.w / 2 - 10
+      const half = ACC_SWEET * travel // the green window: stops inside it count as a perfect shot
+      g.fillStyle(P.green).fillRect(cx - half, b.y + 2, half * 2, b.h - 4)
+      g.lineStyle(2, P.ink).strokeRect(cx - half, b.y + 2, half * 2, b.h - 4)
+      const stop = m.state === 'accuracy' ? m.value : m.accuracy
+      const perfect = m.state === 'done' && Math.abs(stop) <= ACC_SWEET
+      const x = cx + stop * travel
+      g.fillStyle(m.state === 'done' ? (perfect ? P.green : P.blue) : P.red).fillRect(x - 3, b.y - 4, 6, b.h + 8)
       g.lineStyle(2, P.ink).strokeRect(x - 3, b.y - 4, 6, b.h + 8)
-      this.meterTxt.setText(m.state === 'accuracy' ? `ACCURACY  ·  SPACE on the green mark` : `POWER ${Math.round(m.power * 100)}%`)
+      this.meterTxt.setText(m.state === 'accuracy' ? `ACCURACY  ·  SPACE inside the green window` : perfect ? 'PERFECT' : `POWER ${Math.round(m.power * 100)}%`)
     }
     g.lineStyle(4, P.ink).strokeRoundedRect(b.x, b.y, b.w, b.h, 8)
   }
 
-  /** Top-down hole map from the hole data, fitted into a 220x220 box, north up. */
+  /** Top-down hole map from the hole data, fitted into a MAP-sized box, north up. */
   private minimap(g: Phaser.GameObjects.Graphics, hole: Hole, v: GolfSnapshot, st: HudState): void {
     const bx = this.mapBox.x, by = this.mapBox.y
     const xs = hole.course.map((p) => p.x), zs = hole.course.map((p) => p.z)
@@ -168,8 +172,8 @@ export class GolfHud {
     const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2
     const px = (x: number) => bx + MAP / 2 + (x - cx) * k, pz = (z: number) => by + MAP / 2 - (z - cz) * k
     const poly = (pts: V2[]) => pts.map((p) => ({ x: px(p.x), y: pz(p.z) }))
-    g.fillStyle(P.ink, 0.9).fillRoundedRect(bx + 5, by + 6, MAP, MAP, 12)
-    g.fillStyle(0x2f7d3a).fillRoundedRect(bx, by, MAP, MAP, 12)
+    g.fillStyle(P.ink, 0.75).fillRoundedRect(bx + 5, by + 6, MAP, MAP, 12)
+    g.fillStyle(0x2f7d3a, 0.85).fillRoundedRect(bx, by, MAP, MAP, 12)
     g.fillStyle(0x45a04f).fillPoints(poly(hole.course), true)
     g.fillStyle(0x7ed957).fillPoints(poly(hole.fairway), true)
     g.lineStyle(1.5, P.ink, 0.5).strokePoints(poly(hole.fairway), true)

@@ -8,9 +8,9 @@ export const BOXING_KEYS: BoxingBindings = {
 }
 /** Human-readable labels for tutorials and overlays, generated from the same table. */
 export const BOXING_HELP: { action: keyof BoxingBindings; label: string; hint: string }[] = [
-  { action: 'jab', label: 'Left jab', hint: 'fast, low damage, safe' },
+  { action: 'jab', label: 'Left jab', hint: 'fast, low damage, safe; the slim bar under health is stamina (punches and blocks spend it)' },
   { action: 'cross', label: 'Right cross', hint: 'slow, heavy, step in for momentum' },
-  { action: 'block', label: 'Block (hold)', hint: 'absorbs punches, costs stamina per hit' },
+  { action: 'block', label: 'Block (hold)', hint: 'absorbs punches, costs stamina per hit and while held; at zero the guard breaks' },
   { action: 'left', label: 'Step left', hint: 'circle the House' },
   { action: 'right', label: 'Step right', hint: 'circle the House' },
   { action: 'swayL', label: 'Sway left', hint: 'dodge: invulnerable for a moment' },

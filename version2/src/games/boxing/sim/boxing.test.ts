@@ -300,13 +300,16 @@ describe('bots', () => {
     }
     expect(defended('champ')).toBeGreaterThan(defended('rookie'))
   })
-  it('a tired bot retreats with its guard up', () => {
+  it('a tired bot steps back briefly, guards only against a windup, then comes forward again', () => {
     const m = new BoxingMatch({ seed: 2, botA: null, botB: TIERS.pro })
     while (m.phase === 'countdown') m.step(IDLE)
     m.b.stamina = 10
     const c = m.botB!.decide(m.b, m.a, m.distance(), m.tick, m.rng)
     expect(c.forward).toBe(-1)
-    expect(c.block).toBe(true)
+    expect(c.block).toBe(false)
+    expect(m.botB!.mode).toBe('retreat')
+    for (let i = 0; i < TIERS.pro.retreatTicks + 2; i++) m.botB!.decide(m.b, m.a, m.distance(), m.tick + i, m.rng)
+    expect(m.botB!.mode).toBe('approach')
   })
   it('bot vs bot completes 20 seeded matches with all invariants intact', () => {
     for (let seed = 1; seed <= 20; seed++) {
@@ -323,4 +326,46 @@ describe('bots', () => {
       expect(m.getResult()).not.toBeNull()
     }
   }, 30_000)
+})
+
+describe('fight feel: bot pressure, cadence, stamina economy', () => {
+  const perMinute = (tier: keyof typeof TIERS, seeds = [1, 2, 3, 4]) => {
+    let punches = 0, ticks = 0, retreat = 0, closeBy = 0, bells = 0
+    for (const seed of seeds) {
+      const m = new BoxingMatch({ seed, botA: null, botB: TIERS[tier], roundS: 60, restS: 1 })
+      let sinceBell = -1
+      while (!m.over && ticks < 120 * 60 * 3 * seeds.length) {
+        m.step(cmd({ forward: m.distance() > 1.05 ? 1 : 0, block: m.b.state === 'windup', punch: m.tick % 150 === 0 ? 'jab' : null }))
+        ticks++
+        for (const e of m.events) { if (e.kind === 'windup' && e.who === 'b') punches++; if (e.kind === 'bell' && !e.end) { bells++; sinceBell = 0 } }
+        if (m.phase === 'fighting') { if (m.botB!.mode === 'retreat') retreat++; if (sinceBell >= 0) { sinceBell++; if (sinceBell === 120 * 3 && m.distance() <= FRAME.jab.reach + 0.05) closeBy++ } }
+      }
+    }
+    return { ppm: (punches / (ticks / 120)) * 60, retreatShare: retreat / ticks, closeRate: closeBy / bells }
+  }
+  it('the bot comes forward: little time retreating and in reach shortly after each bell', () => {
+    const r = perMinute('rookie')
+    expect(r.retreatShare).toBeLessThan(0.3)
+    expect(r.closeRate).toBeGreaterThan(0.6)
+  })
+  it('punches per minute sit in the tier bands', () => {
+    expect(perMinute('rookie').ppm).toBeGreaterThan(4); expect(perMinute('rookie').ppm).toBeLessThan(10)
+    expect(perMinute('champ').ppm).toBeGreaterThan(perMinute('rookie').ppm)
+    expect(perMinute('champ').ppm).toBeLessThan(22)
+  })
+  it('stamina is a real limiter: the 11th jab in a row is refused, and a long guard drains the bar slowly', () => {
+    const m = fighting(); place(m, 2.5) // out of reach so nothing lands; only costs matter
+    let refused = 0, thrown = 0
+    for (let i = 0; i < 14; i++) {
+      const ev = run(m, 42, once(cmd({ punch: 'jab' }))) // one jab per 42 ticks (its full windup + active + recover)
+      if (ev.some((e) => e.kind === 'gassed')) refused++
+      if (ev.some((e) => e.kind === 'windup')) thrown++
+    }
+    expect(thrown).toBeLessThanOrEqual(11)
+    expect(refused).toBeGreaterThanOrEqual(1)
+    const g = fighting(); place(g, 2.5)
+    const s0 = g.a.stamina
+    run(g, HZ * 10, cmd({ block: true }))
+    expect(s0 - g.a.stamina).toBeCloseTo(10, 0) // net 1 per second while guarding
+  })
 })

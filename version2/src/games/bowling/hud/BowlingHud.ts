@@ -6,7 +6,7 @@ import { FRAMES } from '../sim/constants'
 import type { AimState } from '../keymap'
 import type { Scoreboard, Side, Snapshot } from '../sim/types'
 
-const HINT = 'A/D move · Q/E aim · ←→ hook · Space: lock the sweeping line, then hold + release for power · Esc pause · H help'
+const HINT = 'A/D move · Q/E aim · ←→ hook · Space: lock the sweeping line, then hold + release for power · Tab scoresheet · Esc pause · H help'
 
 /** Comic bowling HUD: scoresheet, power meter, aim readout, turn banner, bursts, cards, result and pause panels. Everything is re-laid out by layout(). */
 export class BowlingHud {
@@ -18,6 +18,9 @@ export class BowlingHud {
   private rollTxt: Phaser.GameObjects.Text[][] = []
   private scoreTxt: Phaser.GameObjects.Text[][] = []
   private nameTxt: Phaser.GameObjects.Text[] = []
+  private stripTxt: Phaser.GameObjects.Text[] = []
+  /** Compact top strip (name, live frame, total) by default; the full ten-frame sheet is a toggle. */
+  full = false
   private meterG!: Phaser.GameObjects.Graphics
   private meterLabel!: Phaser.GameObjects.Text
   private aimG!: Phaser.GameObjects.Graphics
@@ -42,7 +45,7 @@ export class BowlingHud {
   layout(W: number, H: number): void {
     this.W = W; this.H = H
     for (const o of this.static) o.destroy()
-    this.static = []; this.sheetTexts = []; this.rollTxt = []; this.scoreTxt = []; this.nameTxt = []
+    this.static = []; this.sheetTexts = []; this.rollTxt = []; this.scoreTxt = []; this.nameTxt = []; this.stripTxt = []
     const s = this.scene
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.static.push(o); return o }
     // scoresheet: header row of frame numbers, one row per player
@@ -60,13 +63,15 @@ export class BowlingHud {
       }
       this.rollTxt.push(rolls); this.scoreTxt.push(scores)
     }
+    // compact strip: one line per player (name · frame · total), swapped for the full sheet on Tab
+    for (let p = 0; p < 2; p++) this.stripTxt.push(add(s.add.text(W / 2 - 250 + 16, 24 + p * 24, '', { fontFamily: DISPLAY, fontSize: '19px', color: HEX(p === 0 ? P.blue : P.red), stroke: HEX(P.ink), strokeThickness: 4 }).setOrigin(0, 0.5).setDepth(101)))
     // turn banner under the sheet
     this.banner = add(s.add.text(W / 2, 210, '', { fontFamily: DISPLAY, fontSize: '26px', color: '#fff6e5', stroke: HEX(P.ink), strokeThickness: 7 }).setOrigin(0.5).setDepth(101).setAngle(-1))
     // power meter (right side) and aim readout (bottom left)
     this.meterG = add(s.add.graphics().setDepth(100))
     this.meterLabel = add(s.add.text(W - 52, H * 0.2 - 18, 'POWER', { fontFamily: DISPLAY, fontSize: '18px', color: HEX(P.ink) }).setOrigin(0.5).setDepth(101).setVisible(false))
     this.aimG = add(s.add.graphics().setDepth(100))
-    this.aimTxt = add(s.add.text(44, H - 208, '', { fontFamily: FONT, fontSize: '17px', color: HEX(P.ink), fontStyle: '900', lineSpacing: 6 }).setDepth(101).setAngle(-1))
+    this.aimTxt = add(s.add.text(44, H - 190, '', { fontFamily: FONT, fontSize: '15px', color: HEX(P.ink), fontStyle: '900', lineSpacing: 5 }).setDepth(101).setAngle(-1))
     this.hint = add(s.add.text(W / 2, H - 26, HINT, { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101))
     // re-apply the last known state so a resize does not blank the HUD
     this.sheetKey = ''
@@ -83,9 +88,33 @@ export class BowlingHud {
     return r === 0 ? '-' : String(r)
   }
 
+  /** Tab: swap between the compact strip and the full sheet. */
+  toggleSheet(): void { this.full = !this.full; this.sheetKey = '' }
+
   private drawSheet(sb: Record<Side, Scoreboard>, current: Side, frame: number, over: boolean): void {
     const g = this.sheet, sx = this.sheetX, cw = this.cellW, W = this.sheetW
     g.clear()
+    const showFull = this.full
+    for (const t of this.sheetTexts) t.setVisible(showFull)
+    for (const row of [...this.rollTxt, ...this.scoreTxt]) for (const t of row) t.setVisible(showFull)
+    for (const t of this.nameTxt) t.setVisible(showFull)
+    for (const t of this.stripTxt) t.setVisible(!showFull)
+    this.banner.setY(showFull ? 210 : 86)
+    if (!showFull) {
+      const w = 500, x = this.W / 2 - w / 2
+      g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 6, 12 + 6, w, 54, 10)
+      g.fillStyle(P.paper, 0.92).fillRoundedRect(x, 12, w, 54, 10)
+      g.lineStyle(4, P.ink).strokeRoundedRect(x, 12, w, 54, 10)
+      for (let p = 0; p < 2; p++) {
+        const side: Side = p === 0 ? 'a' : 'b', board = sb[side]
+        const fr = board.frames[Math.max(0, Math.min(FRAMES, frame) - 1)]
+        const marks = fr ? Array.from({ length: frame === FRAMES ? 3 : 2 }, (_, i) => BowlingHud.rollMark(fr.rolls, i, frame === FRAMES)).join(' ').trim() : ''
+        const live = !over && side === current
+        this.stripTxt[p].setText(`${this.names[p].padEnd(20)}  F${frame}  ${marks.padEnd(5)}   ${board.total}${live ? '  ◀' : ''}`)
+        this.stripTxt[p].setX(x + 16)
+      }
+      return
+    }
     g.fillStyle(P.ink, 0.9).fillRoundedRect(sx + 8, 12 + 8, W, 184, 12)
     g.fillStyle(P.paper).fillRoundedRect(sx, 12, W, 184, 12)
     for (let p = 0; p < 2; p++) {
@@ -144,7 +173,7 @@ export class BowlingHud {
     g.clear()
     this.aimTxt.setVisible(aim !== null)
     if (!aim) return
-    const H = this.H, x = 30, y = H - 220, w = 270, h = 156
+    const H = this.H, x = 30, y = H - 200, w = 250, h = 140
     g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 6, y + 8, w, h, 12)
     g.fillStyle(P.paper).fillRoundedRect(x, y, w, h, 12)
     g.lineStyle(4, P.ink).strokeRoundedRect(x, y, w, h, 12)

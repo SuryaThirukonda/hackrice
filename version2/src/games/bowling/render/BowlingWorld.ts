@@ -9,7 +9,8 @@ import { Fx } from '../../../engine3d/fx'
 import { LaneScene, WZ } from './LaneScene'
 
 export type CamMode = 'aim' | 'roll' | 'pins'
-const EYE_H = 1.55
+const EYE_H = 1.35 // chest height behind the foul line
+const FOV: Record<CamMode, number> = { aim: 36, roll: 44, pins: 40 }
 const K_SLOW = 14
 const K_CHASE = 200
 
@@ -26,12 +27,15 @@ export class BowlingWorld {
   private shakeA = 0
   private shakeT = 0
   private t = 0
+  private fovS = FOV.aim
   private engine: Engine3D
 
   constructor(engine: Engine3D) {
     this.engine = engine
     this.root = engine.newWorld('bowling')
-    this.lane = new LaneScene(this.root, engine.app.graphicsDevice)
+    const stat = engine.batchGroup('lane-static', false, 80)
+    this.lane = new LaneScene(this.root, engine.app.graphicsDevice, stat)
+    engine.generateBatches([stat])
     this.fx = new Fx(this.root)
     this.camRig = pivot(this.root, 'camRig')
     // the shared camera may still hang under another game's rig: always re-parent it here
@@ -42,8 +46,9 @@ export class BowlingWorld {
   }
   show(w: number, h: number): void {
     this.engine.show(this.root, w, h)
-    this.engine.applyLook('bowling', { sky: { top: '#0e1234', horizon: '#3a2a5a', ground: '#0a0812' }, fog: { color: 0x0f0c2a, start: 16, end: 70 }, tint: 0xf4f0ff, saturation: 1.1, exposure: 1.25, ambient: 0x46507a })
-    this.engine.camera.camera!.fov = 50
+    this.engine.applyLook('bowling', { sky: { top: '#0e1234', horizon: '#3a2a5a', ground: '#0a0812' }, fog: { color: 0x1a1238, start: 14, end: 60 }, tint: 0xf4f0ff, saturation: 1.1, exposure: 1.25, ambient: 0x46507a })
+    this.engine.camera.camera!.fov = this.fovS
+    this.engine.camera.camera!.nearClip = 0.1
   }
   hide(): void { this.engine.hide() }
   resize(w: number, h: number): void { this.engine.resize(w, h) }
@@ -61,9 +66,10 @@ export class BowlingWorld {
     const bx = aiming ? aim.lanePos : v.ballPos.x, bz = v.ballPos.z
     let eye: V3, look: V3
     if (mode === 'aim') {
+      // chest height, a little behind and to the right of the ball so the lane runs off-axis, tilted about 8 degrees down
       const a = ((aim?.angleDeg ?? 0) * Math.PI) / 180
-      eye = { x: bx, y: EYE_H, z: WZ(-1.6) }
-      look = { x: bx + Math.tan(a) * 10, y: 0.3, z: WZ(8) }
+      eye = { x: bx + 0.38, y: EYE_H, z: WZ(-2.3) }
+      look = { x: bx + Math.tan(a) * 10 - 0.15, y: 0.0, z: WZ(7.5) }
     } else if (mode === 'roll') {
       eye = { x: v.ballPos.x, y: 1.2 + BALL_R, z: WZ(bz - 2.6) }
       look = { x: v.ballPos.x + v.ballVel.x * 0.25, y: 0.2, z: WZ(bz + 4) }
@@ -80,6 +86,8 @@ export class BowlingWorld {
     const cam = this.engine.camera
     cam.setPosition(p.x + sx, p.y + sy, p.z)
     cam.lookAt(l.x, l.y, l.z)
+    this.fovS += (FOV[mode] - this.fovS) * Math.min(1, dt * 3)
+    cam.camera!.fov = this.fovS
     this.lane.setBall(bx, bz, v.phase === 'rolling' || v.phase === 'settle')
     if (aiming && path) this.lane.setAimPath(path, v.swayLocked); else this.lane.setAimGuide(aiming ? aim : null)
     this.lane.setPins(v)

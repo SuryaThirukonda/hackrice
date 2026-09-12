@@ -7,22 +7,25 @@ import type { Prop, Theme } from '../sim/types'
 /** Colours (hex) and fog for one course theme. Meadow mirrors the original course look exactly. */
 export interface ThemePalette {
   rough: number; course: number; fairway: number; green: number; sand: number; water: number; trunk: number; canopy: number
-  skyTop: number; skyHorizon: number
+  skyTop: number; skyMid: number; skyHorizon: number
+  /** Sun disc: compass azimuth (deg, 0 = north) and altitude (deg); absent for night themes. */
+  sun?: { az: number; alt: number; color: string }
+  clouds: boolean
   fog: { color: number; start: number; end: number }
 }
 
 export const THEMES: Record<Theme, ThemePalette> = {
   meadow: {
     rough: 0x2f7d3a, course: 0x45a04f, fairway: 0x7ed957, green: 0xa8f06a, sand: 0xf1dfb8, water: 0x2ad4ff, trunk: 0x8a5a2b, canopy: 0x2e8b45,
-    skyTop: P.sky1, skyHorizon: 0xbfefff, fog: { color: 0xbfefff, start: 350, end: 1200 },
+    skyTop: 0x2f86dc, skyMid: 0x6fbdf5, skyHorizon: 0xffe9c2, sun: { az: 40, alt: 28, color: '#fff2c0' }, clouds: true, fog: { color: 0xdcecf4, start: 60, end: 700 },
   },
   canyon: {
     rough: 0xb8743a, course: 0xd49a55, fairway: 0x9fbf4a, green: 0xbfe86a, sand: 0xf5d9a0, water: 0x3ab8d8, trunk: 0x6f4a2a, canopy: 0x5f8f3a,
-    skyTop: 0xff9a4a, skyHorizon: 0xffd9a0, fog: { color: 0xf3c890, start: 280, end: 1000 },
+    skyTop: 0xff8a3a, skyMid: 0xffc27a, skyHorizon: 0xffe6b8, sun: { az: 320, alt: 12, color: '#fff0c8' }, clouds: true, fog: { color: 0xf6d6a8, start: 60, end: 650 },
   },
   neon: {
     rough: 0x141a3a, course: 0x22306a, fairway: 0x3e5fd0, green: 0x63f0c8, sand: 0xd8c8ff, water: 0x4ff6ff, trunk: 0x2c2450, canopy: 0x36d6a0,
-    skyTop: 0x0a0a2a, skyHorizon: 0x3a1a6a, fog: { color: 0x241a4a, start: 250, end: 900 },
+    skyTop: 0x06061c, skyMid: 0x1d1550, skyHorizon: 0x4a1f7a, clouds: false, fog: { color: 0x2a1a50, start: 60, end: 600 },
   },
 }
 

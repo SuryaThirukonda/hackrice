@@ -146,8 +146,9 @@ export class ComicButton extends Phaser.GameObjects.Container {
 }
 
 /** Comic speech-bubble style panel. */
-export function comicPanel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, color = P.paper, tilt = -1.5): Phaser.GameObjects.Graphics {
+export function comicPanel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, color = P.paper, tilt = -1.5, alpha = 1): Phaser.GameObjects.Graphics {
   const g = scene.add.graphics()
+  g.setAlpha(alpha)
   g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 10, y + 12, w, h, 14)
   g.fillStyle(color).fillRoundedRect(x, y, w, h, 14)
   g.lineStyle(6, P.ink).strokeRoundedRect(x, y, w, h, 14)

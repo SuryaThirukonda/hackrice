@@ -172,6 +172,7 @@ export class BowlingScene extends Phaser.Scene {
   update(_t: number, deltaMs: number): void {
     if (!this.ready || !this.world) return
     const inp = bowlingInput(this.keys, this.bindings, this.meter)
+    if (inp.sheet) { sfx.hover(); this.hud.toggleSheet() }
     this.keys.endFrame()
     const dtS = Math.min(deltaMs, 100) / 1000
     if (this.paused || this.ended) { this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path()); this.hud.update(this.curr, dtS); return }

@@ -5,10 +5,15 @@ import type { V3 } from './springs'
 export type Prim = 'box' | 'sphere' | 'capsule' | 'cylinder' | 'cone' | 'plane' | 'torus'
 export interface PartOpts { pos?: V3; scale?: V3; euler?: V3; outline?: boolean; outlineK?: number; shadows?: boolean; receive?: boolean; batch?: number }
 
+let defaultBatch = -1
+/** Batch group that `part()` and `decal()` use when no explicit `batch` is given (set while building static scenery, reset to -1 for anything that moves). */
+export function setDefaultBatch(id: number): void { defaultBatch = id }
+
 /** A primitive with an inverted-hull ink outline child. */
 export function part(parent: Entity, name: string, type: Prim, mat: StandardMaterial, o: PartOpts = {}): Entity {
   const e = new Entity(name)
-  e.addComponent('render', { type, material: mat, castShadows: o.shadows !== false, receiveShadows: o.receive ?? true, batchGroupId: o.batch ?? -1 })
+  const batch = o.batch ?? defaultBatch
+  e.addComponent('render', { type, material: mat, castShadows: o.shadows !== false, receiveShadows: o.receive ?? true, batchGroupId: batch })
   const s = o.scale ?? { x: 1, y: 1, z: 1 }
   e.setLocalScale(s.x, s.y, s.z)
   if (o.pos) e.setLocalPosition(o.pos.x, o.pos.y, o.pos.z)
@@ -16,7 +21,7 @@ export function part(parent: Entity, name: string, type: Prim, mat: StandardMate
   if (o.outline !== false) {
     const k = o.outlineK ?? 0.03
     const h = new Entity(name + ':ink')
-    h.addComponent('render', { type, material: inkMat(), castShadows: false, receiveShadows: false, batchGroupId: o.batch ?? -1 })
+    h.addComponent('render', { type, material: inkMat(), castShadows: false, receiveShadows: false, batchGroupId: batch })
     // scale the hull outward by a fixed world thickness on each axis
     h.setLocalScale(1 + k / Math.max(0.05, s.x), 1 + k / Math.max(0.05, s.y), 1 + k / Math.max(0.05, s.z))
     e.addChild(h)
@@ -94,13 +99,20 @@ export function facetedSphere(device: GraphicsDevice, parent: Entity, name: stri
 }
 
 /** Flat textured card lying on a surface (scuffs, tape, logos). Alpha-blended, no shadows. */
-export function decal(parent: Entity, name: string, tex: Texture, o: { pos: V3; w: number; h: number; euler?: V3; opacity?: number }): Entity {
-  const m = new StandardMaterial()
-  m.useLighting = false; m.diffuse = new Color(1, 1, 1)
-  m.emissive = new Color(1, 1, 1); m.emissiveMap = tex; m.opacityMap = tex; m.opacityMapChannel = 'a'; m.blendType = BLEND_NORMAL; m.opacity = o.opacity ?? 1
-  m.depthWrite = false; m.cull = CULLFACE_NONE; m.useTonemap = false; m.update()
+const decalMats = new Map<string, StandardMaterial>()
+export function decal(parent: Entity, name: string, tex: Texture, o: { pos: V3; w: number; h: number; euler?: V3; opacity?: number; fog?: boolean; batch?: number }): Entity {
+  // materials are shared per (texture, opacity, fog) so decals with the same card can be batched into one draw call
+  const key = `${tex.name}#${tex.width}x${tex.height}#${(tex as unknown as { id?: number }).id ?? ''}|${o.opacity ?? 1}|${o.fog ?? false}`
+  let m = decalMats.get(key)
+  if (!m) {
+    m = new StandardMaterial()
+    m.useLighting = false; m.diffuse = new Color(1, 1, 1)
+    m.emissive = new Color(1, 1, 1); m.emissiveMap = tex; m.opacityMap = tex; m.opacityMapChannel = 'a'; m.blendType = BLEND_NORMAL; m.opacity = o.opacity ?? 1
+    m.depthWrite = false; m.cull = CULLFACE_NONE; m.useTonemap = false; m.useFog = o.fog ?? false; m.update()
+    decalMats.set(key, m)
+  }
   const e = new Entity(name)
-  e.addComponent('render', { type: 'plane', material: m, castShadows: false, receiveShadows: false })
+  e.addComponent('render', { type: 'plane', material: m, castShadows: false, receiveShadows: false, batchGroupId: o.batch ?? defaultBatch })
   e.setLocalScale(o.w, 1, o.h)
   e.setLocalPosition(o.pos.x, o.pos.y, o.pos.z)
   if (o.euler) e.setLocalEulerAngles(o.euler.x, o.euler.y, o.euler.z)

@@ -17,6 +17,7 @@ export class GameSelectScene extends Phaser.Scene {
   init(d: { mode?: string }): void { this.mode = d?.mode ?? '1p' }
 
   create(): void {
+    this.cards = []; this.previews = []; this.index = 0 // class fields outlive scene restarts
     ensureTextures(this)
     const { width: W, height: H } = this.scale
     this.city = new ComicBackdrop(this, 11)
@@ -59,6 +60,7 @@ export class GameSelectScene extends Phaser.Scene {
     this.cards.forEach((c, k) => { this.focusTweens[k]?.stop(); this.focusTweens[k] = this.tweens.add({ targets: c, scale: k === i ? 1.06 : 0.96, angle: k === i ? 0 : (k < i ? -3 : 3), duration: 180, ease: 'Back.Out' }) })
   }
   private select(i: number): void {
+    if (!this.scene.isActive() || !this.cards[i] || this.cards[i].list.length < 3) return
     const g = GAMES.find((x) => this.cards[i] && x.name.toUpperCase() === (this.cards[i].list[2] as Phaser.GameObjects.Text).text)!
     sfx.select(); this.tweens.add({ targets: this.cards[i], scale: 0.9, duration: 60, yoyo: true, onComplete: () => {
       if (g.id === 'boxing' || g.id === 'bowling' || g.id === 'golf') wipeTo(this, 'prefight', { game: g.id, mode: this.mode === 'card' ? 'card' : '1p' })

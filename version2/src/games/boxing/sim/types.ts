@@ -66,6 +66,7 @@ export interface BotParams {
   blockP: number; dodgeP: number; duckP: number; counterP: number
   aggression: number; comboGap: number; patterns: PunchKind[][]
   retreatStamina: number; circleP: number; stepInP: number
+  retreatTicks: number; comboRest: number
 }
 
 export interface MatchConfig { seed: number; rounds?: number; roundS?: number; restS?: number; botA?: BotParams | null; botB?: BotParams | null }

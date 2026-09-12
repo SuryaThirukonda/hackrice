@@ -34,17 +34,23 @@ export function applyToon(m: StandardMaterial): StandardMaterial {
 export interface MatOpts { gloss?: number; metalness?: number; specular?: number; diffuseMap?: Texture; tiling?: number; normalMap?: Texture; bumpiness?: number; toon?: boolean }
 
 /** Comic material: coloured diffuse, schlick fresnel so environment light reads, optional toon banding (default on). */
+const flatCache = new Map<string, StandardMaterial>()
 export function flatMat(hex: number, o: MatOpts = {}): StandardMaterial {
+  // untextured materials are shared by (colour, options) so the batcher can merge every part that uses the same look
+  const key = o.diffuseMap || o.normalMap ? null : `${hex}|${o.gloss ?? ''}|${o.metalness ?? ''}|${o.specular ?? ''}|${o.toon !== false}`
+  if (key) { const c = flatCache.get(key); if (c) return c }
   const m = new StandardMaterial()
   m.diffuse = col(hex)
   m.useMetalness = true; m.metalness = o.metalness ?? 0.05
   m.gloss = o.gloss ?? 0.45
   const s = o.specular ?? 0.35; m.specular = new Color(s, s, s)
-  m.fresnelModel = FRESNEL_SCHLICK; m.useSkybox = true
+  m.fresnelModel = FRESNEL_SCHLICK; m.useSkybox = false // no environment sampling: ambient is flat and cheap
   if (o.diffuseMap) { m.diffuseMap = o.diffuseMap; m.diffuseMapTiling.set(o.tiling ?? 4, o.tiling ?? 4) }
   if (o.normalMap) { m.normalMap = o.normalMap; m.bumpiness = o.bumpiness ?? 0.6; m.normalMapTiling.set(o.tiling ?? 4, o.tiling ?? 4) }
   if (o.toon !== false) applyToon(m)
-  m.update(); return m
+  m.update()
+  if (key) flatCache.set(key, m)
+  return m
 }
 /** Toon character/prop material: stronger gloss so gloves and balls catch a hard highlight and env reflections. */
 export function toonMat(hex: number, o: MatOpts = {}): StandardMaterial { return flatMat(hex, { gloss: 0.6, specular: 0.55, metalness: 0.1, ...o }) }
@@ -53,11 +59,14 @@ export function shinyMat(hex: number): StandardMaterial { return flatMat(hex, { 
 /** Matte, non-toon (floors, walls) with schlick so bounce light still reads. */
 export function matteMat(hex: number, o: MatOpts = {}): StandardMaterial { return flatMat(hex, { gloss: 0.3, specular: 0.2, toon: false, ...o }) }
 /** Unlit material (sky, crowd, glow): no tone mapping or fog so inks and neon stay pure. */
+const unlitCache = new Map<string, StandardMaterial>()
 export function unlitMat(hex: number, twoSided = false): StandardMaterial {
+  const key = `${hex}|${twoSided}`
+  const c = unlitCache.get(key); if (c) return c
   const m = new StandardMaterial()
   m.useLighting = false; m.diffuse = col(0); m.emissive = col(hex); m.useTonemap = false; m.useFog = false; m.useSkybox = false; m.fresnelModel = FRESNEL_NONE
   if (twoSided) m.cull = CULLFACE_NONE
-  m.update(); return m
+  m.update(); unlitCache.set(key, m); return m
 }
 /** Emissive surfaces that bloom (neon, screens, bulbs). Strength above 1 pushes them into bloom. */
 export function emissiveMat(hex: number, strength = 2.5, twoSided = false): StandardMaterial {

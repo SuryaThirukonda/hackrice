@@ -4,9 +4,13 @@ import { P } from '../theme'
 import { sfx } from './sfx'
 
 let busy = false
+let safety: ReturnType<typeof setTimeout> | undefined
+export const isWiping = (): boolean => busy
 export function wipeTo(scene: Phaser.Scene, target: string, data: Record<string, unknown> = {}): void {
-  if (busy) return
+  if (busy || !scene.scene.isActive()) return
   busy = true
+  clearTimeout(safety)
+  safety = setTimeout(() => { busy = false }, 2500) // never leave navigation dead if a target scene fails to report created
   sfx.wipe()
   const { width: W, height: H } = scene.scale
   const g = scene.add.graphics().setDepth(10_000).setScrollFactor(0)
@@ -25,7 +29,7 @@ export function wipeTo(scene: Phaser.Scene, target: string, data: Record<string,
       const c2 = { x: 0 }
       const draw2 = () => { g2.clear(); g2.fillStyle(P.ink).fillPoints([{ x: c2.x, y: 0 }, { x: c2.x + W * 1.2, y: 0 }, { x: c2.x + W * 0.9, y: H }, { x: c2.x - W * 0.3, y: H }], true); g2.lineStyle(14, P.gold).lineBetween(c2.x + W * 1.2, 0, c2.x + W * 0.9, H) }
       draw2()
-      next.tweens.add({ targets: c2, x: W * 1.5, duration: 380, ease: 'Cubic.Out', onUpdate: draw2, onComplete: () => { g2.destroy(); busy = false } })
+      next.tweens.add({ targets: c2, x: W * 1.5, duration: 380, ease: 'Cubic.Out', onUpdate: draw2, onComplete: () => { g2.destroy(); busy = false; clearTimeout(safety) } })
     })
   } })
 }

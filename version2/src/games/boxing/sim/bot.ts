@@ -18,6 +18,9 @@ export class Bot {
   strafeDir: -1 | 1 = 1
   holdBlockT = 0
   dodged = false
+  retreatT = 0      // ticks left in the current retreat
+  retreatCd = 0     // ticks until another retreat is allowed
+  restT = 0         // ticks of rest after a combo before planning the next
   constructor(p: BotParams) { this.p = p }
   setParams(p: BotParams): void { this.p = p }
 
@@ -44,16 +47,19 @@ export class Bot {
     }
     if (this.holdBlockT > 0) { c.block = true; this.holdBlockT-- }
 
-    if (me.stamina < p.retreatStamina) this.mode = 'retreat'
-    else if (this.mode === 'retreat' && me.stamina > p.retreatStamina + 20) this.mode = 'approach'
+    if (this.retreatCd > 0) this.retreatCd--
+    if (this.restT > 0) this.restT--
+    // retreat is a short breather, not a state to live in: bounded, with a cooldown, and the guard only comes up against a windup
+    if (this.mode !== 'retreat' && this.retreatCd === 0 && me.stamina < p.retreatStamina) { this.mode = 'retreat'; this.retreatT = p.retreatTicks; this.retreatCd = p.retreatTicks + 480 }
 
     const reach = FRAME.jab.reach
     switch (this.mode) {
       case 'retreat':
-        c.forward = -1; c.block = true; c.strafe = this.strafeDir
+        c.forward = -1; c.strafe = this.strafeDir; c.block = opp.state === 'windup'
+        if (--this.retreatT <= 0) this.mode = 'approach'
         return c
       case 'approach':
-        c.forward = dist > reach - 0.05 ? 1 : 0
+        c.forward = dist > reach - 0.12 ? 1 : 0
         if (rng.next() < p.circleP * 0.05) this.strafeDir = this.strafeDir === 1 ? -1 : 1
         if (rng.next() < p.circleP) c.strafe = this.strafeDir
         if (dist <= reach) { this.mode = 'engage'; this.planT = rng.int(6, 24) }
@@ -66,9 +72,10 @@ export class Bot {
             const next = this.combo.shift()!
             c.punch = next; this.comboT = p.comboGap
             if (next === 'cross' && rng.next() < p.stepInP) c.forward = 1
+            if (!this.combo.length) this.restT = p.comboRest
           }
-        } else if (--this.planT <= 0) {
-          this.planT = rng.int(p.comboGap, p.comboGap * 3)
+        } else if (this.restT === 0 && --this.planT <= 0) {
+          this.planT = rng.int(p.comboGap * 2, p.comboGap * 5)
           const r1 = rng.next(), r2 = rng.next()
           if (r1 < p.aggression) { this.combo = [...rng.choice(p.patterns)]; this.comboT = 1 }
           else if (r2 < 0.4) this.holdBlockT = rng.int(18, 60)

@@ -6,6 +6,7 @@ import { ModeSelectScene } from './scenes/ModeSelectScene'
 import { GameSelectScene } from './scenes/GameSelectScene'
 import { PlaceholderScene } from './scenes/PlaceholderScene'
 import { CursorTrail } from './fx/CursorTrail'
+import { isWiping } from './fx/transitions'
 import { BoxingScene } from './games/boxing/BoxingScene'
 import { TutorialScene } from './scenes/TutorialScene'
 import { PreFightScene } from './scenes/PreFightScene'
@@ -39,7 +40,7 @@ function start(): void {
     clearTimeout(resizeTimer)
     resizeTimer = setTimeout(() => {
       const active = game.scene.getScenes(true).find((s) => s.scene.key !== 'cursor' && s.scene.key !== 'boot') as (Phaser.Scene & { onResize?: () => void }) | undefined
-      if (!active) return
+      if (!active || isWiping()) return
       if (typeof active.onResize === 'function') active.onResize()
       else active.scene.restart(active.scene.settings.data)
     }, 250)

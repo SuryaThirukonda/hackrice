@@ -25,11 +25,13 @@ export class GolfWorld {
   private t = 0
   private first = true
   private saved: { fov: number; near: number; far: number }
+  private stat: number
 
   constructor(engine: Engine3D) {
     this.engine = engine
     this.root = engine.newWorld('golf')
-    this.course = new CourseScene(this.root, engine.app.graphicsDevice)
+    this.stat = engine.batchGroup('golf-static', false, 120)
+    this.course = new CourseScene(this.root, engine.app.graphicsDevice, this.stat)
     this.camPivot = pivot(this.root, 'golfCam')
     const cam = engine.camera
     this.cam = cam
@@ -38,7 +40,7 @@ export class GolfWorld {
     this.camPivot.addChild(cam)
     const c = cam.camera!
     this.saved = { fov: c.fov, near: c.nearClip, far: c.farClip }
-    c.fov = 62; c.nearClip = 0.3; c.farClip = 1500 // holes are up to 500 m long; the shared camera defaults to an 80 m ring
+    c.fov = 48; c.nearClip = 0.3; c.farClip = 1500 // holes are up to 500 m long; the shared camera defaults to an 80 m ring
   }
 
   show(w: number, h: number): void {
@@ -57,7 +59,7 @@ export class GolfWorld {
   apply(v: GolfSnapshot, aim: AimState, dtIn: number): void {
     const dt = Math.min(0.05, Math.max(0, dtIn))
     this.t += dt
-    if (this.course.hole !== v.holeData) this.course.setHole(v.holeData)
+    if (this.course.hole !== v.holeData) { this.course.setHole(v.holeData); this.engine.generateBatches([this.stat]) }
     this.course.setWind(v.wind)
     this.course.setBalls(v)
     const ball = v.balls[v.current], b = ball.pos, cup = v.holeData.cup
@@ -73,9 +75,10 @@ export class GolfWorld {
       p = { x: b.x - dx * 9, y: b.y + 7, z: b.z - dz * 9 }
       l = { x: b.x + dx * 6, y: Math.max(0, b.y - 2), z: b.z + dz * 6 }
     } else {
-      const dx = Math.sin(aim.heading * RAD), dz = Math.cos(aim.heading * RAD)
-      if (aim.putting) { p = { x: b.x - dx * 2.6, y: 2.4, z: b.z - dz * 2.6 }; l = { x: cup.x, y: 0, z: cup.z } }
-      else { p = { x: b.x - dx * 3.2, y: 1.7, z: b.z - dz * 3.2 }; l = { x: b.x + dx * 25, y: 0, z: b.z + dz * 25 } }
+      // shoulder height behind the ball, stepped off to one side so the fairway runs off-axis; near turf stays in frame
+      const dx = Math.sin(aim.heading * RAD), dz = Math.cos(aim.heading * RAD), rx = dz, rz = -dx
+      if (aim.putting) { p = { x: b.x - dx * 2.4 + rx * 0.45, y: 1.5, z: b.z - dz * 2.4 + rz * 0.45 }; l = { x: cup.x, y: 0, z: cup.z } }
+      else { p = { x: b.x - dx * 3.0 + rx * 0.9, y: 1.45, z: b.z - dz * 3.0 + rz * 0.9 }; l = { x: b.x + dx * 18, y: 0.2, z: b.z + dz * 18 } }
     }
     // snap in and out of the map view (a spring through a vertical look direction would roll the camera)
     if (this.first || mode === 'top' || this.mode === 'top') { this.pos.set(p); this.look.set(l) } else { this.pos.to(p, dt); this.look.to(l, dt) }
@@ -83,7 +86,8 @@ export class GolfWorld {
     const cp = this.pos.get(), cl = this.look.get()
     this.camPivot.setPosition(cp.x * MX, cp.y, cp.z) // camera maths happens in sim space; only the final x is mirrored (see MX)
     this.camPivot.lookAt(cl.x * MX, cl.y, cl.z, up.x, up.y, up.z)
-    this.course.update(this.t, dt)
+    const wp = this.camPivot.getPosition()
+    this.course.update(this.t, dt, { x: wp.x, y: wp.y, z: wp.z })
     this.engine.renderFrame()
   }
 }

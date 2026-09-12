@@ -10,7 +10,7 @@ export const GOLF_HELP: { action: keyof GolfBindings; label: string; hint: strin
   { action: 'clubDown', label: 'Shorter club', hint: 'putter only on the green, no putter from sand' },
   { action: 'aimLeft', label: 'Aim left (hold)', hint: 'the preview shows a 60% shot in this wind' },
   { action: 'aimRight', label: 'Aim right (hold)', hint: 'compass heading; you start aimed at the cup' },
-  { action: 'swing', label: 'Swing (3 presses)', hint: 'start, stop at full power, stop on the centre mark' },
+  { action: 'swing', label: 'Swing (3 presses)', hint: 'start, stop at full power, stop inside the green window for a straight shot' },
   { action: 'view', label: 'Top view', hint: 'toggle a map view over your ball while aiming' },
 ]
 export const keyLabel = (code: string): string => code.replace('Key', '').replace('Arrow', '').replace('Space', 'Space')
@@ -27,6 +27,8 @@ export function golfInput(k: KeyState, b: GolfBindings = GOLF_KEYS): GolfInput {
 export type MeterState = 'idle' | 'power' | 'accuracy' | 'done'
 export const POWER_SWEEP_S = 1.6
 export const ACC_SWEEP_S = 1.0
+/** Half-width of the forgiving green window on the accuracy sweep (-1..1): a stop inside it counts as a perfect, straight shot. */
+export const ACC_SWEET = 0.07
 
 /**
  * Three-press swing meter. idle -press-> power (value ping-pongs 0→1→0 over 1.6 s) -press-> captures power,
@@ -54,7 +56,7 @@ export class SwingMeter {
     switch (this.state) {
       case 'idle': this.state = 'power'; this.t = 0; this.value = 0; break
       case 'power': this.power = this.value; this.state = 'accuracy'; this.t = 0; this.value = -1; break
-      case 'accuracy': this.accuracy = this.value; this.state = 'done'; break
+      case 'accuracy': this.accuracy = Math.abs(this.value) <= ACC_SWEET ? 0 : this.value; this.state = 'done'; break
       default: break // extra presses once done are ignored
     }
   }

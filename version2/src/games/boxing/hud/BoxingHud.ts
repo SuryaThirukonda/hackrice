@@ -53,22 +53,46 @@ export class BoxingHud {
     g.lineStyle(4, P.ink).strokeRoundedRect(x, y, w, h, 8)
   }
 
+  private gassedFlash = 0
+  /** Flash the stamina bar red when a punch is refused. */
+  gassed(): void { this.gassedFlash = 0.5 }
+
+  /** One slim stamina bar under the health bar, split into ten segments (punches and blocks spend it, idle refills it). A shield marks a held guard. */
+  private stamina(x: number, y: number, w: number, stamina: number, guard: boolean, rtl: boolean, flash: number): void {
+    const g = this.bars, n = 10, gap = 3, h = 10, sw = (w - gap * (n - 1)) / n
+    const blink = flash > 0 && Math.floor(flash * 12) % 2 === 0
+    g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 2, y + 3, w, h, 4)
+    g.fillStyle(blink ? P.red : P.paper).fillRoundedRect(x, y, w, h, 4)
+    for (let i = 0; i < n; i++) {
+      const k = rtl ? n - 1 - i : i
+      const fill = Math.max(0, Math.min(1, stamina / 10 - i))
+      if (fill > 0) g.fillStyle(stamina < 20 ? P.orange : P.cyan).fillRect(x + k * (sw + gap) + (rtl ? sw * (1 - fill) : 0) + 1, y + 2, (sw - 2) * fill, h - 4)
+    }
+    g.lineStyle(2, P.ink).strokeRoundedRect(x, y, w, h, 4)
+    for (let i = 1; i < n; i++) g.fillStyle(P.ink).fillRect(x + i * (sw + gap) - gap, y, gap, h)
+    if (guard) {
+      const sx = rtl ? x - 24 : x + w + 8, sy = y - 4
+      g.fillStyle(P.blue).fillRoundedRect(sx, sy, 16, 18, 4); g.lineStyle(2, P.ink).strokeRoundedRect(sx, sy, 16, 18, 4)
+      g.fillStyle(P.paper).fillRect(sx + 3, sy + 5, 10, 3)
+    }
+  }
+
   update(v: Snapshot, dt: number): void {
     const W = this.W
+    this.gassedFlash = Math.max(0, this.gassedFlash - dt)
     this.ghostA += (v.a.hp - this.ghostA) * Math.min(1, dt * 2.5); this.ghostB += (v.b.hp - this.ghostB) * Math.min(1, dt * 2.5)
     this.bars.clear()
     const bw = Math.min(420, W * 0.36)
     const hpCol = (r: number) => (r > 0.5 ? P.green : r > 0.25 ? P.gold : P.red)
     this.bar(30, 48, bw, 28, v.a.hp / 100, this.ghostA / 100, hpCol(v.a.hp / 100), false)
-    this.bar(30, 82, bw, 14, v.a.stamina / 100, 0, P.cyan, false)
+    this.stamina(30, 82, bw, v.a.stamina, v.a.guard, false, this.gassedFlash)
     this.bar(W - 30 - bw, 48, bw, 28, v.b.hp / 100, this.ghostB / 100, hpCol(v.b.hp / 100), true)
-    this.bar(W - 30 - bw, 82, bw, 14, v.b.stamina / 100, 0, P.cyan, true)
+    this.stamina(W - 30 - bw, 82, bw, v.b.stamina, v.b.guard, true, 0)
     // knockdown pips
     for (let i = 0; i < 3; i++) {
-      this.bars.fillStyle(i < v.a.kd ? P.red : P.paper).fillCircle(40 + i * 20, 112, 7); this.bars.lineStyle(3, P.ink).strokeCircle(40 + i * 20, 112, 7)
-      this.bars.fillStyle(i < v.b.kd ? P.red : P.paper).fillCircle(W - 40 - i * 20, 112, 7); this.bars.lineStyle(3, P.ink).strokeCircle(W - 40 - i * 20, 112, 7)
+      this.bars.fillStyle(i < v.a.kd ? P.red : P.paper).fillCircle(40 + i * 20, 108, 7); this.bars.lineStyle(3, P.ink).strokeCircle(40 + i * 20, 108, 7)
+      this.bars.fillStyle(i < v.b.kd ? P.red : P.paper).fillCircle(W - 40 - i * 20, 108, 7); this.bars.lineStyle(3, P.ink).strokeCircle(W - 40 - i * 20, 108, 7)
     }
-    if (v.a.guard) { this.bars.fillStyle(P.blue).fillRoundedRect(30 + bw + 12, 50, 74, 24, 6); this.bars.lineStyle(3, P.ink).strokeRoundedRect(30 + bw + 12, 50, 74, 24, 6) }
     const c = Math.ceil(v.clock)
     this.timer.setText(`${Math.floor(c / 60)}:${String(c % 60).padStart(2, '0')}`)
     this.roundTxt.setText(v.phase === 'count' ? `COUNT ${v.count}` : `ROUND ${v.round}`)
