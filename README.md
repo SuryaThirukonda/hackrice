@@ -13,10 +13,25 @@ cd web && npm run dev -- --host
 ```bash
 # human step: gives phones an HTTPS origin (required for motion sensors). Paste the printed URL into the host page.
 # Wrangler downloads cloudflared itself; no sudo needed. Plain `cloudflared tunnel --url http://localhost:5173` also works.
-npx wrangler tunnel quick-start --url http://localhost:5173
+npx wrangler tunnel quick-start http://localhost:5173
 ```
 
 Pages: `http://localhost:5173/projector`, `/host`, `/rail`, `/remote?seat=P1&tok=...` (scan a seat QR on the projector, or open `/host` for the join URLs). Add `&fake=1` to the remote URL on a laptop for synthetic motion.
+
+## Godot phone controllers
+
+The standalone Godot diagnostic project accepts two low-latency Wii-style
+phone controllers for golf, bowling, and boxing. Start it with:
+
+```bash
+godot --path godot
+```
+
+With the Vite server and HTTPS tunnel above running, open
+`https://<tunnel>/controller?player=1` and
+`https://<tunnel>/controller?player=2` on the phones. Full setup, desktop fake
+controls, telemetry details, and tuning guidance are in
+[`docs/PHONE_CONTROLLER.md`](docs/PHONE_CONTROLLER.md).
 
 ## Modes
 

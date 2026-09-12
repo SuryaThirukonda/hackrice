@@ -80,6 +80,7 @@ export type FakeGesture = 'swing' | 'jab' | 'hook' | 'block' | 'unblock' | 'dodg
 /** Emits quiet upright rest at 60 Hz; trigger() splices a generated segment in. Calibration sequence plays first. */
 export class SyntheticMotionSource implements MotionSource {
   readonly kind = 'synthetic' as const
+  readonly accelerationMode = 'synthetic' as const
   private timer: number | null = null
   private queue: Raw[] = []
   private t = 0

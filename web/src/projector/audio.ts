@@ -6,7 +6,6 @@ class AudioBus {
   unlocked = false
   private voiceGain: GainNode | null = null
   private sfxGain: GainNode | null = null
-  private current: HTMLAudioElement | null = null
   private pending: VoiceLine | null = null
   private speaking = false
   onLine: ((line: VoiceLine) => void) | null = null
@@ -38,7 +37,7 @@ class AudioBus {
     this.duck(true)
     const done = () => { this.speaking = false; this.duck(false); this.next() }
     if (line.url && this.unlocked) {
-      const a = new Audio(line.url); this.current = a
+      const a = new Audio(line.url)
       a.onended = done; a.onerror = () => setTimeout(done, Math.min(4000, line.duration_ms))
       a.play().catch(() => setTimeout(done, Math.min(4000, line.duration_ms)))
     } else {
