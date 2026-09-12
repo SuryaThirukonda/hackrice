@@ -1,95 +1,116 @@
-import Phaser from 'phaser'
+import { lightSport } from '../../../engine3d/environment'
+
+import { Engine3D } from '../../../engine3d/Engine3D'
+import { CameraRig } from '../../../engine3d/CameraRig'
+import { v3 } from '../../../engine3d/springs'
 import { P } from '../../../theme'
-import { pixelCircle, pixelLine, RetroStage } from '../../../retro/RetroStage'
-import { RETRO } from '../../../retro/palette'
-import { clamp } from '../../../retro/proj'
-import type { FighterView, Snapshot } from '../sim/types'
+import { EYE_H } from '../sim/constants'
+import { Entity } from 'playcanvas'
+import type { Snapshot } from '../sim/types'
+import { OpponentRig } from './OpponentRig'
+import { PlayerArms } from './PlayerArms'
+import { RingScene } from './RingScene'
+import { opponentPose, playerArmPose } from './poses'
+import { Fx } from '../../../engine3d/fx'
 
-const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`
+const RAD = 180 / Math.PI
 
-/** Phaser-only 384x216 boxing renderer. The deterministic sim remains the sole gameplay authority. */
+/** Everything 3D for one boxing match: ring, the opponent, the player's camera and arms. */
 export class BoxingWorld {
-  private readonly stage: RetroStage
-  private readonly opponentColor: number
-  private readonly spectator: boolean
+  root: Entity
+  ring: RingScene
+  opp: OpponentRig
+  rigA: OpponentRig | null = null
+  cam: CameraRig
+  arms: PlayerArms
+  spectator = false
+  fx: Fx
+  private ringside: Entity | null = null
+  private focusT = 0
+  private stepPhase = 0
   private t = 0
-  private hitPulse: 'a' | 'b' | null = null
-
-  constructor(scene: Phaser.Scene, opponentColor = P.red, spectator = false, crt = true) {
-    this.opponentColor = opponentColor
+  private engine: Engine3D
+  constructor(engine: Engine3D, oppColor = P.red, spectator = false) {
+    this.engine = engine
     this.spectator = spectator
-    this.stage = new RetroStage(scene, 'boxing-arena', crt)
-  }
-
-  show(w: number, h: number): void { this.stage.resize(w, h); this.stage.show() }
-  hide(): void { this.stage.destroy() }
-  resize(w: number, h: number): void { this.stage.resize(w, h) }
-  cheer(): void { this.stage.cheer() }
-  shake(power: number): void { this.stage.shake(power) }
-  punchKick(): void { this.stage.shake(0.22) }
-  hitFx(_v: Snapshot, side: 'a' | 'b', heavy: boolean): void { this.hitPulse = side; this.stage.burst(side === 'a' ? 135 : 249, 116, [RETRO.white, RETRO.cyan], heavy ? 24 : 14) }
-  knockdownFx(_v: Snapshot, side: 'a' | 'b'): void { this.stage.burst(side === 'a' ? 132 : 252, 174, [RETRO.sand, RETRO.paper, RETRO.gold], 28); this.stage.flash(0.12) }
-  guardBreakFx(_v: Snapshot, side: 'a' | 'b'): void { this.stage.burst(side === 'a' ? 142 : 242, 122, [RETRO.gold, RETRO.red, RETRO.white], 22) }
-  confetti(): void { for (const x of [80, 192, 304]) this.stage.burst(x, 70, [RETRO.gold, RETRO.red, RETRO.cyan, RETRO.white], 24) }
-
-  apply(v: Snapshot, dt: number, _playerDown: boolean): void {
-    this.t += Math.max(0, dt)
-    const c = this.stage.begin(dt)
-    c.fillStyle = 'rgba(12,35,88,0.14)'; c.fillRect(0, 139, 384, 77)
-    if (this.spectator) {
-      const sep = clamp(v.dist * 18, 48, 88)
-      this.drawFighter(c, 192 - sep / 2 + v.a.pos.x * 9, 184, 0.78, v.a, hex(P.blue), false)
-      this.drawFighter(c, 192 + sep / 2 + v.b.pos.x * 9, 184, 0.78, v.b, hex(this.opponentColor), true)
-    } else {
-      const scale = clamp(1.5 - v.dist * 0.18, 0.78, 1.18)
-      const swayX = (v.b.head.x - v.a.head.x) * 24 + (v.b.pos.x - v.a.pos.x) * 11
-      const feet = 181 + v.b.head.y * 16
-      this.drawFighter(c, 192 + swayX, feet, scale, v.b, hex(this.opponentColor), true)
-      this.drawPlayerGloves(c, v.a)
+    this.root = engine.newWorld('boxing')
+    const batch = { stat: engine.batchGroup('ring-static', false, 60), crowd: engine.batchGroup('ring-crowd', true, 60) }
+    this.ring = new RingScene(this.root, engine.app.graphicsDevice, batch)
+    this.fx = new Fx(this.root)
+    this.opp = new OpponentRig(this.root, oppColor, P.blue, engine.app.graphicsDevice)
+    engine.camera.parent?.removeChild(engine.camera)
+    this.cam = new CameraRig(this.root, engine.camera, EYE_H)
+    this.arms = new PlayerArms(engine.camera, P.blue, engine.app.graphicsDevice)
+    if (spectator) {
+      this.arms.root.enabled = false
+      this.rigA = new OpponentRig(this.root, P.blue, P.red, engine.app.graphicsDevice)
+      engine.camera.parent?.removeChild(engine.camera)
+      this.ringside = new Entity('ringside')
+      this.root.addChild(this.ringside)
+      this.ringside.addChild(engine.camera)
+      engine.camera.setLocalPosition(0, 0, 0); engine.camera.setLocalEulerAngles(0, 0, 0)
     }
-    if (this.hitPulse) { c.fillStyle = 'rgba(255,255,255,0.18)'; c.fillRect(0, 0, 384, 216); this.hitPulse = null }
-    this.stage.end(dt)
+    engine.generateBatches([batch.stat, batch.crowd])
   }
-
-  private drawFighter(c: CanvasRenderingContext2D, x: number, feet: number, s: number, f: FighterView, color: string, faceLeft: boolean): void {
-    c.save(); c.translate(Math.round(x), Math.round(feet)); c.scale(s, s)
-    let lean = 0, duck = 0, punch = 0
-    if (f.state === 'dodge') { duck = f.dodge === 'duck' ? 17 * Math.sin(f.progress * Math.PI) : 0; lean = f.dodge === 'swayL' ? -12 : f.dodge === 'swayR' ? 12 : 0 }
-    if (f.state === 'hitstun' || f.state === 'stagger') lean = (faceLeft ? -1 : 1) * 8 * (1 - f.progress)
-    const down = f.state === 'down' || f.state === 'getup' || f.hp <= 0
-    if (down) { c.translate(faceLeft ? 10 : -10, 0); c.rotate((faceLeft ? 1 : -1) * 1.25); duck = 24 }
-    c.translate(lean, duck)
-    c.fillStyle = 'rgba(4,10,24,0.5)'; c.fillRect(-21, -3, 42, 5)
-    c.fillStyle = RETRO.ink; c.fillRect(-17, -42, 12, 42); c.fillRect(5, -42, 12, 42)
-    c.fillStyle = RETRO.paper; c.fillRect(-16, -39, 10, 24); c.fillRect(6, -39, 10, 24)
-    c.fillStyle = RETRO.blueDark; c.fillRect(-23, -66, 46, 27); c.fillStyle = RETRO.white; c.fillRect(-23, -66, 46, 5)
-    c.fillStyle = RETRO.ink; c.fillRect(-22, -108, 44, 45)
-    c.fillStyle = RETRO.skin; c.fillRect(-19, -106, 38, 42); c.fillStyle = RETRO.skinLight; c.fillRect(-13, -104, 10, 29)
-    c.fillStyle = RETRO.skinDark; c.fillRect(-13, -132, 27, 29); c.fillStyle = RETRO.skin; c.fillRect(-11, -130, 23, 25)
-    c.fillStyle = RETRO.ink; c.fillRect(-12, -134, 25, 7); c.fillRect(-7, -119, 4, 3); c.fillRect(5, -119, 4, 3); c.fillRect(-4, -109, 10, 3)
-    const active = f.state === 'windup' || f.state === 'active' || f.state === 'recover'
-    punch = active ? (f.state === 'windup' ? f.progress : f.state === 'active' ? 1 : 1 - f.progress) : 0
-    const guardY = f.guard ? -119 : -91
-    const leftExt = f.punch === 'jab' ? punch * 30 : 0, rightExt = f.punch === 'cross' ? punch * 34 : 0
-    const dir = faceLeft ? -1 : 1
-    pixelLine(c, -17, -96, -29 - dir * leftExt, guardY - leftExt * 0.25, RETRO.skin, 10)
-    pixelLine(c, 17, -96, 29 - dir * rightExt, guardY - rightExt * 0.25, RETRO.skin, 10)
-    pixelCircle(c, -31 - dir * leftExt, guardY - leftExt * 0.25, 11, color)
-    pixelCircle(c, 31 - dir * rightExt, guardY - rightExt * 0.25, 11, color)
-    c.restore()
+  show(w: number, h: number): void {
+    lightSport(this.engine, 'boxing')
+    this.engine.show(this.root, w, h)
+    this.engine.applyLook('boxing', { sky: { top: '#e7e8e4', horizon: '#f7edda', ground: '#8d9caa' }, tint: 0xffffff, saturation: 1.02, exposure: 1.05, ambient: 0xabb7c0 })
+    this.engine.camera.camera!.fov = this.spectator ? 44 : 62
+    this.fovS = this.spectator ? 52 : 70
   }
+  hide(): void { this.arms.detach(); this.engine.hide() }
+  resize(w: number, h: number): void { this.engine.resize(w, h) }
+  cheer(): void { this.ring.cheer() }
+  /** World position of a fighter's head for particle bursts. */
+  headOf(v: Snapshot, side: 'a' | 'b'): { x: number; y: number; z: number } { const f = side === 'a' ? v.a : v.b; return { x: f.pos.x, y: EYE_H - 0.1 + f.head.y, z: f.pos.z } }
+  hitFx(v: Snapshot, side: 'a' | 'b', heavy: boolean): void { const h = this.headOf(v, side); this.fx.burst('sweat', h.x, h.y, h.z); if (heavy) this.ring.flash() }
+  knockdownFx(v: Snapshot, side: 'a' | 'b'): void { const f = side === 'a' ? v.a : v.b; this.fx.burst('dust', f.pos.x, 0.1, f.pos.z); this.ring.flash(); this.focusOn(v, side, 2.6) }
+  guardBreakFx(v: Snapshot, side: 'a' | 'b'): void { const h = this.headOf(v, side); this.fx.burst('sparks', h.x, h.y - 0.3, h.z) }
+  confetti(): void { for (const x of [-1.5, 0, 1.5]) this.fx.burst('confetti', x, 2.6, 0) }
+  /** Drama focus (DOF) on a fighter for a while; spectator camera only. */
+  focusOn(v: Snapshot, side: 'a' | 'b', seconds: number): void { if (!this.spectator) return; const f = side === 'a' ? v.a : v.b; const cp = this.engine.camera.getPosition(); this.engine.post.focus(Math.hypot(cp.x - f.pos.x, cp.z - f.pos.z)); this.focusT = seconds }
+  shake(power: number): void { this.cam.kick(power) }
+  punchKick(): void { this.cam.punchKick() }
 
-  private drawPlayerGloves(c: CanvasRenderingContext2D, f: FighterView): void {
-    const sway = f.dodge === 'swayL' && f.state === 'dodge' ? -16 : f.dodge === 'swayR' && f.state === 'dodge' ? 16 : 0
-    const duck = f.dodge === 'duck' && f.state === 'dodge' ? 13 : 0
-    let lx = 113 + sway, ly = 194 + duck, rx = 271 + sway, ry = 194 + duck
-    if (f.guard) { lx = 157 + sway; rx = 227 + sway; ly = ry = 169 + duck }
-    const active = f.state === 'windup' || f.state === 'active' || f.state === 'recover'
-    const p = active ? (f.state === 'windup' ? f.progress : f.state === 'active' ? 1 : 1 - f.progress) : 0
-    if (f.punch === 'jab') { lx += 35 * p; ly -= 57 * p }
-    if (f.punch === 'cross') { rx -= 35 * p; ry -= 57 * p }
-    pixelLine(c, lx - 16, 218, lx, ly + 8, RETRO.skin, 16); pixelLine(c, rx + 16, 218, rx, ry + 8, RETRO.skin, 16)
-    pixelCircle(c, lx, ly, 23, RETRO.red); pixelCircle(c, rx, ry, 23, RETRO.red)
-    c.fillStyle = RETRO.white; c.fillRect(lx - 20, ly + 13, 40, 7); c.fillRect(rx - 20, ry + 13, 40, 7)
+  private fovS = 0
+  /** Drive every rig from an (interpolated) snapshot and render. */
+  apply(v: Snapshot, dt: number, playerDown: boolean): void {
+    this.t += dt
+    // camera drama: a slow push during the countdown, a slight pull during the count, base lens otherwise
+    const base = this.spectator ? 44 : 62
+    const want = v.phase === 'countdown' ? base + 8 * (v.count === 0 ? 1 : 1) * Math.max(0, 1 - this.t / 4) : v.phase === 'count' ? base - 6 : base
+    this.fovS += (want - this.fovS) * Math.min(1, dt * 2.5)
+    if (this.spectator) this.engine.camera.camera!.fov = this.fovS
+    else this.cam.setBaseFov(this.fovS)
+    const d = v.dir
+    const yawA = Math.atan2(-d.x, -d.z) * RAD, yawB = Math.atan2(d.x, d.z) * RAD
+    if (this.spectator && this.ringside && this.rigA) {
+      // ringside camera: slow orbit around the action, always framing both fighters
+      const mx = (v.a.pos.x + v.b.pos.x) / 2, mz = (v.a.pos.z + v.b.pos.z) / 2
+      const ang = this.t * 0.08
+      const r = 6.0 + Math.min(1.6, v.dist * 0.6)
+      this.ringside.setPosition(mx + Math.cos(ang) * r, 2.1, mz + Math.sin(ang) * r)
+      this.ringside.lookAt(mx, 1.0, mz)
+      const targetB = v3(-v.a.head.x, EYE_H + v.a.head.y, -v.dist)
+      const targetA = v3(-v.b.head.x, EYE_H + v.b.head.y, -v.dist)
+      const pb = opponentPose(v.b, this.t, targetB), pa = opponentPose(v.a, this.t + 1.3, targetA)
+      this.opp.apply(pb, v.b.pos, yawB, dt, v.b.moving, pb.squash, this.t)
+      this.rigA.apply(pa, v.a.pos, yawA, dt, v.a.moving, pa.squash, this.t + 1.3)
+    } else {
+      this.stepPhase += v.a.moving * dt * 0.9
+      const duck = playerDown ? -1.1 : v.a.head.y
+      this.cam.update(dt, v.a.pos, yawA, v.a.head.x, duck, this.stepPhase, EYE_H)
+      // player's head in the opponent's local frame (opponent faces -Z toward the player)
+      const target = v3(-v.a.head.x, EYE_H + v.a.head.y, -v.dist)
+      const pb = opponentPose(v.b, this.t, target)
+      this.opp.apply(pb, v.b.pos, yawB, dt, v.b.moving, pb.squash, this.t)
+      this.arms.apply(playerArmPose(v.a, this.t), dt)
+    }
+    const cp = this.engine.camera.getPosition()
+    this.engine.aimLights({ x: (v.a.pos.x + v.b.pos.x) / 2, y: 1.1, z: (v.a.pos.z + v.b.pos.z) / 2 }, { x: cp.x, z: cp.z })
+    if (this.focusT > 0) { this.focusT -= dt; if (this.focusT <= 0) this.engine.post.focus(null) }
+    this.ring.update(this.t, dt, { x: cp.x, y: cp.y, z: cp.z })
+    this.engine.renderFrame()
   }
 }

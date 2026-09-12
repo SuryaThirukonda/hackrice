@@ -1,92 +1,72 @@
-import Phaser from 'phaser'
-import { pixelCircle, RetroStage } from '../../../retro/RetroStage'
-import { RETRO } from '../../../retro/palette'
-import { projectLane } from '../../../retro/proj'
-import { drawLaneGround } from '../../../retro/mode7'
+import { lightSport } from '../../../engine3d/environment'
+import type { Entity } from 'playcanvas'
+import { Engine3D } from '../../../engine3d/Engine3D'
+import { pivot } from '../../../engine3d/primitives'
 import { PIN_Z } from '../sim/constants'
 import type { AimState } from '../keymap'
 import type { Snapshot, V2 } from '../sim/types'
+import { Fx } from '../../../engine3d/fx'
+import { LaneScene, WZ } from './LaneScene'
 
-/** Phaser-only low-resolution lane renderer with sim-driven pins, ball and hook preview. */
+const CAMERA_EYE = { x: 0.35, y: 2.3, z: WZ(-6.2) }
+const CAMERA_LOOK = { x: 0, y: 0.28, z: WZ(PIN_Z - 1.7) }
+
+/** Everything 3D for one bowling game: the alley, simulated objects, effects and a fixed cinematic camera. */
 export class BowlingWorld {
-  private readonly stage: RetroStage
+  root: Entity
+  lane: LaneScene
+  fx!: Fx
+  camRig: Entity
+  private shakeA = 0
+  private shakeT = 0
   private t = 0
-  private sweep = 0
+  private engine: Engine3D
 
-  constructor(scene: Phaser.Scene, crt = true) { this.stage = new RetroStage(scene, 'bowling-lane', crt) }
+  constructor(engine: Engine3D) {
+    this.engine = engine
+    this.root = engine.newWorld('bowling')
+    this.lane = new LaneScene(this.root, engine.app.graphicsDevice)
+    this.fx = new Fx(this.root)
+    this.camRig = pivot(this.root, 'camRig')
+    // the shared camera may still hang under another game's rig: always re-parent it here
+    const cam = engine.camera
+    cam.parent?.removeChild(cam)
+    cam.setLocalPosition(0, 0, 0); cam.setLocalEulerAngles(0, 0, 0)
+    this.camRig.addChild(cam)
+  }
+  show(w: number, h: number): void {
+    lightSport(this.engine, 'bowling')
+    this.engine.show(this.root, w, h)
+    this.engine.applyLook('bowling', { sky: { top: '#e7e8e4', horizon: '#f7edda', ground: '#8d9caa' }, tint: 0xffffff, saturation: 1.02, exposure: 1.05, ambient: 0xabb7c0 })
+    this.engine.camera.camera!.fov = 49
+    this.engine.aimLights({ x: 0, y: 0.25, z: WZ(PIN_Z) }, { x: CAMERA_EYE.x, z: CAMERA_EYE.z })
+  }
+  hide(): void { this.engine.hide() }
+  resize(w: number, h: number): void { this.engine.resize(w, h) }
+  cheer(): void { this.lane.cheer() }
+  shake(power: number): void { this.shakeA = Math.max(this.shakeA, power); this.shakeT = 0 }
 
-  show(w: number, h: number): void { this.stage.resize(w, h); this.stage.show() }
-  hide(): void { this.stage.destroy() }
-  resize(w: number, h: number): void { this.stage.resize(w, h) }
-  cheer(): void { this.stage.cheer() }
-  shake(power: number): void { this.stage.shake(power) }
-  renderFrame(): void { /* Phaser renders the canvas automatically. */ }
-
+  /** Drive the lane from a snapshot and the player's aim (null on the House's turn), then render. */
   apply(v: Snapshot, aim: AimState | null, dt: number, path: V2[] | null = null): void {
-    this.t += Math.max(0, dt)
-    const c = this.stage.begin(dt)
-    // The generated plate contains a decorative rack. Mask it so only sim pins are visible.
-    c.fillStyle = RETRO.ink; c.fillRect(156, 84, 73, 29)
-    c.fillStyle = RETRO.navy; c.fillRect(160, 88, 65, 22)
-    const cameraZ = v.phase === 'rolling' ? Math.max(-1, v.ballPos.z - 4.2) : v.phase === 'settle' || v.phase === 'frame_end' ? PIN_Z - 4.2 : -1
-    const cameraX = v.phase === 'rolling' ? v.ballPos.x * 0.55 : 0
-    drawLaneGround(c, cameraX, cameraZ)
-
-    if (aim && path && v.phase === 'aim') {
-      for (let i = 0; i < path.length; i += 3) {
-        const p = projectLane(path[i].x - cameraX, path[i].z, cameraZ)
-        if (!p.visible) continue
-        c.fillStyle = v.swayLocked ? RETRO.lime : RETRO.gold
-        const q = Math.max(1, Math.round(p.scale * 2))
-        c.fillRect(Math.round(p.x - q / 2), Math.round(p.y), q, q)
-      }
-    }
-
-    for (const pin of [...v.pins].sort((a, b) => b.z - a.z)) {
-      if (!pin.standing && !pin.down) continue
-      const p = projectLane(pin.x - cameraX, pin.z, cameraZ)
-      this.drawPin(c, p.x, p.y, p.scale, pin.down, pin.index)
-    }
-
-    const ballZ = v.phase === 'aim' && aim ? -1 : v.ballPos.z
-    const ballX = v.phase === 'aim' && aim ? aim.lanePos : v.ballPos.x
-    const bp = projectLane(ballX - cameraX, ballZ, cameraZ)
-    if (bp.visible && (v.phase === 'aim' || v.phase === 'rolling' || v.phase === 'settle')) {
-      const r = Math.max(2, 10 * bp.scale)
-      pixelCircle(c, bp.x, bp.y - r, r, RETRO.blue)
-      c.fillStyle = RETRO.ink
-      c.fillRect(Math.round(bp.x - r * 0.25), Math.round(bp.y - r * 1.35), Math.max(1, Math.round(r * 0.18)), Math.max(1, Math.round(r * 0.18)))
-      c.fillRect(Math.round(bp.x + r * 0.08), Math.round(bp.y - r * 1.25), Math.max(1, Math.round(r * 0.16)), Math.max(1, Math.round(r * 0.16)))
-    }
-
-    if (v.phase === 'aim' && aim) this.drawHands(c, ballX)
-    if (v.phase === 'settle' || v.phase === 'frame_end') {
-      this.sweep = Math.min(1, this.sweep + dt * 2.2)
-      const y = 82 + Math.sin(this.sweep * Math.PI) * 28
-      c.fillStyle = RETRO.ink; c.fillRect(150, Math.round(y), 84, 7)
-      c.fillStyle = RETRO.steel; c.fillRect(153, Math.round(y + 2), 78, 3)
-    } else this.sweep = 0
-    this.stage.end(dt)
+    this.t += dt
+    const aiming = v.phase === 'aim' && aim !== null
+    const bx = aiming ? aim.lanePos : v.ballPos.x, bz = v.ballPos.z
+    this.shakeT += dt
+    const A = this.shakeA * Math.exp(-this.shakeT / 0.12)
+    let sx = 0, sy = 0
+    if (A > 0.002) { sx = Math.sin(this.shakeT * 97) * A * 0.04; sy = Math.cos(this.shakeT * 71) * A * 0.03 } else this.shakeA = 0
+    const cam = this.engine.camera
+    cam.setPosition(CAMERA_EYE.x + sx, CAMERA_EYE.y + sy, CAMERA_EYE.z)
+    cam.lookAt(CAMERA_LOOK.x, CAMERA_LOOK.y, CAMERA_LOOK.z)
+    this.lane.setBall(bx, bz, v.phase === 'rolling' || v.phase === 'settle')
+    if (aiming && path) this.lane.setAimPath(path, v.swayLocked); else this.lane.setAimGuide(aiming ? aim : null)
+    this.lane.setPins(v)
+    this.lane.update(this.t, dt)
+    this.engine.renderFrame()
   }
-
-  private drawPin(c: CanvasRenderingContext2D, x: number, y: number, scale: number, down: boolean, seed: number): void {
-    const h = Math.max(5, Math.round(25 * scale)), w = Math.max(3, Math.round(9 * scale))
-    c.save(); c.translate(Math.round(x), Math.round(y)); if (down) c.rotate((seed % 2 ? -1 : 1) * 1.1)
-    c.fillStyle = RETRO.ink; c.fillRect(-Math.ceil(w / 2) - 1, -h - 1, w + 2, h + 2)
-    c.fillStyle = RETRO.white; c.fillRect(-Math.floor(w / 2), -h, w, h)
-    c.fillStyle = RETRO.red; c.fillRect(-Math.floor(w / 2), -Math.round(h * 0.68), w, Math.max(1, Math.round(scale * 2)))
-    c.fillStyle = RETRO.paper; c.fillRect(-Math.floor(w * 0.35), -h - 2, Math.max(2, Math.round(w * 0.7)), 3)
-    c.restore()
-  }
-
-  private drawHands(c: CanvasRenderingContext2D, laneX: number): void {
-    const shift = laneX * 34, bob = Math.round(Math.sin(this.t * 3) * 2)
-    c.fillStyle = RETRO.skinDark; c.fillRect(118 + shift, 197 + bob, 50, 19); c.fillRect(216 + shift, 197 + bob, 50, 19)
-    c.fillStyle = RETRO.skin; c.fillRect(124 + shift, 190 + bob, 43, 24); c.fillRect(217 + shift, 190 + bob, 43, 24)
-    c.fillStyle = RETRO.red; c.fillRect(118 + shift, 207 + bob, 47, 9); c.fillRect(219 + shift, 207 + bob, 47, 9)
-  }
-
-  pinHitFx(x: number, z: number): void { const p = projectLane(x, z); this.stage.burst(p.x, p.y - 4, [RETRO.white, RETRO.gold, RETRO.red], 12) }
-  strikeFx(): void { this.stage.cheer(1.4); this.stage.flash(0.12); for (const x of [130, 192, 254]) this.stage.burst(x, 103, [RETRO.gold, RETRO.cyan, RETRO.red], 16) }
-  sweepDust(): void { this.stage.burst(192, 108, [RETRO.paper, RETRO.sand], 16) }
+  renderFrame(): void { this.engine.renderFrame() }
+  /** Sparks where a pin is struck (sim coords). */
+  pinHitFx(x: number, z: number): void { this.fx.burst('pinSpark', x, 0.25, WZ(z)) }
+  strikeFx(): void { this.lane.cheer(); this.lane.flash(); for (const x of [-1, 0, 1]) this.fx.burst('confetti', x, 2.2, WZ(PIN_Z - 2)) }
+  sweepDust(): void { this.fx.burst('dust', 0, 0.2, WZ(PIN_Z + 0.3)) }
 }

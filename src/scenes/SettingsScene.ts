@@ -3,7 +3,8 @@ import { ComicBackdrop, ComicButton, comicPanel, ensureTextures } from '../ui/wi
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
-import { loadSettings, saveSettings, type GameSettings } from '../agent/sliders'
+import { loadSettings, saveSettings, type GameSettings, type Quality } from '../agent/sliders'
+import { Engine3D } from '../engine3d/Engine3D'
 import { BOXING_HELP, BOXING_KEYS, keyLabel } from '../games/boxing/keymap'
 import { BOWLING_HELP, BOWLING_KEYS } from '../games/bowling/keymap'
 import { GOLF_HELP, GOLF_KEYS } from '../games/golf/keymap'
@@ -35,7 +36,7 @@ export class SettingsScene extends Phaser.Scene {
     ensureTextures(this)
     this.city = new ComicBackdrop(this, 44)
     const kb = this.input.keyboard!
-    const rows = allRows(this.s.bindings).length + 3 // sound, CRT, bindings..., reset
+    const rows = allRows(this.s.bindings).length + 3 // sound, quality, bindings..., reset
     kb.on('keydown', (e: KeyboardEvent) => {
       if (this.waiting) {
         if (e.code !== 'Escape') {
@@ -54,7 +55,7 @@ export class SettingsScene extends Phaser.Scene {
   }
   private activate(): void {
     if (this.row === 0) { this.s.sound = !this.s.sound; saveSettings(this.s); sfx.select() }
-    else if (this.row === 1) { this.s.crt = !this.s.crt; saveSettings(this.s); sfx.select() }
+    else if (this.row === 1) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }
     else if (this.row === allRows(this.s.bindings).length + 2) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
     else { this.waiting = true }
     this.draw()
@@ -80,7 +81,7 @@ export class SettingsScene extends Phaser.Scene {
       add(new ComicButton(this, W / 2 + 250, y, value, () => { this.row = i; this.activate() }, { color: this.row === i ? P.gold : P.paper, w: 300, h: 26, size: 14 }))
     }
     line(0, 'SOUND', this.s.sound ? 'ON' : 'OFF')
-    line(1, 'CRT SCANLINES', this.s.crt ? 'ON' : 'OFF')
+    line(1, '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
     rows.forEach((r, i) => line(i + 2, r.label.toUpperCase(), this.waiting && this.row === i + 1 ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
     line(rows.length + 2, 'RESET KEYS', 'defaults')
     add(this.add.text(W / 2, H - 46, '↑↓ rows · Enter change · Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))

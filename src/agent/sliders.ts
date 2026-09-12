@@ -45,12 +45,14 @@ export function golfParams(d: Difficulty): GolfParams {
   return { distNoise: lerp(0.15, 0.02, d.accuracy), aimNoiseDeg: lerp(6.5, 0.7, d.accuracy), greenSkill: lerp(0.25, 0.97, d.defense), riskiness: lerp(0.2, 0.85, d.aggression) }
 }
 
-export interface GameSettings { preset: Preset; difficulty: Difficulty; seed: number | null; sound: boolean; crt: boolean; bindings: Record<string, Record<string, string[]>> }
+export type Quality = 'low' | 'medium' | 'high'
+export interface GameSettings { preset: Preset; difficulty: Difficulty; seed: number | null; sound: boolean; quality: Quality; bindings: Record<string, Record<string, string[]>> }
 const KEY = 'hap.v2.settings'
-export const DEFAULT_SETTINGS: GameSettings = { preset: 'rookie', difficulty: { ...PRESETS.rookie }, seed: null, sound: true, crt: true, bindings: {} }
+const defaultQuality = (): Quality => 'medium'
+export const DEFAULT_SETTINGS: GameSettings = { preset: 'rookie', difficulty: { ...PRESETS.rookie }, seed: null, sound: true, quality: defaultQuality(), bindings: {} }
 export function loadSettings(): GameSettings {
   try { const raw = localStorage.getItem(KEY); if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<GameSettings>) } } catch { /* fall through */ }
-  return { ...DEFAULT_SETTINGS, difficulty: { ...PRESETS.rookie } }
+  return { ...DEFAULT_SETTINGS, difficulty: { ...PRESETS.rookie }, quality: defaultQuality() }
 }
 export function saveSettings(s: GameSettings): void { try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* ignore */ } }
 export const randomSeed = (): number => Math.floor(Math.random() * 1e9)

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
@@ -35,7 +36,7 @@ export function suggestClub(surface: Surface, dist: number): Club {
   return 'driver'
 }
 
-/** First-person pixel golf: Phaser owns input, the fixed-step sim, the HUD and the renderer. */
+/** First-person 3D golf: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class GolfScene extends Phaser.Scene {
   private data3!: GolfSceneData
   private round!: GolfRound
@@ -100,14 +101,18 @@ export class GolfScene extends Phaser.Scene {
     this.input.once('pointerdown', () => sfx.unlock())
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown())
     const w = (window as unknown as { __golf?: GolfScene }); w.__golf = this
-    try {
-      this.world = new GolfWorld(this, settings.crt)
-      this.world.show(this.scale.width, this.scale.height)
-      this.world.apply(this.curr, this.aimState(), 0)
-    } catch (err) { console.error('golf world failed', err); this.world = null }
-    this.hud.clearCard()
-    this.ready = true
-    this.onEvent({ kind: 'wind', x: this.round.wind.x, z: this.round.wind.z })
+    void Engine3D.get().then((engine) => {
+      if (!this.scene.isActive()) return
+      engine.setQuality(loadSettings().quality)
+      try {
+        this.world = new GolfWorld(engine)
+        this.world.show(this.scale.width, this.scale.height)
+        this.world.apply(this.curr, this.aimState(), 0)
+      } catch (err) { console.error('golf world failed', err); this.world = null }
+      this.hud.clearCard()
+      this.ready = true
+      this.onEvent({ kind: 'wind', x: this.round.wind.x, z: this.round.wind.z })
+    })
   }
 
   onResize(): void {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
@@ -24,7 +25,7 @@ export interface BoxingSceneData { mode?: '1p' | 'card'; tier?: keyof typeof TIE
 
 const STEP_MS = 1000 / HZ
 
-/** Pixel-art boxing: Phaser owns input, the fixed-step sim, the HUD and the renderer. */
+/** First-person 3D boxing: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class BoxingScene extends Phaser.Scene {
   private data3!: BoxingSceneData
   private match!: BoxingMatch
@@ -96,13 +97,17 @@ export class BoxingScene extends Phaser.Scene {
     this.input.once('pointerdown', () => sfx.unlock())
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown())
     const w = (window as unknown as { __boxing?: BoxingScene }); w.__boxing = this
-    this.world = new BoxingWorld(this, P.red, this.card, settings.crt)
-    this.world.show(this.scale.width, this.scale.height)
-    this.hud.clearCard()
-    this.ready = true
-    this.startedAt = this.time.now
-    this.world.apply(this.curr, 0, false)
-    if (this.card) { this.hud.setHint('spectating · A/D corner · ↑↓ stake · Enter bet · Esc pause'); this.link?.strategize(this.match); this.openBetting('match') }
+    void Engine3D.get().then((engine) => {
+      if (!this.scene.isActive()) return
+      engine.setQuality(loadSettings().quality)
+      this.world = new BoxingWorld(engine, P.red, this.card)
+      this.world.show(this.scale.width, this.scale.height)
+      this.hud.clearCard()
+      this.ready = true
+      this.startedAt = this.time.now
+      this.world.apply(this.curr, 0, false)
+      if (this.card) { this.hud.setHint('spectating · A/D corner · ↑↓ stake · Enter bet · Esc pause'); this.link?.strategize(this.match); this.openBetting('match') }
+    })
   }
 
   onResize(): void {

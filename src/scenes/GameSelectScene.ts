@@ -3,6 +3,7 @@ import { ComicBackdrop, comicPanel, doodles, ensureTextures } from '../ui/widget
 import { DISPLAY, FONT, GAMES, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
+import { Engine3D } from '../engine3d/Engine3D'
 
 /** Game cards with tiny looping previews drawn in code; hover tilts the card, select stamps it. */
 export class GameSelectScene extends Phaser.Scene {
@@ -20,6 +21,7 @@ export class GameSelectScene extends Phaser.Scene {
     ensureTextures(this)
     const { width: W, height: H } = this.scale
     this.city = new ComicBackdrop(this, 11)
+    void Engine3D.get() // Pre-warm WebGL so entering a sport is immediate.
     doodles(this, 8)
     comicPanel(this, W / 2 - 330, H * 0.06, 660, 84, P.paper, -1.5)
     this.add.text(W / 2, H * 0.06 + 42, `CHOOSE A GAME  ·  ${this.mode === '2p' ? '2 PLAYERS' : this.mode === 'card' ? 'FIGHT NIGHT' : '1 PLAYER'}`, { fontFamily: DISPLAY, fontSize: '40px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(-1.5)

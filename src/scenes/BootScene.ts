@@ -3,14 +3,9 @@ import { ensureTextures } from '../ui/widgets'
 import { DISPLAY, HEX, P } from '../theme'
 import { sfx } from '../fx/sfx'
 
-/** Loads the pixel plates, generates UI textures, then starts the title. */
+/** Generates UI textures, shows the loading beat, then starts the title. */
 export class BootScene extends Phaser.Scene {
   constructor() { super('boot') }
-  preload(): void {
-    this.load.image('boxing-arena', 'art/boxing-arena.png')
-    this.load.image('bowling-lane', 'art/bowling-lane.png')
-    this.load.image('golf-meadow', 'art/golf-meadow.png')
-  }
   create(): void {
     ensureTextures(this)
     const { width: W, height: H } = this.scale

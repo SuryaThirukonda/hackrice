@@ -25,11 +25,9 @@ function start(): void {
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
-    backgroundColor: '#071126',
-    transparent: false,
-    antialias: false,
-    pixelArt: true,
-    roundPixels: true,
+    backgroundColor: '#1f8ff0',
+    transparent: true, // PlayCanvas renders the sports world on a canvas behind Phaser.
+    antialias: true,
     // The in-app preview pane may not fire requestAnimationFrame while hidden; a setTimeout ticker keeps the game alive in dev.
     fps: { forceSetTimeOut: import.meta.env.DEV, target: 60 },
     scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH, width: window.innerWidth, height: window.innerHeight },

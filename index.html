@@ -8,7 +8,7 @@
       html, body { margin: 0; height: 100%; background: #1f8ff0; overflow: hidden; }
       #game { width: 100vw; height: 100vh; cursor: none; position: relative; }
       canvas { display: block; }
-      canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+      #game > canvas:not(.pc) { position: relative; z-index: 1; }
     </style>
   </head>
   <body>

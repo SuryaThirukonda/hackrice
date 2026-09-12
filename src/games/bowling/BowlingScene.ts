@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
@@ -19,7 +20,7 @@ export interface BowlingSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof t
 
 const STEP_MS = 1000 / HZ
 
-/** First-person pixel bowling: Phaser owns input, the fixed-step sim, the HUD and the frame. */
+/** First-person 3D bowling: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class BowlingScene extends Phaser.Scene {
   private data3!: BowlingSceneData
   private sim!: BowlingGame
@@ -77,13 +78,17 @@ export class BowlingScene extends Phaser.Scene {
     this.input.once('pointerdown', () => sfx.unlock())
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown())
     const w = (window as unknown as { __bowling?: BowlingScene }); w.__bowling = this
-    this.world = new BowlingWorld(this, settings.crt)
-    this.world.show(this.scale.width, this.scale.height)
-    this.hud.clearCard()
-    this.ready = true
-    this.startedAt = this.time.now
-    this.world.apply(this.curr, this.aim, 0)
-    this.updateTurn()
+    void Engine3D.get().then((engine) => {
+      if (!this.scene.isActive()) return
+      engine.setQuality(loadSettings().quality)
+      this.world = new BowlingWorld(engine)
+      this.world.show(this.scale.width, this.scale.height)
+      this.hud.clearCard()
+      this.ready = true
+      this.startedAt = this.time.now
+      this.world.apply(this.curr, this.aim, 0)
+      this.updateTurn()
+    })
   }
 
   onResize(): void {
