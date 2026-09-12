@@ -4,6 +4,7 @@ import { BODY_GAP, BLOCK_DMG_MUL, DODGE_COOLDOWN, DT, FRAME, FRICTION, GUARD_REC
 import { TIERS } from './tiers'
 import { Rng } from './rng'
 import { cmd, IDLE, type Command, type SimEvent } from './types'
+import { punchDamageMultiplier } from './punch'
 
 /** Match with no bots (both sides scripted) that is already in the fighting phase. */
 function fighting(seed = 1, cfg: Partial<ConstructorParameters<typeof BoxingMatch>[0]> = {}): BoxingMatch {
@@ -57,6 +58,13 @@ describe('timestep and determinism', () => {
 })
 
 describe('punch resolution (auto-target)', () => {
+  it('normalized phone power maps monotonically to deterministic punch damage', () => {
+    expect(punchDamageMultiplier(0)).toBeCloseTo(0.35, 9)
+    expect(punchDamageMultiplier(0.72)).toBeCloseTo(0.818, 9)
+    expect(punchDamageMultiplier(1)).toBe(1)
+    expect(punchDamageMultiplier(0.2)).toBeLessThan(punchDamageMultiplier(0.8))
+  })
+
   it('a jab in range lands exactly at the end of windup, not before', () => {
     const m = fighting(); place(m, 0.9)
     const w = FRAME.jab.windup

@@ -105,7 +105,7 @@ export class BoxingMatch {
     const right = rightOf(dir)
     const free = f.state === 'idle' || (f.state === 'recover' && f.stateT <= CANCEL_WINDOW)
     if (free && c.punch) {
-      startPunch(f, c.punch, dir, this.out())
+      startPunch(f, c.punch, dir, this.out(), c.punchPower)
     } else if (free && c.dodge && f.dodgeCd === 0 && f.stamina >= DODGE_STAMINA) {
       f.stamina -= DODGE_STAMINA; f.dodgeKind = c.dodge; f.dodgeCd = DODGE_COOLDOWN; f.guard = false; f.resolved = true
       setState(f, 'dodge', DODGE_TICKS)

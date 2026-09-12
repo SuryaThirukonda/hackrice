@@ -1,4 +1,5 @@
 import type { KeyState } from '../../input/keys'
+import { phonePunchKind, type ControllerEvent, type ControllerStick } from '../../input/controller'
 import { cmd, type Command } from './sim/types'
 
 export interface BoxingBindings { jab: string[]; cross: string[]; block: string[]; left: string[]; right: string[]; swayL: string[]; swayR: string[]; duck: string[]; in: string[]; out: string[] }
@@ -30,3 +31,28 @@ export function boxingCommand(k: KeyState, b: BoxingBindings = BOXING_KEYS): Com
 }
 /** Same command with the one-shot parts removed, for extra sim steps inside one frame. */
 export const heldOnly = (c: Command): Command => ({ ...c, punch: null, dodge: null })
+
+export interface BoxingControllerState { blocking: boolean }
+
+/** Convert normalized remote input to the same command shape used by keyboard input. */
+export function controllerBoxingCommand(
+  stick: ControllerStick,
+  events: readonly ControllerEvent[],
+  state: BoxingControllerState,
+): { command: Command; blocking: boolean } {
+  let blocking = stick.fresh ? state.blocking : false
+  let punch: Command['punch'] = null
+  let punchPower: number | undefined
+  for (const event of events) {
+    if (event.kind === 'action' && event.action === 'block_start') blocking = true
+    else if (event.kind === 'action' && event.action === 'block_end') blocking = false
+    else if (event.kind === 'gesture' && event.gesture === 'punch' && punch === null) {
+      punch = phonePunchKind(event)
+      punchPower = event.power / 100
+    }
+  }
+  const strafe = Math.abs(stick.x) > 0.1 ? (stick.x < 0 ? -1 : 1) : 0
+  const forward = Math.abs(stick.y) > 0.5 ? (stick.y < 0 ? 1 : -1) : 0
+  const power = punchPower === undefined ? {} : { punchPower }
+  return { blocking, command: cmd({ punch, ...power, block: blocking, strafe, forward }) }
+}

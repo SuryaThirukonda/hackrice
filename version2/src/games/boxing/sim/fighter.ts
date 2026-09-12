@@ -5,7 +5,7 @@ export function createFighter(id: Side, pos: V2): Fighter {
   return {
     id, pos: { ...pos }, vMove: { x: 0, z: 0 }, vKnock: { x: 0, z: 0 }, headOffset: { x: 0, y: 0 }, headTarget: { x: 0, y: 0 },
     hp: HP_MAX, stamina: STAMINA_MAX, state: 'idle', stateT: 0, stateTotal: 1, fresh: false, guard: false, guardBroken: false,
-    punch: 'jab', punchId: 0, resolved: true, momentum: 0, dodgeKind: 'swayL', dodgeCd: 0, marks: [...KD_MARKS],
+    punch: 'jab', punchPower: 1, punchId: 0, resolved: true, momentum: 0, dodgeKind: 'swayL', dodgeCd: 0, marks: [...KD_MARKS],
     kdRound: 0, kdTotal: 0, thrown: 0, landed: 0, blocked: 0, dealtRound: 0, dealtTotal: 0, moving: 0,
   }
 }

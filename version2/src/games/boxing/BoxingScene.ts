@@ -3,8 +3,9 @@ import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
+import { controllerInput } from '../../input/controller'
 import { P } from '../../theme'
-import { BOXING_HELP, BOXING_KEYS, boxingCommand, heldOnly, keyLabel, type BoxingBindings } from './keymap'
+import { BOXING_HELP, BOXING_KEYS, boxingCommand, controllerBoxingCommand, heldOnly, keyLabel, type BoxingBindings } from './keymap'
 import { boxingPractice, type PracticeStep } from './tutorial'
 import { loadSettings } from '../../agent/sliders'
 import { comicPanel } from '../../ui/widgets'
@@ -46,6 +47,7 @@ export class BoxingScene extends Phaser.Scene {
   private steps: PracticeStep[] = []
   private stepIx = 0
   private guide: Phaser.GameObjects.GameObject[] = []
+  private controllerBlocking = false
   // Fight Night (card mode)
   private link: AgentLink | null = null
   private book: Book | null = null
@@ -74,6 +76,8 @@ export class BoxingScene extends Phaser.Scene {
     this.bindings = { ...BOXING_KEYS, ...(settings.bindings.boxing as Partial<BoxingBindings> | undefined) }
     this.steps = d.practice ? boxingPractice(this.bindings) : []
     this.stepIx = 0
+    this.controllerBlocking = false
+    controllerInput.setSport('boxing'); controllerInput.clear('controller_1')
     this.hud = new BoxingHud(this)
     this.hud.names = ['YOU', d.practice ? 'SPARRING DUMMY' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`]
     if (this.card) {
@@ -203,8 +207,18 @@ export class BoxingScene extends Phaser.Scene {
 
   update(_t: number, deltaMs: number): void {
     if (!this.ready || !this.world) return
-    const c = boxingCommand(this.keys, this.bindings)
+    const keyboard = boxingCommand(this.keys, this.bindings)
     this.keys.endFrame()
+    const remote = controllerBoxingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'boxing'), { blocking: this.controllerBlocking })
+    this.controllerBlocking = remote.blocking
+    const c = {
+      ...keyboard,
+      strafe: keyboard.strafe || remote.command.strafe,
+      forward: keyboard.forward || remote.command.forward,
+      block: keyboard.block || remote.blocking,
+      punch: keyboard.punch ?? remote.command.punch,
+      punchPower: keyboard.punch !== null ? keyboard.punchPower : remote.command.punchPower,
+    }
     if (this.paused || this.ended) { this.world.apply(this.curr, deltaMs / 1000, this.match.a.hp <= 0); this.hud.update(this.curr, deltaMs / 1000); return }
     if (this.betting) {
       this.betLeft -= deltaMs / 1000

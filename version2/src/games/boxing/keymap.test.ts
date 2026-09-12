@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { KeyState } from '../../input/keys'
-import { BOXING_HELP, BOXING_KEYS, boxingCommand, heldOnly } from './keymap'
+import { ControllerInput } from '../../input/controller'
+import { BOXING_HELP, BOXING_KEYS, boxingCommand, controllerBoxingCommand, heldOnly } from './keymap'
 
 /** Drive a KeyState through frames: each frame is a list of 'down:Code' / 'up:Code' strings applied before the command is built. */
 function frames(script: string[][]): ReturnType<typeof boxingCommand>[] {
@@ -68,5 +69,19 @@ describe('boxing keymap', () => {
     const actions = Object.keys(BOXING_KEYS).sort()
     expect(BOXING_HELP.map((h) => h.action).sort()).toEqual(actions)
     for (const h of BOXING_HELP) { expect(h.label.length).toBeGreaterThan(0); expect(h.hint.length).toBeGreaterThan(0) }
+  })
+
+  it('maps normalized phone movement, block, and generic punch without replacing keyboard fallback', () => {
+    const input = new ControllerInput()
+    input.ingest({ type: 'stick', controllerId: 'controller_1', stick: [-1, -1] }, 100)
+    input.ingest({ type: 'action', controllerId: 'controller_1', sport: 'boxing', action: 'block_start', eventId: 'block' })
+    input.ingest({ type: 'gesture', controllerId: 'controller_1', sport: 'boxing', gesture: 'punch', eventId: 'punch', power: 72, peakRotation: 320, direction: [0, 1, 0] })
+    const remote = controllerBoxingCommand(input.stick('controller_1', 120), input.drain('controller_1', 'boxing'), { blocking: false })
+    expect(remote.blocking).toBe(true)
+    expect(remote.command).toMatchObject({ strafe: -1, forward: 1, block: true, punch: 'cross', punchPower: 0.72 })
+
+    const stale = controllerBoxingCommand(input.stick('controller_1', 351), [], remote)
+    expect(stale.blocking).toBe(false)
+    expect(stale.command).toMatchObject({ strafe: 0, forward: 0, block: false, punch: null })
   })
 })
