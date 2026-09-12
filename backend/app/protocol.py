@@ -79,7 +79,7 @@ class SetNickname(Payload):
 
 class InputAction(Payload):
     """Direct input from a keyboard remote (desktop testing): bypasses the motion detectors."""
-    kind: Literal["swing", "release", "punch", "block_on", "block_off", "dodge", "parry", "bump", "shake", "flick"]
+    kind: Literal["swing", "release", "punch", "block_on", "block_off", "dodge", "parry", "move", "bump", "shake", "flick"]
     params: dict[str, Any] = Field(default_factory=dict)
     t_client: float | None = None
 
@@ -115,6 +115,7 @@ CLIENT_MESSAGES: dict[str, type[Payload]] = {
     "host.card": Payload,
     "host.unlock_audio": Payload,
     "host.adjust_chips": Payload,
+    "host.set_backend_url": Payload,
 }
 
 # Every server message type. Kept as a flat tuple so scripts/check_protocol.py can diff it against protocol.ts.

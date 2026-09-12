@@ -38,7 +38,7 @@ def build_arena(config: Config | None = None, clock: Clock | None = None, store=
 
 def _wire_optional_modules(arena: Arena) -> None:
     """Later milestones register here: motion, market, games, agents, voice, host."""
-    for name in ("motion.worker", "market.wiring", "games.wiring", "agents.wiring", "voice.wiring", "host"):
+    for name in ("motion.worker", "market.wiring", "games.wiring", "agents.wiring", "voice.wiring", "market.sponsor", "market.card", "market.pairing", "host"):
         try:
             mod = __import__(f"app.{name}", fromlist=["install"])
         except ImportError:

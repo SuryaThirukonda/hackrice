@@ -11,6 +11,8 @@ export class BowlingScene implements Scene {
   private root = new Container()
   private lane = new Graphics()
   private oil = new Graphics()
+  private pinLayer = new Container()
+  private rerackShake = 0          // ms left of pin-deck jitter after a Pin King re-rack
   private pins = new Map<number, Graphics>()
   private pinState = new Map<number, number>()   // 1 = standing, 0 = down
   private ball = new Graphics()
@@ -25,8 +27,8 @@ export class BowlingScene implements Scene {
 
   mount(_app: Application, root: Container, size: { w: number; h: number }): void {
     root.addChild(this.root)
-    this.root.addChild(this.lane, this.oil)
-    for (let i = 1; i <= 10; i++) { const g = new Graphics(); this.pins.set(i, g); this.pinState.set(i, 1); this.root.addChild(g) }
+    this.root.addChild(this.lane, this.oil, this.pinLayer)
+    for (let i = 1; i <= 10; i++) { const g = new Graphics(); this.pins.set(i, g); this.pinState.set(i, 1); this.pinLayer.addChild(g) }
     this.root.addChild(this.ball, this.stamp, this.banner)
     this.stamp.anchor.set(0.5); this.stamp.alpha = 0
     this.banner.anchor.set(0.5)
@@ -68,7 +70,9 @@ export class BowlingScene implements Scene {
     if (Math.abs(this.drift) < 0.01) return
     const b = this.yOf(0.1), t = this.yOf(0.9)
     const off = this.drift * this.halfW(0.5)
-    g.poly([this.w / 2 + off - this.halfW(0.1) * 0.4, b, this.w / 2 + off + this.halfW(0.1) * 0.4, b, this.w / 2 + off * 0.3 + this.halfW(0.9) * 0.4, t, this.w / 2 + off * 0.3 - this.halfW(0.9) * 0.4, t]).fill({ color: 0x2ba1e8, alpha: 0.12 })
+    // the Pin King's oil: a slick that leans the way the drift pushes the ball, with a brighter core
+    g.poly([this.w / 2 + off - this.halfW(0.1) * 0.4, b, this.w / 2 + off + this.halfW(0.1) * 0.4, b, this.w / 2 + off * 0.3 + this.halfW(0.9) * 0.4, t, this.w / 2 + off * 0.3 - this.halfW(0.9) * 0.4, t]).fill({ color: 0x2ba1e8, alpha: 0.16 })
+    g.poly([this.w / 2 + off - this.halfW(0.1) * 0.18, b, this.w / 2 + off + this.halfW(0.1) * 0.18, b, this.w / 2 + off * 0.3 + this.halfW(0.9) * 0.18, t, this.w / 2 + off * 0.3 - this.halfW(0.9) * 0.18, t]).fill({ color: 0x7cc4f0, alpha: 0.14 })
   }
 
   private drawPins() {
@@ -100,12 +104,24 @@ export class BowlingScene implements Scene {
   onTick(tick: Tick): void {
     const t = tick as { path?: [number, number][]; knocked?: number[]; pins_after?: number[]; pins_before?: number[]; who?: string; outcome?: string; anim_s?: number; lane_drift?: number; rerack?: boolean }
     if (typeof t.lane_drift === 'number') { this.drift = t.lane_drift; this.drawOil() }
-    if (!t.path) return
+    if (t.rerack) {
+      // Pin King twist: the deck snaps to a 7-10 split mid-frame
+      const after = t.pins_after ?? [7, 10]
+      for (let i = 1; i <= 10; i++) this.pinState.set(i, after.includes(i) ? 1 : 0)
+      this.drawPins()
+      this.roll = null
+      this.rerackShake = 650
+      this.fx?.hitstop(90); this.fx?.shake(12)
+      this.stamp.text = 'RE-RACK!'; this.stamp.tint = 0xffe08a; this.stamp.alpha = 1; this.stamp.scale.set(1.6)
+      this.banner.text = 'The Pin King re-racks the deck: 7-10 split'
+      return
+    }
+    if (!t.path || t.path.length < 2) return
     const before = t.pins_before ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     for (let i = 1; i <= 10; i++) this.pinState.set(i, before.includes(i) ? 1 : 0)
     this.drawPins()
     this.roll = { path: t.path, t: 0, dur: Math.max(600, (t.anim_s ?? 2.5) * 1000 * 0.62), knocked: t.knocked ?? [], after: t.pins_after ?? [], before, who: t.who ?? 'human', outcome: t.outcome ?? '', done: false, stamped: false }
-    this.stamp.alpha = 0
+    this.stamp.alpha = 0; this.stamp.tint = 0xffffff
     this.banner.text = t.who === 'house' ? 'The House rolls' : ''
   }
 
@@ -114,7 +130,7 @@ export class BowlingScene implements Scene {
     if (phase.phase === 'input') {
       const p = (phase.prompt ?? {}) as { ball?: number; standing?: number[]; frame?: number; rerack?: boolean }
       if (p.standing) { for (let i = 1; i <= 10; i++) this.pinState.set(i, p.standing.includes(i) ? 1 : 0); this.drawPins() }
-      this.banner.text = `Frame ${p.frame ?? phase.turn_no} · Ball ${p.ball ?? 1}`
+      this.banner.text = `Frame ${p.frame ?? phase.turn_no} · Ball ${p.ball ?? 1}` + (Math.abs(this.drift) >= 0.05 ? ` · oil drifts ${this.drift > 0 ? 'right' : 'left'}` : '')
       this.placeBall(0, 0, 'human')
     } else if (phase.phase === 'betting') {
       for (let i = 1; i <= 10; i++) this.pinState.set(i, 1); this.drawPins(); this.banner.text = 'Bets are open'; this.placeBall(0, 0, 'human')
@@ -124,6 +140,12 @@ export class BowlingScene implements Scene {
   onMatch(): void { this.roll = null; this.stamp.alpha = 0 }
 
   update(dtMs: number): void {
+    if (this.rerackShake > 0) {
+      this.rerackShake -= dtMs
+      const k = Math.max(0, this.rerackShake / 650)
+      this.pinLayer.position.set((Math.random() - 0.5) * 10 * k, (Math.random() - 0.5) * 6 * k)
+      if (this.rerackShake <= 0) this.pinLayer.position.set(0, 0)
+    }
     const r = this.roll
     if (r && !r.done) {
       r.t += dtMs
@@ -145,7 +167,7 @@ export class BowlingScene implements Scene {
         const label = r.outcome === 'strike' ? 'STRIKE!' : r.outcome === 'spare' ? 'SPARE!' : r.outcome === 'gutter' || r.outcome === 'no_swing' ? (r.outcome === 'gutter' ? 'GUTTER' : 'NO ROLL') : r.knocked.length ? `${r.knocked.length}` : 'MISS'
         this.stamp.text = label; this.stamp.alpha = 1; this.stamp.scale.set(1.4)
       }
-    } else if (r && r.done) {
+    } else if (!r || r.done) {
       this.stamp.alpha = Math.max(0, this.stamp.alpha - dtMs / 1400)
       this.stamp.scale.set(lerp(this.stamp.scale.x, 1, 0.2))
     }

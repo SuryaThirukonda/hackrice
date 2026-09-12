@@ -140,6 +140,8 @@ class GamesModule:
             spec = self.match.match_winner_market()
             m = self.market.open_market(match_id, spec.kind, spec.label, spec.outcomes, window_s=float(self.config.get("market.windows.betting_s", 12)) + 6, seed_stake=spec.seed_stake)
             self.match_market_id = m.market_id
+        from ..agents.bosses import attach_boss
+        attach_boss(self.match, self.arena)
         for cb in self.on_match_start:
             cb(self.match)
         self.begin_turn()

@@ -128,12 +128,16 @@ class MotionModule:
                 self.state.toggles[k] = bool(v)
 
     def on_calib_done(self, i: Intent) -> None:
-        """Phones calibrate from data; a keyboard remote sends this to declare itself ready (no motion stream)."""
+        """Phones calibrate from data; a keyboard remote sends this to declare itself ready (no motion stream).
+        Sent again after every reconnect, so it also clears a stale 'reconnecting' badge on the projector."""
         dev = self.state.devices.get(i.device_id or "")
-        if dev and not dev.calibrated:
+        if not dev:
+            return
+        self.rooms.touch_frame(dev.device_id, self.loop.clock.now())
+        if not dev.calibrated:
             dev.calibrated = True
-            self.rooms.touch_frame(dev.device_id, self.loop.clock.now())
             self.loop.emit("motion.calib", {"phase": "done", "progress": 1.0, "calib": {"keyboard": True, "done": True}}, to=("device", dev.device_id))
+        self.loop.emit("motion.status", {"device_id": dev.device_id, "seat_id": dev.seat_id, "connected": True, "calibrated": True, "hz": 0, "keyboard": True}, to=["projector", "host"])
 
     def on_frame(self, i: Intent) -> None:
         dev_id = i.device_id
@@ -169,7 +173,7 @@ class MotionModule:
                 self.arena.store.write("gestures", {"match_id": self.loop.match_id, "turn_no": (self.state.match or {}).get("turn_no"),
                                                     "device_id": dev_id, "seat_id": dev.seat_id, "kind": g.kind, "t_phone": g.t_phone,
                                                     "t_server": g.t_server, "power": g.power, "axis": g.axis, "sign": g.sign,
-                                                    "duration_ms": g.duration_ms, "extra_json": json.dumps(g.extra)})
+                                                    "duration_ms": g.duration_ms, "extra_json": json.dumps(g.extra | {"recv_ms": self.loop.clock.now_ms()})})
         # live meter to the projector at meter_hz
         interval = 1.0 / float(self.cfg.get("meter_hz", 15))
         if p.calibrated and now - self._last_meter.get(dev_id, 0.0) >= interval:
@@ -194,6 +198,11 @@ class MotionModule:
         self.loop.emit("motion.gesture", g.to_dict() | {"source": "keyboard"}, to=["projector", "host", ("device", dev.device_id)])
         for h in self.gesture_handlers:
             h(g)
+        if self.arena.store is not None:   # keyboard gestures are replayable too (scripts/replay_match.py uses recv_ms)
+            self.arena.store.write("gestures", {"match_id": self.loop.match_id, "turn_no": (self.state.match or {}).get("turn_no"),
+                                                "device_id": dev.device_id, "seat_id": dev.seat_id, "kind": g.kind, "t_phone": g.t_phone,
+                                                "t_server": g.t_server, "power": g.power, "axis": g.axis, "sign": g.sign,
+                                                "duration_ms": g.duration_ms, "extra_json": json.dumps(g.extra | {"recv_ms": self.loop.clock.now_ms(), "source": "keyboard"})})
 
     def emit_status(self) -> None:
         rows = []

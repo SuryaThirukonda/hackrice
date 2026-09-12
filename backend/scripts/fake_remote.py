@@ -6,6 +6,7 @@ Examples
   uv run python scripts/fake_remote.py --seat P1 --trace ../traces/synth/bowling_swing_60hz.jsonl
   uv run python scripts/fake_remote.py --seat P1 --auto                      # plays whole matches (reacts to match.phase)
   uv run python scripts/fake_remote.py --seat P1 --auto --sport boxing --pattern jab,jab,hook --interval-ms 900
+  uv run python scripts/fake_remote.py --seat P1 --auto --sport boxing --move --block-on-telegraph   # walks into range first
   uv run python scripts/fake_remote.py --seat P1 --auto --sport baseball --dt-ms -20 --dt-jitter 60
 """
 from __future__ import annotations
@@ -164,10 +165,21 @@ async def auto_play(a: argparse.Namespace, c: Client, st: Streamer) -> None:
         sport_holder["sport"] = m["d"]["sport"]
         print(f"[match] {m['d']['sport']} vs {m['d']['opponent']['name']} seed={m['d']['seed']}")
 
+    box = {"dist": 1.0, "toward": 1, "reach": 0.4, "state": "idle", "moving": False}
+
     async def boxing_loop(deadline_ms: float):
         pattern = [p.strip() for p in a.pattern.split(",") if p.strip()]
         i = 0
         while c.server_now_ms() < deadline_ms - 300:
+            if a.move and box["dist"] > box["reach"] - 0.03:
+                # out of reach: footwork via input.action (a phone has no walk gesture) until the House is inside jab range
+                await c.send("input.action", {"kind": "move", "params": {"dir": box["toward"]}, "t_client": time.time() * 1000})
+                box["moving"] = True
+                await asyncio.sleep(0.2)
+                continue
+            if box["moving"]:
+                box["moving"] = False
+                await c.send("input.action", {"kind": "move", "params": {"dir": 0}, "t_client": time.time() * 1000})
             kind = pattern[i % len(pattern)]
             if kind in ("block", "dodge"):
                 seg, _ = gen_segment(kind)
@@ -196,10 +208,13 @@ async def auto_play(a: argparse.Namespace, c: Client, st: Streamer) -> None:
                 boxing_task.cancel()
             boxing_task = asyncio.create_task(boxing_loop(d.get("deadline_ts", c.server_now_ms() + 30_000)))
 
+    swung = {"pitch_no": None}
+
     def on_tick(m):
         d = m["d"]
         sport = sport_holder["sport"]
-        if sport == "baseball" and d.get("pitch") and d.get("arrival_ts") and d.get("pitch_no") is not None:
+        if sport == "baseball" and d.get("pitch") and d.get("arrival_ts") and d.get("pitch_no") is not None and swung["pitch_no"] != d["pitch_no"]:
+            swung["pitch_no"] = d["pitch_no"]
             if d.get("batter") not in (None, my_seat):
                 return
             dt = a.dt_ms + rng.gauss(0, a.dt_jitter)
@@ -207,9 +222,17 @@ async def auto_play(a: argparse.Namespace, c: Client, st: Streamer) -> None:
             target_local = target_server - c.offset_ms
             seg, peak_off = gen_segment("swing", peak=rng.uniform(20, 34))
             st.enqueue(seg, at_local_ms=target_local - peak_off)
-        if sport == "boxing" and a.block_on_telegraph and d.get("fighters", {}).get("house", {}).get("state") == "telegraph":
-            seg, _ = gen_segment("block", seconds=0.6)
-            st.enqueue(seg)
+        if sport == "boxing" and d.get("fighters"):
+            fs = d["fighters"]
+            me = fs.get("human") or next(iter(fs.values()))
+            house = fs.get("house") or list(fs.values())[-1]
+            box["dist"] = float(d.get("distance", abs(float(house.get("x", 0.5)) - float(me.get("x", -0.5)))))
+            box["toward"] = 1 if float(house.get("x", 0.5)) > float(me.get("x", -0.5)) else -1
+            box["reach"] = float((d.get("reach") or {}).get("jab", 0.4))
+            if a.block_on_telegraph and house.get("state") == "windup" and box["state"] != "windup":
+                seg, _ = gen_segment("block", seconds=0.6)
+                st.enqueue(seg)
+            box["state"] = str(house.get("state"))
 
     c.on("match.start", on_start)
     c.on("match.phase", on_phase)
@@ -244,7 +267,8 @@ if __name__ == "__main__":
     ap.add_argument("--interval-jitter-ms", type=float, default=60)
     ap.add_argument("--dt-ms", type=float, default=-20)
     ap.add_argument("--dt-jitter", type=float, default=60)
-    ap.add_argument("--block-on-telegraph", action="store_true")
+    ap.add_argument("--block-on-telegraph", action="store_true", help="boxing: raise the guard when the House winds up")
+    ap.add_argument("--move", action="store_true", help="boxing: walk into jab range before punching (sends input.action move)")
     ap.add_argument("--timeout", type=float, default=600)
     ap.add_argument("--seed", type=int, default=None)
     asyncio.run(main(ap.parse_args()))

@@ -18,7 +18,7 @@ export const CLIENT_MESSAGES = [
   'market.bet', 'sponsor.buy', 'crate.bid', 'card.vote', 'pair.request',
   'host.telemetry', 'host.start', 'host.pause', 'host.resume', 'host.next', 'host.force_scenario', 'host.set_param',
   'host.kick', 'host.release_seat', 'host.lock_seat', 'host.set_public_url', 'host.reload_config', 'host.toggle',
-  'host.set_seats', 'host.card', 'host.unlock_audio', 'host.adjust_chips',
+  'host.set_seats', 'host.card', 'host.unlock_audio', 'host.adjust_chips', 'host.set_backend_url',
 ] as const
 
 export type ServerType = (typeof SERVER_MESSAGES)[number]
@@ -38,6 +38,6 @@ export interface Outcome { id: string; label: string; pool: number }
 export interface Market { market_id: string; kind: string; label: string; outcomes: Outcome[]; closes_ts: number; open: boolean; turn_no?: number; winner?: string | string[] | null; status?: string; pool?: number; match_id?: string | null }
 export interface MatchSummary { match_id: string; sport: 'bowling' | 'baseball' | 'boxing'; seed: number; human_seats: string[]; opponent: { tier: string; name: string; accent?: string }; players?: Record<string, string>; phase?: string; turn_no?: number; deadline_ts?: number; score?: Record<string, unknown>; paused?: boolean; card?: boolean; fighters?: Record<string, unknown> }
 export interface LeaderRow { device_id: string; nickname: string; chips: number; titles: string[] }
-export interface Snapshot { public_url: string; rail_url: string; seats: Seat[]; match: MatchSummary | null; markets: Market[]; leaderboard: LeaderRow[]; ladder: Record<string, Record<string, number>>; studying: Record<string, unknown>; card: Record<string, unknown> | null; crate: Record<string, unknown> | null; toggles: Record<string, boolean>; me?: { device_id: string; balance: number; nickname?: string | null; seat_id?: string | null; calibrated?: boolean }; devices?: DeviceInfo[]; seat_tokens?: Record<string, string>; audio_unlocked?: boolean }
+export interface Snapshot { public_url: string; rail_url: string; seats: Seat[]; match: MatchSummary | null; markets: Market[]; leaderboard: LeaderRow[]; ladder: Record<string, Record<string, number>>; studying: Record<string, unknown>; card: Record<string, unknown> | null; crate: Record<string, unknown> | null; toggles: Record<string, boolean>; me?: { device_id: string; balance: number; nickname?: string | null; seat_id?: string | null; calibrated?: boolean }; devices?: DeviceInfo[]; seat_tokens?: Record<string, string>; audio_unlocked?: boolean; moves?: Record<string, unknown>[]; pairing?: Record<string, unknown> | null }
 export interface Gesture { seat_id: string | null; device_id: string; kind: string; t_phone: number; t_server: number; power: number; axis: string; sign: number; duration_ms: number; extra?: Record<string, unknown> }
 export interface VoiceLine { priority: number; speaker: string; text: string; url: string | null; duration_ms: number; id: string }

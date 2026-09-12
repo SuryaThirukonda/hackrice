@@ -34,6 +34,18 @@ export function PixiStage() {
       slowmo: (f, ms) => { fxState.slow = f; fxState.slowUntil = performance.now() + ms },
     }
     const size = () => ({ w: el.clientWidth || 800, h: el.clientHeight || 600 })
+    // host telemetry: the ticker samples frame times; a timer reports p95/fps every 5 s over the projector socket, so a
+    // hidden or stalled projector still reports (fps 0) instead of going silent (rAF pauses in background tabs).
+    const frameMs: number[] = []
+    let lastReport = performance.now()
+    const report = window.setInterval(() => {
+      const now = performance.now()
+      const sorted = [...frameMs].sort((x, y) => x - y)
+      const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0
+      const fps = frameMs.length / ((now - lastReport) / 1000)
+      useArena.getState().socket?.send('host.telemetry', { frame_ms_p95: Math.round(p95 * 10) / 10, frame_ms_max: Math.round((sorted[sorted.length - 1] ?? 0) * 10) / 10, fps: Math.round(fps), frames: frameMs.length, long_frames: sorted.filter((x) => x > 33).length, hidden: document.hidden })
+      frameMs.length = 0; lastReport = now
+    }, 5000)
     const swap = (sp: string | null) => {
       if (!app) return
       scene?.unmount(); world.removeChildren()
@@ -51,6 +63,7 @@ export function PixiStage() {
       swap(useArena.getState().match?.sport ?? null)
       a.ticker.add((t) => {
         const now = performance.now()
+        frameMs.push(t.deltaMS)
         if (now < fxState.hitstopUntil) return
         const slow = now < fxState.slowUntil ? fxState.slow : 1
         scene?.update(t.deltaMS * slow)
@@ -71,7 +84,7 @@ export function PixiStage() {
     })
     const ro = new ResizeObserver(() => scene?.resize(size()))
     ro.observe(el)
-    return () => { cancelled = true; unsub(); ro.disconnect(); scene?.unmount(); if (app) { app.destroy(true, { children: true }); app = null } }
+    return () => { cancelled = true; window.clearInterval(report); unsub(); ro.disconnect(); scene?.unmount(); if (app) { app.destroy(true, { children: true }); app = null } }
   }, [])
   return <div ref={host} className="pixi-host" />
 }

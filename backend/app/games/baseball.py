@@ -282,6 +282,12 @@ class BaseballMatch(Match):
         return {"inning": min(self.inning, self.innings), "innings": self.innings, "human": self.human.public(), "house": self.house.public(),
                 "sudden_death": self.sudden_death, "mean_dt_ms": round(self.policy.mean_dt, 1) if self.policy.mean_dt is not None else None}
 
+    def match_winner_market(self) -> MarketSpec:
+        spec = super().match_winner_market()
+        if self.sudden_death:
+            spec.seed_stake = {"house": 300}          # the crowd's odds are visibly stacked against the batter
+        return spec
+
     def winner(self) -> str:
         if self.human.runs != self.house.runs:
             return "human" if self.human.runs > self.house.runs else "house"

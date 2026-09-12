@@ -6,7 +6,7 @@ import { PlankMenu } from '../ui/ChannelGrid'
 import type { GameDef } from '../ui/games'
 import { PixiStage } from './stage/PixiStage'
 import { OddsBoard } from './OddsBoard'
-import { BaseballBoard, LeaderboardStrip, Meter, PhaseBanner, ScoreCard, StudyingMeter, Subtitle, Versus } from './Overlays'
+import { BaseballBoard, CardVoteSplash, LeaderboardStrip, MarketBanners, Meter, PhaseBanner, ScoreCard, StudyingMeter, Subtitle, Versus } from './Overlays'
 import { FightHUD } from './FightHUD'
 import { KeyboardPlayer } from './KeyboardPlayer'
 import './projector.css'
@@ -56,8 +56,12 @@ export default function Projector() {
             <Versus />
           </div>
         ) : (
-          <PlankMenu onPick={pick} />
+          <>
+            <PlankMenu onPick={pick} />
+            <CardVoteSplash />
+          </>
         )}
+        <MarketBanners />
       </main>
       <aside className="proj-side">
         {seats.map((s) => {

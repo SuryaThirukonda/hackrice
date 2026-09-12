@@ -72,6 +72,8 @@ class Rooms:
         s = self.state.seats.get(seat_id)
         if not s:
             return
+        if self.loop.store is not None and s.device_id:
+            self.loop.store.write("seats", {"seat_id": s.seat_id, "match_id": self.loop.match_id, "device_id": s.device_id, "claimed_ts": s.claimed_ts, "released_ts": self.loop.clock.now()})
         self._unbind(s)
         s.status = "open"
         s.token = new_token()
@@ -141,6 +143,8 @@ class Rooms:
         if new or dev.role == "rail":
             for cb in self.on_join:
                 cb(dev)
+        if self.loop.store is not None:
+            self.loop.store.write("devices", {"device_id": dev.device_id, "role": dev.role, "nickname": dev.nickname, "ua": dev.ua, "first_seen": dev.first_seen, "last_seen": now})
         self.loop.emit("session.welcome", self._welcome(dev, seat, reason), to=("conn", i.conn_id) if i.conn_id else ("device", dev.device_id))
         self.loop.emit("session.snapshot", self.state.snapshot(dev.role, dev.device_id), to=("conn", i.conn_id) if i.conn_id else ("device", dev.device_id))
         if dev.role in ("projector", "host"):
@@ -154,6 +158,8 @@ class Rooms:
         seat.token = new_token()  # rotate: the QR that was scanned is now dead; the device receives the new one privately
         dev.seat_id = seat.seat_id
         dev.calibrated = False
+        if self.loop.store is not None:
+            self.loop.store.write("seats", {"seat_id": seat.seat_id, "match_id": self.loop.match_id, "device_id": dev.device_id, "claimed_ts": seat.claimed_ts, "released_ts": None})
         self.emit_seats()
         self._arm_release(seat)
         for cb in self.on_seat_change:

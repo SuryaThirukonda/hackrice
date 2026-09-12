@@ -34,9 +34,16 @@ export interface ArenaState {
   voice: VoiceLine | null
   sfx: { name: string; gain: number; n: number } | null
   sponsor: Record<string, unknown> | null
+  sponsorAck: Record<string, unknown> | null
+  crateResult: Record<string, unknown> | null
+  moves: Record<string, unknown>[]
   pairing: Record<string, unknown> | null
   betAck: Record<string, unknown> | null
   hostAck: Record<string, unknown> | null
+  hostConfig: Record<string, unknown> | null
+  arenaDiag: Record<string, unknown> | null
+  sockets: Record<string, unknown>[]
+  telemetry: Record<string, unknown> | null
   settle: Record<string, unknown> | null
   error: string | null
   log: Envelope[]
@@ -50,7 +57,7 @@ export const useArena = create<ArenaState>((set, get) => ({
   socket: null, connected: false, welcome: null, publicUrl: '', railUrl: '', seats: [], match: null, phase: null, tick: null,
   lastTurn: null, lastEnd: null, markets: {}, leaderboard: [], balance: 0, ladder: {}, studying: {}, card: null, crate: null,
   toggles: {}, devices: [], seatTokens: {}, statuses: {}, meters: {}, lastGesture: null, calib: null, diagnostics: [], gestureSeq: 0, decisions: [], voice: null,
-  sfx: null, sponsor: null, pairing: null, betAck: null, hostAck: null, settle: null, error: null, log: [],
+  sfx: null, sponsor: null, sponsorAck: null, crateResult: null, moves: [], pairing: null, betAck: null, hostAck: null, hostConfig: null, arenaDiag: null, sockets: [], telemetry: null, settle: null, error: null, log: [],
 
   connect: (opts) => {
     const existing = get().socket
@@ -77,6 +84,8 @@ export const useArena = create<ArenaState>((set, get) => ({
         if (s.me) patch.balance = s.me.balance
         if (s.devices) patch.devices = s.devices
         if (s.seat_tokens) patch.seatTokens = s.seat_tokens
+        if (s.moves) patch.moves = s.moves
+        if (s.pairing !== undefined) patch.pairing = s.pairing
         if (s.match?.phase) patch.phase = { turn_no: s.match.turn_no ?? 0, phase: s.match.phase, deadline_ts: s.match.deadline_ts ?? 0 }
         break }
       case 'session.error': if (!(d as Record<string, unknown>).__closed) patch.error = String((d as { reason?: string }).reason ?? 'error'); break
@@ -100,16 +109,17 @@ export const useArena = create<ArenaState>((set, get) => ({
       case 'market.balance': patch.balance = (d as { balance: number }).balance; break
       case 'market.leaderboard': patch.leaderboard = (d as { rows: LeaderRow[] }).rows; break
       case 'ladder.update': patch.ladder = (d as { ladder: Record<string, Record<string, number>> }).ladder; break
-      case 'sponsor.warn': case 'sponsor.applied': case 'sponsor.ack': patch.sponsor = { ...d, kind: env.t }; break
+      case 'sponsor.warn': case 'sponsor.applied': case 'sponsor.ack': patch.sponsor = { ...d, kind: env.t }; if (env.t === 'sponsor.ack') patch.sponsorAck = { ...d, n: ((get().sponsorAck?.n as number) ?? 0) + 1 }; break
       case 'crate.open': patch.crate = d; break
-      case 'crate.result': patch.crate = null; patch.sponsor = { ...d, kind: env.t }; break
+      case 'crate.result': patch.crate = null; patch.sponsor = { ...d, kind: env.t }; patch.crateResult = { ...d, n: ((get().crateResult?.n as number) ?? 0) + 1 }; break
       case 'card.vote_open': patch.card = d; break
       case 'card.vote_result': patch.card = { ...d, done: true }; break
       case 'pair.prompt': case 'pair.result': patch.pairing = { ...d, kind: env.t }; break
       case 'voice.line': patch.voice = d as unknown as VoiceLine; break
       case 'sfx.play': patch.sfx = { ...(d as { name: string; gain: number }), n: (get().sfx?.n ?? 0) + 1 }; break
-      case 'host.ack': patch.hostAck = d; break
-      case 'host.diagnostics': if (d.devices) patch.devices = d.devices; if (d.motion) patch.diagnostics = d.motion; break
+      case 'host.ack': patch.hostAck = { ...d, n: ((get().hostAck?.n as number) ?? 0) + 1 }; if (d.toggles) patch.toggles = d.toggles; break
+      case 'host.config': patch.hostConfig = d; break
+      case 'host.diagnostics': if (d.devices) patch.devices = d.devices; if (d.motion) patch.diagnostics = d.motion; if (d.arena) patch.arenaDiag = d.arena; if (d.sockets) patch.sockets = d.sockets; if (d.telemetry) patch.telemetry = d.telemetry; break
       default: break
     }
     if (env.t !== 'motion.meter' && env.t !== 'match.tick' && env.t !== 'session.pong' && !d.__open && !d.__closed) patch.log = [...get().log.slice(-(MAX_LOG - 1)), env]

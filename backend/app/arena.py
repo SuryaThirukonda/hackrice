@@ -33,7 +33,8 @@ class Intent:
 
 
 class SendQueue:
-    """Bounded outbox per connection. When full, droppable high-rate messages go first."""
+    """Bounded outbox per connection. When full, droppable high-rate messages go first.
+    `seq` is per connection and assigned to what is actually queued, so a client only sees a gap on real loss."""
 
     def __init__(self, maxlen: int = 256):
         self.q: deque[Envelope] = deque()
@@ -41,6 +42,7 @@ class SendQueue:
         self.event = asyncio.Event() if _has_loop() else None
         self.dropped = 0
         self.closed = False
+        self.seq = 0
 
     def push(self, env: Envelope) -> None:
         if len(self.q) >= self.maxlen:
@@ -55,7 +57,8 @@ class SendQueue:
             else:
                 self.q.popleft()
                 self.dropped += 1
-        self.q.append(env)
+        self.seq += 1
+        self.q.append(env.model_copy(update={"seq": self.seq}))
         if self.event is not None:
             self.event.set()
 

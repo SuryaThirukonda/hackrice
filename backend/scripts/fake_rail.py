@@ -1,7 +1,7 @@
 """Rail bots: N spectators that bet on every open market. Asserts chip conservation from the client side at exit.
 
   uv run python scripts/fake_rail.py --n 12 --every 5 --seconds 120
-  uv run python scripts/fake_rail.py --n 5 --sponsor --vote
+  uv run python scripts/fake_rail.py --n 5 --sponsor --vote      # --sponsor buys a move after match.start and bids on every crate
 """
 from __future__ import annotations
 
@@ -54,7 +54,14 @@ class Bot:
                 await c.send("market.bet", {"market_id": d["market_id"], "outcome_id": self.rng.choice(d["outcomes"])["id"], "stake": stake})
         c.on("market.window", on_window)
         if self.a.vote:
-            c.on("card.vote_open", lambda m: asyncio.ensure_future(c.send("card.vote", {"pairing_id": self.rng.choice(m["d"]["pairings"])["id"]})))
+            voted = {"ts": None}                                             # one vote per window: the server re-broadcasts the tally as card.vote_open
+            async def on_vote_open(m):
+                if voted["ts"] == m["d"].get("closes_ts"):
+                    return
+                voted["ts"] = m["d"].get("closes_ts")
+                await asyncio.sleep(self.rng.uniform(0.05, 0.3))
+                await c.send("card.vote", {"pairing_id": self.rng.choice(m["d"]["pairings"])["id"]})
+            c.on("card.vote_open", on_vote_open)
         if self.a.sponsor:
             async def on_start(m):
                 await asyncio.sleep(self.rng.uniform(3, 8))
@@ -62,6 +69,12 @@ class Bot:
                 if moves:
                     await c.send("sponsor.buy", {"move_id": self.rng.choice(moves)["id"]})
             c.on("match.start", on_start)
+            async def on_crate(m):
+                await asyncio.sleep(self.rng.uniform(0.1, 0.5))
+                amt = self.rng.choice([20, 40, 60, 90])
+                if self.balance >= amt:
+                    await c.send("crate.bid", {"amount": amt})
+            c.on("crate.open", lambda m: asyncio.ensure_future(on_crate(m)))          # --sponsor also bids in crate auctions
         for s in ((c.snapshot or {}).get("markets") or []):
             if s.get("open"):
                 await on_window({"d": s})

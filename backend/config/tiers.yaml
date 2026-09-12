@@ -1,114 +1,291 @@
-# Four named opponents per sport. params drive the deterministic policy; persona/voice drive the LLM + TTS layer.
-# adaptive: which param the difficulty controller nudges, its [min, max] clamp, and the sign that makes the House weaker.
 persona:
   model: gpt-5-mini
   timeout_s: 1.5
   effort: low
 bowling:
-  adaptive: {param: lane_sigma, min: 0.05, max: 0.6, weaker: +1}
+  adaptive:
+    param: lane_sigma
+    min: 0.05
+    max: 0.6
+    weaker: 1
   tiers:
-    - id: rookie
-      name: Gutter Gus
-      params: {speed_mean: 0.45, speed_sigma: 0.15, spin_mean: 60, spin_sigma: 80, lane_sigma: 0.42}
-      voice_id: TX3LPaxmHKxFdv7VOQHJ
-      accent: "#c9a227"
-      persona_prompt: "You are Gutter Gus, a slow, wobbly, generous rookie bowler who grumbles cheerfully when he loses and is genuinely impressed by strikes."
-      taunts: ["Hey, the gutter's part of the lane too.", "I meant to do that.", "Ooh, a strike. Show-off.", "My grandma bowls faster. She's very fast."]
-      signature: wobble
-    - id: contender
-      name: Spare Change
-      params: {speed_mean: 0.6, speed_sigma: 0.1, spin_mean: 150, spin_sigma: 60, lane_sigma: 0.22}
-      voice_id: pqHfZKP75CvOlQylNhV4
-      accent: "#3b82f6"
-      persona_prompt: "You are Spare Change, a consistent contender who never misses a spare and needles opponents about every open frame."
-      taunts: ["Open frame. I'll remember that.", "Spare. Every. Time.", "Consistency beats luck, kid."]
-      signature: spare
-    - id: champion
-      name: Perfect Game
-      params: {speed_mean: 0.75, speed_sigma: 0.07, spin_mean: 260, spin_sigma: 40, lane_sigma: 0.2}
-      voice_id: IKne3meq5aSn9XLyUdCD
-      accent: "#a855f7"
-      persona_prompt: "You are Perfect Game, a champion bowler with a wicked hook who plays mind games and speaks in short, cold sentences."
-      taunts: ["Watch the hook.", "You're aiming. I'm rolling.", "That pocket is mine."]
-      signature: hook
-    - id: boss
-      name: The Pin King
-      params: {speed_mean: 0.8, speed_sigma: 0.06, spin_mean: 300, spin_sigma: 30, lane_sigma: 0.12}
-      voice_id: nPczCjzI2devNBz1zQrb
-      accent: "#dc2626"
-      persona_prompt: "You are The Pin King, the boss of the lanes. The oil shifts when you say so and the pins re-rack on your command. You are theatrical and hostile."
-      taunts: ["The lane obeys me.", "Re-rack. Let's see you hit a moving target.", "The House always plays."]
-      signature: oil_shift
-      twist: pin_king
+  - id: rookie
+    name: Gutter Gus
+    params:
+      speed_mean: 0.45
+      speed_sigma: 0.15
+      spin_mean: 60
+      spin_sigma: 80
+      lane_sigma: 0.42
+    voice_id: TX3LPaxmHKxFdv7VOQHJ
+    accent: '#c9a227'
+    persona_prompt: You are Gutter Gus, a slow, wobbly, generous rookie bowler who
+      grumbles cheerfully when he loses and is genuinely impressed by strikes.
+    taunts:
+    - Hey, the gutter's part of the lane too.
+    - I meant to do that.
+    - Ooh, a strike. Show-off.
+    - My grandma bowls faster. She's very fast.
+    signature: wobble
+  - id: contender
+    name: Spare Change
+    params:
+      speed_mean: 0.6
+      speed_sigma: 0.1
+      spin_mean: 150
+      spin_sigma: 60
+      lane_sigma: 0.22
+    voice_id: pqHfZKP75CvOlQylNhV4
+    accent: '#3b82f6'
+    persona_prompt: You are Spare Change, a consistent contender who never misses
+      a spare and needles opponents about every open frame.
+    taunts:
+    - Open frame. I'll remember that.
+    - Spare. Every. Time.
+    - Consistency beats luck, kid.
+    signature: spare
+  - id: champion
+    name: Perfect Game
+    params:
+      speed_mean: 0.75
+      speed_sigma: 0.07
+      spin_mean: 260
+      spin_sigma: 40
+      lane_sigma: 0.2
+    voice_id: IKne3meq5aSn9XLyUdCD
+    accent: '#a855f7'
+    persona_prompt: You are Perfect Game, a champion bowler with a wicked hook who
+      plays mind games and speaks in short, cold sentences.
+    taunts:
+    - Watch the hook.
+    - You're aiming. I'm rolling.
+    - That pocket is mine.
+    signature: hook
+  - id: boss
+    name: The Pin King
+    params:
+      speed_mean: 0.8
+      speed_sigma: 0.06
+      spin_mean: 300
+      spin_sigma: 30
+      lane_sigma: 0.12
+    voice_id: nPczCjzI2devNBz1zQrb
+    accent: '#dc2626'
+    persona_prompt: You are The Pin King, the boss of the lanes. The oil shifts when
+      you say so and the pins re-rack on your command. You are theatrical and hostile.
+    taunts:
+    - The lane obeys me.
+    - Re-rack. Let's see you hit a moving target.
+    - The House always plays.
+    signature: oil_shift
+    twist: pin_king
 baseball:
-  adaptive: {param: W_ms, min: 50, max: 160, weaker: +1}
+  adaptive:
+    param: W_ms
+    min: 50
+    max: 160
+    weaker: 1
   tiers:
-    - id: rookie
-      name: Batting Practice Pete
-      params: {W_ms: 100, pitches: [fastball, fastball, fastball, changeup], speed_mult: 0.9, house_dt_sigma_ms: 65, read_strength: 0.0}
-      voice_id: TX3LPaxmHKxFdv7VOQHJ
-      accent: "#c9a227"
-      persona_prompt: "You are Batting Practice Pete, a friendly pitcher who lobs meatballs down the middle and cheers every hit."
-      taunts: ["Right down the middle, just for you.", "Nice cut! Almost.", "Take your time, slugger."]
-      signature: meatball
-    - id: contender
-      name: The Changeup
-      params: {W_ms: 90, pitches: [fastball, changeup, curve, high, low], speed_mult: 1.0, house_dt_sigma_ms: 55, read_strength: 0.6}
-      voice_id: pqHfZKP75CvOlQylNhV4
-      accent: "#3b82f6"
-      persona_prompt: "You are The Changeup, a pitcher who reads timing. When batters swing early you mock them and throw slow."
-      taunts: ["Swinging early? Here's a slow one.", "I saw that.", "You're late. Or early. Never on time."]
-      signature: changeup
-    - id: champion
-      name: The Ace
-      params: {W_ms: 75, pitches: [fastball, changeup, curve, high, low, inside, outside], speed_mult: 1.1, house_dt_sigma_ms: 40, read_strength: 0.9}
-      voice_id: IKne3meq5aSn9XLyUdCD
-      accent: "#a855f7"
-      persona_prompt: "You are The Ace, a champion with the full arsenal who pitches to weakness and speaks with clinical confidence."
-      taunts: ["I know your weakness.", "Full arsenal today.", "Sit down."]
-      signature: arsenal
-    - id: boss
-      name: The Closer
-      params: {W_ms: 55, pitches: [fastball, curve, knuckle, inside, outside], speed_mult: 1.2, house_dt_sigma_ms: 35, read_strength: 1.0, sudden_death: true}
-      voice_id: nPczCjzI2devNBz1zQrb
-      accent: "#dc2626"
-      persona_prompt: "You are The Closer, the boss of the mound. Three strikes and it's over. You throw a knuckleball nobody has seen and the crowd bets against the batter."
-      taunts: ["Three strikes. That's all you get.", "You've never seen this pitch.", "The odds are against you. Look at the board."]
-      signature: knuckle
-      twist: closer
+  - id: rookie
+    name: Batting Practice Pete
+    params:
+      W_ms: 100
+      pitches:
+      - fastball
+      - fastball
+      - fastball
+      - changeup
+      speed_mult: 0.9
+      house_dt_sigma_ms: 65
+      read_strength: 0.0
+    voice_id: TX3LPaxmHKxFdv7VOQHJ
+    accent: '#c9a227'
+    persona_prompt: You are Batting Practice Pete, a friendly pitcher who lobs meatballs
+      down the middle and cheers every hit.
+    taunts:
+    - Right down the middle, just for you.
+    - Nice cut! Almost.
+    - Take your time, slugger.
+    signature: meatball
+  - id: contender
+    name: The Changeup
+    params:
+      W_ms: 90
+      pitches:
+      - fastball
+      - changeup
+      - curve
+      - high
+      - low
+      speed_mult: 1.0
+      house_dt_sigma_ms: 55
+      read_strength: 0.6
+    voice_id: pqHfZKP75CvOlQylNhV4
+    accent: '#3b82f6'
+    persona_prompt: You are The Changeup, a pitcher who reads timing. When batters
+      swing early you mock them and throw slow.
+    taunts:
+    - Swinging early? Here's a slow one.
+    - I saw that.
+    - You're late. Or early. Never on time.
+    signature: changeup
+  - id: champion
+    name: The Ace
+    params:
+      W_ms: 90
+      pitches:
+      - fastball
+      - changeup
+      - curve
+      - high
+      - low
+      - inside
+      - outside
+      speed_mult: 1.05
+      house_dt_sigma_ms: 50
+      read_strength: 0.9
+    voice_id: IKne3meq5aSn9XLyUdCD
+    accent: '#a855f7'
+    persona_prompt: You are The Ace, a champion with the full arsenal who pitches
+      to weakness and speaks with clinical confidence.
+    taunts:
+    - I know your weakness.
+    - Full arsenal today.
+    - Sit down.
+    signature: arsenal
+  - id: boss
+    name: The Closer
+    params:
+      W_ms: 55
+      pitches:
+      - fastball
+      - curve
+      - knuckle
+      - inside
+      - outside
+      speed_mult: 1.2
+      house_dt_sigma_ms: 35
+      read_strength: 1.0
+      sudden_death: true
+    voice_id: nPczCjzI2devNBz1zQrb
+    accent: '#dc2626'
+    persona_prompt: You are The Closer, the boss of the mound. Three strikes and it's
+      over. You throw a knuckleball nobody has seen and the crowd bets against the
+      batter.
+    taunts:
+    - Three strikes. That's all you get.
+    - You've never seen this pitch.
+    - The odds are against you. Look at the board.
+    signature: knuckle
+    twist: closer
 boxing:
-  adaptive: {param: reaction_ms, min: 120, max: 600, weaker: +1}
+  adaptive:
+    param: reaction_ms
+    min: 120
+    max: 600
+    weaker: 1
   tiers:
-    - id: rookie
-      name: Sparring Sam
-      params: {aggression: 0.55, telegraph_ms: 600, reaction_ms: 500, pattern: [jab, jab, hook], dodge_p: 0.08, block_p: 0.3}
-      voice_id: TX3LPaxmHKxFdv7VOQHJ
-      accent: "#c9a227"
-      persona_prompt: "You are Sparring Sam, an encouraging rookie boxer who telegraphs everything and narrates his own punches."
-      taunts: ["Here comes the jab! Told you.", "Nice shot, partner.", "Big hook coming... now!"]
-      signature: telegraph
-    - id: contender
-      name: The Counter
-      params: {aggression: 1.0, telegraph_ms: 400, reaction_ms: 250, pattern: [jab, hook], dodge_p: 0.25, block_p: 0.6, counter: true}
-      voice_id: pqHfZKP75CvOlQylNhV4
-      accent: "#3b82f6"
-      persona_prompt: "You are The Counter, a lanky counter-puncher with a permanent smirk who waits for the miss and punishes it."
-      taunts: ["Miss. Pay.", "I'm patient.", "You swung. I answered."]
-      signature: counter
-    - id: champion
-      name: The Brawler
-      params: {aggression: 1.15, telegraph_ms: 300, reaction_ms: 220, pattern: [hook, jab, hook, hook], dodge_p: 0.15, block_p: 0.4}
-      voice_id: IKne3meq5aSn9XLyUdCD
-      accent: "#a855f7"
-      persona_prompt: "You are The Brawler, relentless and loud. You never stop coming forward and you respect only blocks and dodges."
-      taunts: ["No breaks!", "Block it or eat it!", "Keep those hands up!"]
-      signature: relentless
-    - id: boss
-      name: The House Champ
-      params: {aggression: 1.1, telegraph_ms: 250, reaction_ms: 160, pattern: [jab, hook, jab], dodge_p: 0.35, block_p: 0.6, rhythm_learner: true}
-      voice_id: nPczCjzI2devNBz1zQrb
-      accent: "#dc2626"
-      persona_prompt: "You are The House Champ, wearing casino colors and the belt. You learn the challenger's rhythm in real time and counter on the beat. Cold, certain, theatrical."
-      taunts: ["I know when you'll swing.", "Same rhythm. Same result.", "The House always plays."]
-      signature: rhythm
-      twist: house_champ
+  - id: rookie
+    name: Sparring Sam
+    params:
+      aggression: 1.3
+      telegraph_ms: 440
+      reaction_ms: 500
+      pattern:
+      - jab
+      - jab
+      - hook
+      dodge_p: 0.08
+      block_p: 0.45
+      parry_p: 0.0
+      punish_p: 0.45
+      speed: 0.8
+      retreat_p: 0.15
+    voice_id: TX3LPaxmHKxFdv7VOQHJ
+    accent: '#c9a227'
+    persona_prompt: You are Sparring Sam, an encouraging rookie boxer who telegraphs
+      everything and narrates his own punches.
+    taunts:
+    - Here comes the jab! Told you.
+    - Nice shot, partner.
+    - Big hook coming... now!
+    signature: telegraph
+  - id: contender
+    name: The Counter
+    params:
+      aggression: 1.3
+      telegraph_ms: 400
+      reaction_ms: 240
+      pattern:
+      - jab
+      - hook
+      dodge_p: 0.25
+      block_p: 0.6
+      parry_p: 0.0
+      punish_p: 0.6
+      speed: 0.9
+      retreat_p: 0.5
+      counter: true
+    voice_id: pqHfZKP75CvOlQylNhV4
+    accent: '#3b82f6'
+    persona_prompt: You are The Counter, a lanky counter-puncher with a permanent
+      smirk who waits for the miss and punishes it.
+    taunts:
+    - Miss. Pay.
+    - I'm patient.
+    - You swung. I answered.
+    signature: counter
+  - id: champion
+    name: The Brawler
+    params:
+      aggression: 1.8
+      telegraph_ms: 300
+      reaction_ms: 200
+      pattern:
+      - hook
+      - jab
+      - hook
+      - hook
+      dodge_p: 0.15
+      block_p: 0.5
+      parry_p: 0.1
+      punish_p: 0.7
+      speed: 1.0
+      retreat_p: 0.15
+    voice_id: IKne3meq5aSn9XLyUdCD
+    accent: '#a855f7'
+    persona_prompt: You are The Brawler, relentless and loud. You never stop coming
+      forward and you respect only blocks and dodges.
+    taunts:
+    - No breaks!
+    - Block it or eat it!
+    - Keep those hands up!
+    signature: relentless
+  - id: boss
+    name: The House Champ
+    params:
+      aggression: 1.3
+      telegraph_ms: 260
+      reaction_ms: 140
+      pattern:
+      - jab
+      - hook
+      - jab
+      dodge_p: 0.3
+      block_p: 0.55
+      parry_p: 0.15
+      punish_p: 0.45
+      speed: 1.1
+      retreat_p: 0.3
+      rhythm_learner: true
+    voice_id: nPczCjzI2devNBz1zQrb
+    accent: '#dc2626'
+    persona_prompt: You are The House Champ, wearing casino colors and the belt. You
+      learn the challenger's rhythm in real time and counter on the beat. Cold, certain,
+      theatrical.
+    taunts:
+    - I know when you'll swing.
+    - Same rhythm. Same result.
+    - The House always plays.
+    signature: rhythm
+    twist: house_champ

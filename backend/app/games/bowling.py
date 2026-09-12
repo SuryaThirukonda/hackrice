@@ -167,6 +167,8 @@ class BowlingMatch(Match):
         self.hand = 1
         self.extra_frames = 0
         self.last_human_frame_outcome = "open"
+        self.rerack_frame = 3 if self.tier.twist == "pin_king" else None
+        self.reracked = False
 
     # ---- turns: one turn = one human frame (1-3 balls in one input window) then the House frame -------------
     def plan_turn(self) -> TurnPlan | None:
@@ -225,7 +227,13 @@ class BowlingMatch(Match):
     def next_prompt(self) -> dict[str, Any] | None:
         if self.cur is None or self.input_done():
             return None
-        return {"ball": len(self.cur.rolls) + 1, "standing": sorted(self.cur.standing), "frame": self.cur.n, "rerack": self.cur.standing == ALL_PINS}
+        twist = False
+        if self.rerack_frame == self.cur.n and len(self.cur.rolls) == 1 and not self.reracked:
+            self.reracked, twist = True, True                      # The Pin King re-racks whatever is left (even a full rack) into a 7-10 split mid-approach
+            self.cur.standing = {7, 10}
+            self.cur_ticks.append({"who": "house", "frame": self.cur.n, "ball": 0, "path": [], "pins_before": [], "knocked": [], "pins_after": [7, 10],
+                                   "outcome": "rerack", "rerack": True, "lane_drift": round(self.lane_drift, 3), "flags": {"shake": True}, "anim_s": 1.2})
+        return {"ball": len(self.cur.rolls) + 1, "standing": sorted(self.cur.standing), "frame": self.cur.n, "rerack": self.cur.standing == ALL_PINS, "twist": twist}
 
     def no_input(self) -> None:
         assert self.cur is not None

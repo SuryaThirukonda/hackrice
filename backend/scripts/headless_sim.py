@@ -19,7 +19,10 @@ PROFILES = {
     # bowling: a human aims at the pocket; aim_sigma is the error of where the ball ends up relative to the pocket
     "bowling": {"aim_sigma": 0.22, "speed_mean": 0.6, "speed_sigma": 0.15, "spin_mean": 150, "spin_sigma": 100},
     "baseball": {"dt_ms": -20, "dt_sigma": 60, "swing_rate": 0.85},
-    "boxing": {"interval_ms": 1500, "interval_sigma": 300, "hook_p": 0.3, "block_p": 0.3},
+    # boxing: walks into jab range, throws at ~interval when free, and answers a visible House windup after a human reaction
+    # delay (react_ms) with a block (or a dodge) with probability react_p; guards for guard_ms. react_ms sits between a keyboard
+    # player (~260 ms) and a phone (~250 ms reaction + the block detector's 200 ms stillness window).
+    "boxing": {"interval_ms": 1300, "interval_sigma": 300, "hook_p": 0.3, "react_p": 0.55, "react_ms": 350, "react_sigma_ms": 80, "dodge_share": 0.25, "guard_ms": 450},
 }
 
 
@@ -58,6 +61,7 @@ def play_match(arena, clock, seat: FakeSeat, sport: str, tier: str, profile: dic
     swung_pitch = None
     t_end = clock.now() + max_s
     last_punch = clock.now()
+    box = {"seen_action": -1, "react_at": None, "react_kind": None, "guard_until": None}
     while games.match and not games.match.ended and clock.now() < t_end:
         clock.advance(dt)
         seat.touch()
@@ -94,13 +98,34 @@ def play_match(arena, clock, seat: FakeSeat, sport: str, tier: str, profile: dic
                         seat.gesture("swing", power=rng.uniform(0.4, 1.0), extra={"pitch_angle": rng.uniform(0.3, 0.7)}, t=t_sw)
                         arena.step()
             elif sport == "boxing":
-                if clock.now() - last_punch >= rng.gauss(profile["interval_ms"], profile["interval_sigma"]) / 1000:
-                    last_punch = clock.now()
-                    if rng.random() < profile["block_p"]:
-                        seat.gesture("block_on"); clock.advance(0.4); seat.touch(); arena.step(); seat.gesture("block_off")
-                    else:
-                        seat.gesture("punch", power=rng.uniform(0.3, 1.0), extra={"type": "hook" if rng.random() < profile["hook_p"] else "jab"})
-                    arena.step()
+                a_f, b_f = m.a, m.b
+                now = clock.now()
+                # release the guard when its hold is over
+                if box["guard_until"] is not None and now >= box["guard_until"]:
+                    box["guard_until"] = None
+                    seat.gesture("block_off"); arena.step()
+                # see the House wind up -> decide to block/dodge after a human reaction delay
+                if b_f.state == "windup" and b_f.action_id != box["seen_action"]:
+                    box["seen_action"] = b_f.action_id
+                    if rng.random() < profile["react_p"]:
+                        box["react_at"] = now + max(0.08, rng.gauss(profile["react_ms"], profile["react_sigma_ms"]) / 1000)
+                        box["react_kind"] = "dodge" if rng.random() < profile["dodge_share"] else "block"
+                if box["react_at"] is not None and now >= box["react_at"]:
+                    box["react_at"] = None
+                    if a_f.state in ("idle", "block", "recover"):
+                        if box["react_kind"] == "dodge":
+                            seat.gesture("dodge", extra={"dir": -a_f.facing})
+                        elif box["guard_until"] is None:
+                            seat.gesture("block_on"); box["guard_until"] = now + profile["guard_ms"] / 1000
+                        arena.step()
+                dist = abs(b_f.x - a_f.x)
+                if a_f.state in ("idle", "block") and box["guard_until"] is None:
+                    if dist > m.reach("jab") - 0.03 and b_f.state != "down":
+                        seat.gesture("move", extra={"dir": 1 if b_f.x > a_f.x else -1}); arena.step()
+                    elif now - last_punch >= rng.gauss(profile["interval_ms"], profile["interval_sigma"]) / 1000:
+                        last_punch = now
+                        seat.gesture("punch", power=rng.uniform(0.4, 1.0), extra={"type": "hook" if rng.random() < profile["hook_p"] else "jab"})
+                        arena.step()
     if games.match and not games.match.ended:
         games.end_match("timeout")
     return (arena.state.match or {}).get("winner", "?")

@@ -14,9 +14,10 @@ def test_seq_is_global_and_monotonic():
     loop.add_connection(a); loop.add_connection(b)
     loop.emit("x.one", to="rail"); loop.emit("x.two", to="projector"); loop.emit("x.three", to="all")
     out = loop.flush_events()
-    assert [e.seq for e in out] == [1, 2, 3]
-    assert [e.t for e in a.out.drain()] == ["x.one", "x.three"]
-    assert [e.t for e in b.out.drain()] == ["x.two", "x.three"]
+    assert [e.seq for e in out] == [1, 2, 3]                     # global order
+    got_a, got_b = a.out.drain(), b.out.drain()
+    assert [e.t for e in got_a] == ["x.one", "x.three"] and [e.seq for e in got_a] == [1, 2]   # per-connection, gap-free
+    assert [e.t for e in got_b] == ["x.two", "x.three"] and [e.seq for e in got_b] == [1, 2]
 
 
 def test_intents_handled_in_order():
@@ -44,8 +45,10 @@ def test_slow_consumer_drops_droppable_first():
     for i in range(4):
         q.push(Envelope(t="motion.meter" if i % 2 else "match.start", seq=i, ts=0))
     q.push(Envelope(t="market.settle", seq=9, ts=0))       # must evict a droppable, not the important ones
-    types = [e.t for e in q.drain()]
+    items = q.drain()
+    types = [e.t for e in items]
     assert "market.settle" in types and "match.start" in types and types.count("motion.meter") == 1 and q.dropped == 1
+    assert [e.seq for e in items] == sorted(e.seq for e in items)
     q.push(Envelope(t="a", seq=1, ts=0)); q.push(Envelope(t="b", seq=2, ts=0)); q.push(Envelope(t="c", seq=3, ts=0)); q.push(Envelope(t="d", seq=4, ts=0))
     q.push(Envelope(t="motion.meter", seq=5, ts=0))         # droppable arriving on a full queue is dropped itself
     assert [e.t for e in q.drain()] == ["a", "b", "c", "d"]

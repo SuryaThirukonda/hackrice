@@ -43,7 +43,7 @@ moves:
     label: Shift the oil
     target: house
     sport: bowling
-    effect: {param: lane_drift, delta: 0.2}
+    effect: {param: lane_drift, delta: 0.15}
     base_price: 50
     cap_per_match: 2
     cooldown_s: 20

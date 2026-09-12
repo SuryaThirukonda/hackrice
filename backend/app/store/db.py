@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import sqlite3
 import threading
@@ -11,11 +12,15 @@ from typing import Any
 
 SCHEMA = Path(__file__).with_name("schema.sql").read_text()
 UPSERT_TABLES = {"devices", "matches", "markets", "bets"}
+# Tables whose rows are written more than once with partial data (matches: start row, then end row). Merge instead of
+# replacing so a NULL in the later row never erases what the earlier one stored (started_ts, scenario).
+MERGE_TABLES = {"matches": "match_id"}
 
 
 class Store:
     def __init__(self, path: str | Path = "hap.db", batch_ms: int = 250):
-        self.path = str(path)
+        # HAP_DB overrides the SQLite path (rehearsal.sh uses it to keep its run out of the shared hap.db).
+        self.path = os.environ.get("HAP_DB") or str(path)
         self.batch_s = batch_ms / 1000
         self.q: queue.Queue[tuple[str, dict[str, Any]] | None] = queue.Queue()
         self._flushed = threading.Event()
@@ -77,6 +82,10 @@ class Store:
                 if table == "__noop__":
                     continue
                 sql = f"{verb} INTO {table}({','.join(cols)}) VALUES({','.join('?' * len(cols))})"
+                if table in MERGE_TABLES:
+                    key = MERGE_TABLES[table]
+                    sets = ", ".join(f"{c}=COALESCE(excluded.{c}, {table}.{c})" for c in cols if c != key)
+                    sql = f"INSERT INTO {table}({','.join(cols)}) VALUES({','.join('?' * len(cols))}) ON CONFLICT({key}) DO UPDATE SET {sets}"
                 conn.executemany(sql, [tuple(_coerce(r.get(c)) for c in cols) for r in rows])
             conn.commit()
             self.written += len(batch)

@@ -66,6 +66,7 @@ class ArenaState:
     crate: dict[str, Any] | None = None
     pairing: dict[str, Any] | None = None
     pending_voice: list[dict[str, Any]] = field(default_factory=list)
+    moves: list[dict[str, Any]] = field(default_factory=list)
 
     def rail_url(self) -> str:
         return f"{self.public_url}/rail"
@@ -86,6 +87,8 @@ class ArenaState:
             "card": self.card,
             "crate": self.crate,
             "toggles": self.toggles,
+            "moves": self.moves,
+            "pairing": self.pairing,
         }
         if device_id is not None:
             base["me"] = {"device_id": device_id, "balance": self.balances.get(device_id, 0)}

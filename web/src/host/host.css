@@ -1,10 +1,16 @@
-.host { max-width: 1200px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-.host-top { display: flex; justify-content: space-between; align-items: center; font-size: 22px; }
+.host { max-width: 1240px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.host-top { display: flex; justify-content: space-between; align-items: center; font-size: 22px; gap: 12px; flex-wrap: wrap; }
+.host-top .meta { font-size: 13px; color: var(--ink-2); font-weight: 700; }
 .sec { padding: 18px 20px; }
-.sec h3 { margin: 0 0 12px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); }
+.sec h3 { margin: 0 0 12px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.sec h3 .hint { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 700; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
-.row input { flex: 1; min-width: 240px; padding: 10px 14px; border-radius: 999px; border: 2px solid var(--line); font: inherit; }
+.row input, .row select { flex: 1; min-width: 200px; padding: 10px 14px; border-radius: 999px; border: 2px solid var(--line); background: var(--bg-2); color: var(--ink); font: inherit; }
+.row select { flex: 0; min-width: 160px; }
 .row .pill { padding: 8px 14px; font-size: 14px; }
+.row .sub { margin-right: 4px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px; }
 td { padding: 6px; border-top: 1px solid var(--line); }
@@ -13,3 +19,27 @@ td .pill { padding: 4px 10px; font-size: 12px; }
 .log { font-family: ui-monospace, monospace; font-size: 12px; max-height: 260px; overflow: auto; }
 .log .seq { color: var(--ink-2); } .log .d { color: var(--ink-2); }
 code { background: var(--bg-2); padding: 2px 6px; border-radius: 6px; }
+.sub { color: var(--ink-2); font-size: 13px; font-weight: 700; }
+.banner { border-radius: 14px; padding: 10px 14px; font-weight: 800; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.banner.warn { background: #3a2a10; color: var(--yellow); border: 2px solid #7a5a1a; }
+.banner.ok { background: #14301a; color: var(--green); border: 2px solid #2d6b3a; }
+.banner.bad { background: #3a1616; color: var(--red); border: 2px solid #7a2a2a; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.stat { background: var(--bg-2); border-radius: 14px; padding: 10px 12px; }
+.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); font-weight: 800; }
+.stat .v { font-size: 22px; font-weight: 900; }
+.stat.bad .v { color: var(--red); } .stat.good .v { color: var(--green); }
+.quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 18px; margin-bottom: 14px; }
+.quick label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 800; }
+.quick label span b { color: var(--yellow); }
+.quick input[type=range] { width: 100%; accent-color: var(--blue); }
+.params { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; }
+.param { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; background: var(--bg-2); border-radius: 12px; padding: 6px 10px; }
+.param .pname { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.param input { width: 96px; padding: 6px 8px; border-radius: 8px; border: 2px solid var(--line); background: var(--tile); color: var(--ink); font: inherit; text-align: right; }
+.param .pill { padding: 4px 10px; font-size: 12px; }
+.crumb { font-size: 12px; color: var(--ink-2); font-weight: 800; margin: 4px 0 10px; }
+.crumb b { color: var(--blue); }
+.ack { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.ack.bad { color: var(--red); }
+.kbd { display: inline-block; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 6px; background: var(--bg-2); font-family: ui-monospace, monospace; font-size: 12px; }
