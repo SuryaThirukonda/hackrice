@@ -1,10 +1,11 @@
 import Phaser from 'phaser'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
+import { controllerInput } from '../../input/controller'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
 import { P } from '../../theme'
-import { BOXING_HELP, BOXING_KEYS, boxingCommand, heldOnly, keyLabel, type BoxingBindings } from './keymap'
+import { BOXING_HELP, BOXING_KEYS, boxingCommand, boxingControllerState, controllerBoxingCommand, heldOnly, keyLabel, type BoxingBindings } from './keymap'
 import { boxingPractice, type PracticeStep } from './tutorial'
 import { loadSettings } from '../../agent/sliders'
 import { comicPanel } from '../../ui/widgets'
@@ -28,6 +29,7 @@ const STEP_MS = 1000 / HZ
 /** First-person 3D boxing: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class BoxingScene extends Phaser.Scene {
   private data3!: BoxingSceneData
+  private pad = boxingControllerState()
   private match!: BoxingMatch
   private hud!: BoxingHud
   private world: BoxingWorld | null = null
@@ -97,6 +99,10 @@ export class BoxingScene extends Phaser.Scene {
     this.input.once('pointerdown', () => sfx.unlock())
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown())
     const w = (window as unknown as { __boxing?: BoxingScene }); w.__boxing = this
+    // Phaser reuses scene instances, so the pad latch and any queued phone events must be reset per visit.
+    this.pad = boxingControllerState()
+    controllerInput.setSport('boxing')
+    controllerInput.clear('controller_1')
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
       engine.setQuality(loadSettings().quality)
@@ -205,8 +211,23 @@ export class BoxingScene extends Phaser.Scene {
 
   update(_t: number, deltaMs: number): void {
     if (!this.ready || !this.world) return
-    const c = boxingCommand(this.keys, this.bindings)
+    const keyboard = boxingCommand(this.keys, this.bindings)
     this.keys.endFrame()
+    // Keyboard and phone drive the same match. Every field takes the keyboard first and falls through to the
+    // phone, so either can be used at any moment without one disabling the other.
+    const remote = controllerBoxingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'boxing'), this.pad, controllerInput.connected('controller_1'))
+    this.pad = { blocking: remote.blocking, slipArmed: remote.slipArmed }
+    const c = {
+      ...keyboard,
+      forward: keyboard.forward || remote.command.forward,
+      block: keyboard.block || remote.command.block,
+      punch: keyboard.punch ?? remote.command.punch,
+      dodge: keyboard.dodge ?? remote.command.dodge,
+      // the power must follow whichever source actually threw, or a keyboard jab inherits the phone's swing
+      punchPower: keyboard.punch !== null ? undefined : remote.command.punchPower,
+    }
+    // The phone threw this one: say so on the screen the player is actually looking at.
+    if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch()
     if (this.paused || this.ended) { this.world.apply(this.curr, deltaMs / 1000, this.match.a.hp <= 0); this.hud.update(this.curr, deltaMs / 1000); return }
     if (this.betting) {
       this.betLeft -= deltaMs / 1000
@@ -322,6 +343,7 @@ export class BoxingScene extends Phaser.Scene {
   private shutdown(): void {
     this.detach?.(); this.detach = null
     this.input.keyboard?.removeAllListeners()
+    controllerInput.clear()
     this.world?.hide()
     this.hud.destroy()
     this.world = null

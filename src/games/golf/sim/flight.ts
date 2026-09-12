@@ -7,7 +7,10 @@ export const G = 9.81
 export const DRAG_K = 0.006
 export const LIFT_K = 0.0025
 export const POWER_EXP = 0.7   // launch speed = full speed * frac^POWER_EXP, so carry is roughly linear in power
-export const CUP_R = 0.054
+/** Capture radius. A regulation hole is 0.054 m, but the cup is drawn at 0.2 m radius (CourseScene 'cup' cylinder,
+ *  scale 0.4) and the ball is drawn at 0.12 m, so at 0.054 the ball visibly rolled across the hole and missed.
+ *  Matched to just inside the drawn cup so anything passing over the hole slowly drops in. */
+export const CUP_R = 0.18
 export const CUP_MAX_SPEED = 2.0
 export const PUTT_SPEED = 12
 export const ACC_DEG = 8

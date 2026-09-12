@@ -1,0 +1,108 @@
+/* Motion lab: a diagnostic read on the big screen while someone swings a phone across the room.
+   Dark, high contrast, large numbers, no decoration that competes with the traces. */
+.lab {
+  overflow-x: hidden;
+  --ink: #e8eefc;
+  --dim: #8ba0c4;
+  --line: rgba(140, 170, 220, 0.18);
+  --ok: #48e0b0;
+  --bad: #ff6b7d;
+  min-height: 100dvh;
+  padding: 22px clamp(14px, 3vw, 34px) 34px;
+  background: radial-gradient(ellipse at 15% -10%, #16233d 0%, #0a1122 55%, #070c17 100%);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+.lab header { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; }
+.lab h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+.lab header p { margin: 4px 0 0; color: var(--dim); font-size: 13px; }
+.lab-state { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pill {
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px;
+  background: rgba(255, 255, 255, 0.04); color: var(--dim);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.pill-ok { color: var(--ok); border-color: rgba(72, 224, 176, 0.4); }
+.pill-bad { color: var(--bad); border-color: rgba(255, 107, 125, 0.4); }
+.pill-idle { color: var(--dim); }
+.pill-on { background: rgba(72, 224, 176, 0.14); color: var(--ink); border-color: var(--ok); }
+
+.lab-sports { display: flex; gap: 8px; align-items: center; margin: 18px 0 14px; }
+.lab-sports button {
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 16px;
+  background: transparent; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer;
+}
+.lab-sports button.on { background: var(--ink); color: #0a1122; border-color: var(--ink); }
+.lab-sports span { color: var(--dim); font-size: 12px; margin-left: 6px; }
+
+.lab-empty {
+  border: 1px dashed var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 16px;
+  color: var(--dim); font-size: 13px; line-height: 1.6;
+}
+.lab-empty strong { color: var(--ink); }
+
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+.card {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 16px;
+  background: rgba(255, 255, 255, 0.025);
+  min-width: 0;
+}
+
+/* A swing arrived: the whole acceleration card goes green for a beat and names the move it became.
+   A fresh element per swing restarts the animation even when punches come faster than it fades. */
+.punch-flash {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  display: grid; place-items: center;
+  background: rgba(72, 224, 176, 0.32);
+  animation: lab-punch 700ms ease-out forwards;
+}
+.punch-flash span {
+  padding: 8px 18px; border-radius: 999px;
+  background: var(--ok); color: #06261a; font-weight: 700; font-size: 18px; letter-spacing: 0.04em;
+  animation: lab-punch-tag 700ms ease-out forwards;
+}
+@keyframes lab-punch { 0% { opacity: 1; } 55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lab-punch-tag { 0% { transform: scale(0.7); } 18% { transform: scale(1.06); } 100% { transform: scale(1); } }
+
+.guard {
+  margin: 0 0 12px; padding: 9px 12px; border-radius: 8px; text-align: center;
+  border: 1px dashed var(--line); color: var(--dim); font-size: 12px; letter-spacing: 0.04em;
+  transition: background 120ms, color 120ms;
+}
+.guard-up { border-style: solid; border-color: var(--ok); background: rgba(72, 224, 176, 0.18); color: var(--ok); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .punch-flash, .punch-flash span { animation-duration: 1ms; } }
+.card-wide { grid-column: span 2; }
+@media (max-width: 760px) { .card-wide { grid-column: auto; } }
+.card h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.card h2 small { display: block; margin-top: 3px; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--dim); }
+
+.trace { width: 100%; height: 132px; display: block; }
+
+.readout { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 12px 0 0; }
+.readout div { min-width: 62px; }
+.readout dt { color: var(--dim); font-size: 11px; }
+.readout dd { margin: 2px 0 0; font-size: 20px; font-variant-numeric: tabular-nums; }
+
+.hint { margin: 10px 0 0; color: var(--dim); font-size: 12px; line-height: 1.6; }
+
+.stick { position: relative; width: 132px; height: 132px; margin: 0 auto; border: 1px solid var(--line); border-radius: 50%; background: rgba(255, 255, 255, 0.03); }
+.stick::before, .stick::after { content: ""; position: absolute; background: var(--line); }
+.stick::before { left: 50%; top: 8%; bottom: 8%; width: 1px; }
+.stick::after { top: 50%; left: 8%; right: 8%; height: 1px; }
+.stick-dot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 14px rgba(72, 224, 176, 0.6); transition: left 90ms linear, top 90ms linear; }
+
+/* Nine columns of numbers will not fit a narrow window, so the table scrolls inside its own card
+   rather than pushing the page sideways. */
+.log-scroll { overflow-x: auto; }
+.log { width: 100%; border-collapse: collapse; font-size: 12px; }
+.log th { text-align: left; padding: 6px 8px; color: var(--dim); font-weight: 400; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.log td { padding: 6px 8px; border-bottom: 1px solid rgba(140, 170, 220, 0.08); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.log tr:first-child td { color: var(--ok); }
+.row-action td { color: var(--dim); }
+.verdict { color: var(--ink); }
+
+.lab footer { display: flex; gap: 14px; align-items: center; margin-top: 20px; font-size: 12px; }
+.lab footer a { color: var(--dim); }
+.lab footer button { border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; background: transparent; color: var(--dim); font: inherit; font-size: 12px; cursor: pointer; }

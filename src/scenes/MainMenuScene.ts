@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ComicBackdrop, ComicButton, MenuNav, comicPanel, doodles, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
+import { openControllerConnect } from './ControllerScene'
 
 /** Home menu: big playful logo on a tilted comic panel, a mascot chip bouncing, stacked comic buttons that slide in. */
 export class MainMenuScene extends Phaser.Scene {
@@ -13,7 +14,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.city = new ComicBackdrop(this, 5)
     doodles(this, 12)
     const panel = comicPanel(this, W * 0.08, H * 0.12, W * 0.42, H * 0.3, P.paper, -2)
-    const logo = this.add.text(W * 0.29, H * 0.27, 'THE HOUSE\nALWAYS PLAYS', { fontFamily: DISPLAY, fontSize: '76px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 12, align: 'center', lineSpacing: -10 }).setOrigin(0.5).setAngle(-2).setScale(0)
+    const logo = this.add.text(W * 0.29, H * 0.27, 'TEMPO', { fontFamily: DISPLAY, fontSize: '104px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 12, align: 'center' }).setOrigin(0.5).setAngle(-2).setScale(0)
     this.tweens.add({ targets: logo, scale: 1, duration: 500, ease: 'Back.Out' })
     this.tweens.add({ targets: [logo, panel], y: '-=6', duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
     // bouncing chip mascot
@@ -31,6 +32,7 @@ export class MainMenuScene extends Phaser.Scene {
       ['PLAY', P.red, 'pick a mode and a game', () => wipeTo(this, 'mode')],
       ['FIGHT NIGHT', P.orange, 'two AI fighters, bet your chips', () => wipeTo(this, 'fightnight')],
       ['HOST A GAME', P.blue, 'projector, host and rail links', () => wipeTo(this, 'placeholder', { title: 'HOST A GAME', sub: 'projector · host · rail · coming in the full build' })],
+      ['CONNECT A PHONE', P.magenta, 'scan a QR to use a phone as a controller', () => openControllerConnect(this)],
       ['HOW TO PLAY', P.green, 'controls and a guided practice', () => wipeTo(this, 'tutorial', { game: 'boxing', from: 'menu' })],
       ['SETTINGS', P.cyan, 'sound and key bindings', () => wipeTo(this, 'settings')],
       ['CREDITS', P.purple, 'HackRice 16', () => wipeTo(this, 'placeholder', { title: 'CREDITS', sub: 'made at HackRice 16 · original art and audio' })],

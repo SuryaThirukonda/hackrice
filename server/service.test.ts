@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AgentService, type LlmClient } from './service'
-import { INTERVAL_MS, parseOutput } from './tools'
+import { INTERVAL_MS, MAX_PUNCHES, RECOVER_BELOW, affordable, parseOutput } from './tools'
 import type { BoxingSummary } from './summarize'
 
 const summary: BoxingSummary = { round: 1, clock: 60, me: { hp: 80, stamina: 70, state: 'idle', kd: 0 }, opp: { hp: 90, stamina: 60, state: 'idle', kd: 0, guard: true }, dist: 1.1, recent: ['a jab hit'], oppTendencies: { blockRate: 0.4, punchesPerSec: 0.8, favorite: 'jab' } }
@@ -76,6 +76,30 @@ describe('agent service', () => {
     expect('strategy' in r.output && r.output.strategy.plan).toMatch(/Jab and move/)
     expect((c.calls[0].reasoning as { effort: string }).effort).toBe('high')
     expect((c.calls[0].tools as { name: string }[])[0].name).toBe('strategy')
+  })
+  it('drops punches the fighter cannot pay for, and never exceeds the punch cap', () => {
+    const spam = [{ at_ms: 0, do: 'cross' as const }, { at_ms: 300, do: 'cross' as const }, { at_ms: 600, do: 'cross' as const }, { at_ms: 900, do: 'cross' as const }, { at_ms: 1200, do: 'jab' as const }]
+    // Fresh fighter: budget 45 stamina, so two crosses (32) fit, the rest are dropped, and the cap still holds.
+    const fresh = affordable(spam, 100).filter((s) => s.do === 'cross' || s.do === 'jab')
+    expect(fresh.length).toBeLessThanOrEqual(MAX_PUNCHES)
+    expect(fresh.length).toBeGreaterThan(0)
+    // Movement and defence are never dropped.
+    const mixed = affordable([{ at_ms: 0, do: 'in' }, { at_ms: 100, do: 'cross' }, { at_ms: 400, do: 'block_on' }], 100)
+    expect(mixed.map((s) => s.do)).toContain('in')
+    expect(mixed.map((s) => s.do)).toContain('block_on')
+  })
+  it('a gassed fighter gets a recovery beat instead of refused punches', () => {
+    const out = affordable([{ at_ms: 0, do: 'cross' }, { at_ms: 500, do: 'jab' }], RECOVER_BELOW - 1)
+    expect(out.some((s) => s.do === 'jab' || s.do === 'cross')).toBe(false)
+    expect(out.map((s) => s.do)).toContain('block_on')
+  })
+  it('the boxing script the service returns respects the summary stamina', async () => {
+    const tired = { ...summary, me: { ...summary.me, stamina: 12 } }
+    const c = fake({ steps: [{ at_ms: 0, do: 'cross' }, { at_ms: 600, do: 'cross' }], taunt: null })
+    const s = new AgentService({ client: c, model: 'gpt-5.6-luna' })
+    const r = await s.act({ ...req, summary: tired })
+    if (!('script' in r.output)) throw new Error('expected a script')
+    expect(r.output.script.steps.some((x) => x.do === 'cross')).toBe(false)
   })
   it('parseOutput clamps bowling and golf shots', () => {
     const b = parseOutput('bowling', { lane_pos: 9, angle_deg: -9, power: 2, hook: 'x' })

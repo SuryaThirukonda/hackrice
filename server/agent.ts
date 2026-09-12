@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import OpenAI from 'openai'
 import { WebSocketServer } from 'ws'
+import { ControllerRelay } from './controllerRelay'
 import { AgentService, type ActRequest, type LlmClient } from './service'
 
 function loadEnv(): void {
@@ -48,7 +49,16 @@ const server = createServer(async (req, res) => {
   }
   json(res, 404, { error: 'not found' })
 })
-const wss = new WebSocketServer({ server, path: '/agent/ws' })
+// noServer + manual upgrade routing: the { server, path } form installs its own upgrade listener that
+// rejects every other path with a 400, which would make the controller relay unreachable on this port.
+const wss = new WebSocketServer({ noServer: true })
+const relay = new ControllerRelay()
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (pathname === '/agent/ws') wss.handleUpgrade(request, socket, head, (ws) => wss.emit('connection', ws, request))
+  else if (relay.handles(pathname)) relay.upgrade(request, socket, head)
+  else socket.destroy()
+})
 wss.on('connection', (ws) => {
   ws.on('message', async (data) => {
     try {
@@ -60,5 +70,6 @@ wss.on('connection', (ws) => {
 })
 server.listen(port, () => {
   console.log(`[agent] listening on :${port} model=${model} key=${key ? 'present' : 'missing (fallback scripts only)'}`)
+  console.log('[controller] relay on /controller-ws (phones) and /controller-game-ws (game)')
   void service.health().then((h) => console.log('[agent] health', JSON.stringify(h)))
 })

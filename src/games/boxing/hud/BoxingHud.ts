@@ -100,6 +100,17 @@ export class BoxingHud {
 
   hitFlash(alpha = 0.35): void { this.flash.setAlpha(alpha); this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 180 }) }
 
+  /** A phone swing was accepted as a punch. A green ring swells off the player's bars and a green wash
+   *  crosses their corner, so a player watching the screen rather than the phone sees the swing
+   *  register before the punch itself resolves. Keyboard punches never trigger this. */
+  phonePunch(): void {
+    const s = this.scene
+    const wash = s.add.rectangle(14, 6, Math.min(430, this.W * 0.42), 96, P.green, 0.3).setOrigin(0).setDepth(99)
+    const ring = s.add.circle(214, 50, 26).setStrokeStyle(8, P.green).setDepth(102)
+    s.tweens.add({ targets: wash, alpha: 0, duration: 340, ease: 'Quad.Out', onComplete: () => wash.destroy() })
+    s.tweens.add({ targets: ring, scale: 3.6, alpha: 0, duration: 440, ease: 'Cubic.Out', onComplete: () => ring.destroy() })
+  }
+
   burst(word?: string, color = P.gold, size = 70): void {
     const W = this.W, H = this.H
     const b = actionBurst(this.scene, W / 2 + Phaser.Math.Between(-W * 0.12, W * 0.12), H * 0.4 + Phaser.Math.Between(-H * 0.08, H * 0.08), word ?? Phaser.Utils.Array.GetRandom(WORDS), color, size).setDepth(110).setScale(0)

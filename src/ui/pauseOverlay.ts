@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { ComicButton, comicPanel, MenuNav } from './widgets'
+import { openControllerConnect } from '../scenes/ControllerScene'
 
 export interface PauseRow { keys: string; label: string; hint: string }
 export interface PauseAction { label: string; color: number; cb: () => void }
@@ -29,9 +30,12 @@ export function pauseOverlay(scene: Phaser.Scene, rows: PauseRow[], actions: Pau
     add(scene.add.text(x0 + 140, y - 9, r.label, { fontFamily: DISPLAY, fontSize: '17px', color: HEX(P.ink) }).setOrigin(0, 0.5).setDepth(133))
     add(scene.add.text(x0 + 140, y + 10, r.hint, { fontFamily: FONT, fontSize: '12px', color: HEX(0x5a4632), fontStyle: '900', wordWrap: { width: colW - 150 } }).setOrigin(0, 0.5).setDepth(133))
   })
+  // Every paused game offers the phone-connect screen, so a player who arrives late never has to quit
+  // to the menu to join. It opens over the pause panel and resumes this scene when it closes.
+  const all = [...actions, { label: 'CONNECT PHONE', color: P.magenta, cb: () => openControllerConnect(scene) }]
   const by = py + ph - 48
-  const bw = Math.min(250, (pw - 60) / actions.length - 14)
-  const buttons = actions.map((a, i) => add(new ComicButton(scene, W / 2 + (i - (actions.length - 1) / 2) * (bw + 18), by, a.label, a.cb, { color: a.color, w: bw, h: 52, size: 22 })).setDepth(133))
-  const nav = new MenuNav(scene, buttons, (i) => actions[i].cb(), undefined, false) // Esc stays with the scene's own pause toggle
+  const bw = Math.min(250, (pw - 60) / all.length - 14)
+  const buttons = all.map((a, i) => add(new ComicButton(scene, W / 2 + (i - (all.length - 1) / 2) * (bw + 18), by, a.label, a.cb, { color: a.color, w: bw, h: 52, size: 22 })).setDepth(133))
+  const nav = new MenuNav(scene, buttons, (i) => all[i].cb(), undefined, false) // Esc stays with the scene's own pause toggle
   return { destroy: () => { nav.dispose(); for (const o of objs) o.destroy() } }
 }

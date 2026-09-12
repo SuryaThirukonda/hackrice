@@ -1,5 +1,9 @@
 import { CULLFACE_FRONT, CULLFACE_NONE, Color, FRESNEL_NONE, FRESNEL_SCHLICK, SHADERLANGUAGE_GLSL, StandardMaterial, type Texture } from 'playcanvas'
 
+/** Darken (k < 1) or lighten (k > 1) a packed RGB hex, for deriving trims from a base colour. */
+export const shade = (hex: number, k: number): number =>
+  ((Math.min(255, Math.round(((hex >> 16) & 255) * k)) << 16) | (Math.min(255, Math.round(((hex >> 8) & 255) * k)) << 8) | Math.min(255, Math.round((hex & 255) * k)))
+
 export const col = (hex: number, a = 1): Color => new Color(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255, a)
 
 /** Two-band cel lighting plus a hard specular dot and a rim band. Shadows and ambient stay as the engine computes them. */

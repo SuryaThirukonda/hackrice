@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { KeyState } from '../../input/keys'
-import { BOXING_HELP, BOXING_KEYS, boxingCommand, heldOnly } from './keymap'
+import { BOXING_HELP, BOXING_KEYS, boxingCommand, boxingControllerState, controllerBoxingCommand, heldOnly } from './keymap'
 
 /** Drive a KeyState through frames: each frame is a list of 'down:Code' / 'up:Code' strings applied before the command is built. */
 function frames(script: string[][]): ReturnType<typeof boxingCommand>[] {
@@ -68,5 +68,75 @@ describe('boxing keymap', () => {
     const actions = Object.keys(BOXING_KEYS).sort()
     expect(BOXING_HELP.map((h) => h.action).sort()).toEqual(actions)
     for (const h of BOXING_HELP) { expect(h.label.length).toBeGreaterThan(0); expect(h.hint.length).toBeGreaterThan(0) }
+  })
+})
+
+describe('phone controller mapping', () => {
+  const stick = (x: number, y: number, fresh = true) => ({ x, y, fresh })
+  const punch = (power: number, peakRotation: number) => ({
+    kind: 'gesture' as const, controllerId: 'controller_1' as const, sport: 'boxing' as const,
+    gesture: 'punch' as const, power, direction: [0, 0, -1] as const, peakAcceleration: 30,
+    peakRotation, duration: 120, eventId: `p${power}_${peakRotation}`,
+  })
+  const action = (a: 'block_start' | 'block_end' | 'emergency_power') => ({
+    kind: 'action' as const, controllerId: 'controller_1' as const, sport: 'boxing' as const, action: a, eventId: a,
+  })
+
+  it('A holds the guard and releases it', () => {
+    let st = boxingControllerState()
+    let r = controllerBoxingCommand(stick(0, 0), [action('block_start')], st)
+    expect(r.command.block).toBe(true)
+    st = { blocking: r.blocking, slipArmed: r.slipArmed }
+    // the latch survives a frame with no events
+    r = controllerBoxingCommand(stick(0, 0), [], st)
+    expect(r.command.block).toBe(true)
+    st = { blocking: r.blocking, slipArmed: r.slipArmed }
+    r = controllerBoxingCommand(stick(0, 0), [action('block_end')], st)
+    expect(r.command.block).toBe(false)
+  })
+
+  it('B ducks', () => {
+    const r = controllerBoxingCommand(stick(0, 0), [action('emergency_power')], boxingControllerState())
+    expect(r.command.dodge).toBe('duck')
+  })
+
+  it('the D-pad slips left and right, once per flick', () => {
+    let st = boxingControllerState()
+    let r = controllerBoxingCommand(stick(-1, 0), [], st)
+    expect(r.command.dodge).toBe('swayL')
+    // held: must NOT re-fire, or it would sit on the sim dodge cooldown forever
+    st = { blocking: r.blocking, slipArmed: r.slipArmed }
+    r = controllerBoxingCommand(stick(-1, 0), [], st)
+    expect(r.command.dodge).toBe(null)
+    // back to centre re-arms, then the other way slips right
+    st = { blocking: r.blocking, slipArmed: r.slipArmed }
+    r = controllerBoxingCommand(stick(0, 0), [], st)
+    st = { blocking: r.blocking, slipArmed: r.slipArmed }
+    r = controllerBoxingCommand(stick(1, 0), [], st)
+    expect(r.command.dodge).toBe('swayR')
+  })
+
+  it('the D-pad steps in and out, with up as forward', () => {
+    expect(controllerBoxingCommand(stick(0, -1), [], boxingControllerState()).command.forward).toBe(1)
+    expect(controllerBoxingCommand(stick(0, 1), [], boxingControllerState()).command.forward).toBe(-1)
+    expect(controllerBoxingCommand(stick(0, 0.2), [], boxingControllerState()).command.forward).toBe(0)
+  })
+
+  it('a harder swing carries more punch power, and rotation picks the cross', () => {
+    const soft = controllerBoxingCommand(stick(0, 0), [punch(30, 50)], boxingControllerState()).command
+    const hard = controllerBoxingCommand(stick(0, 0), [punch(95, 320)], boxingControllerState()).command
+    expect(soft.punch).toBe('jab'); expect(soft.punchPower).toBeCloseTo(0.3, 5)
+    expect(hard.punch).toBe('cross'); expect(hard.punchPower).toBeCloseTo(0.95, 5)
+    expect(hard.punchPower!).toBeGreaterThan(soft.punchPower!)
+  })
+
+  it('the guard survives an idle D-pad but drops when the phone disconnects', () => {
+    // idle stick, still connected: the guard stays up
+    const held = controllerBoxingCommand(stick(0, 0, false), [], { blocking: true, slipArmed: true }, true)
+    expect(held.command.block).toBe(true)
+    // phone gone: the guard must not stay stuck on
+    const gone = controllerBoxingCommand(stick(0, 0, false), [], { blocking: true, slipArmed: true }, false)
+    expect(gone.command.block).toBe(false)
+    expect(gone.blocking).toBe(false)
   })
 })

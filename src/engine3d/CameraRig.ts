@@ -7,8 +7,11 @@ export class CameraRig {
   head: Entity
   bob: Entity
   shake: Entity
-  private swayS = new Spring(0, 60)
-  private duckS = new Spring(0, 60)
+  // Stiff on purpose: a dodge is only 250 ms, and at k = 60 the head reached less than half the sim's sway
+  // before the invulnerable window had already closed, so a successful slip was invisible.
+  private swayS = new Spring(0, 220)
+  private duckS = new Spring(0, 160)
+  private lookS = new Spring(0, 6) // slow tilt toward a fighter on the canvas
   private shakeT = 0
   private shakeA = 0
   private fovKick = 0
@@ -33,13 +36,15 @@ export class CameraRig {
    * @param sway head lateral offset (m), duck vertical offset (m, negative = down)
    * @param stepPhase accumulated distance walked (for bob)
    */
-  update(dt: number, pos: { x: number; z: number }, yawDeg: number, sway: number, duck: number, stepPhase: number, eyeH: number): void {
+  /** `lookDown` is an extra downward tilt in degrees, used to keep a fallen opponent in frame. */
+  update(dt: number, pos: { x: number; z: number }, yawDeg: number, sway: number, duck: number, stepPhase: number, eyeH: number, lookDown = 0): void {
     this.eyeH = eyeH
     this.root.setPosition(pos.x, 0, pos.z)
     this.root.setEulerAngles(0, yawDeg, 0)
     const sx = this.swayS.to(sway, dt), dy = this.duckS.to(duck, dt)
     this.head.setLocalPosition(sx, this.eyeH + dy, 0.28) // eye sits a little behind the body centre
-    this.head.setLocalEulerAngles(-dy * 20, 0, -sx * 12)
+    const look = this.lookS.to(lookDown, dt)
+    this.head.setLocalEulerAngles(-dy * 20 - look, 0, -sx * 26) // more roll so a slip reads as a slip
     this.bob.setLocalPosition(0.006 * Math.sin(stepPhase * Math.PI * 4), 0.012 * Math.abs(Math.sin(stepPhase * Math.PI * 4)), 0)
     this.shakeT += dt
     const A = this.shakeA * Math.exp(-this.shakeT / 0.12)

@@ -99,8 +99,13 @@ export class BoxingWorld {
       this.rigA.apply(pa, v.a.pos, yawA, dt, v.a.moving, pa.squash, this.t + 1.3)
     } else {
       this.stepPhase += v.a.moving * dt * 0.9
-      const duck = playerDown ? -1.1 : v.a.head.y
-      this.cam.update(dt, v.a.pos, yawA, v.a.head.x, duck, this.stepPhase, EYE_H)
+      // Knocked out: drop the eye to the canvas (EYE_H - 1.35 = 0.30 m) so CameraRig's -dy*20 tilts the view up
+      // at the standing opponent. At the old -1.1 the eye stayed at chest height and he appeared to float.
+      const duck = playerDown ? -1.35 : v.a.head.y
+      // when the opponent is on the canvas, tilt the view down so the fallen body stays in frame
+      const oppDown = v.b.state === 'down' || v.b.state === 'getup' || v.b.hp <= 0
+      const lookDown = oppDown && !playerDown ? Math.atan2(EYE_H - 0.25, v.dist + 0.9) * RAD : 0
+      this.cam.update(dt, v.a.pos, yawA, v.a.head.x, duck, this.stepPhase, EYE_H, lookDown)
       // player's head in the opponent's local frame (opponent faces -Z toward the player)
       const target = v3(-v.a.head.x, EYE_H + v.a.head.y, -v.dist)
       const pb = opponentPose(v.b, this.t, target)

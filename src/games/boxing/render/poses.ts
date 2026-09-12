@@ -2,9 +2,48 @@ import { bezier2, clamp01, easeInOut, easeOutCubic, type V3, v3 } from '../../..
 import type { FighterView } from '../sim/types'
 
 /** Opponent target pose in its root-local frame: -Z points at the player, feet at y = 0. */
-export interface OpponentPose { x: number; y: number; z: number; pitch: number; roll: number; twist: number; headPitch: number; gloveL: V3; gloveR: V3; kL: number; kR: number; squash: number }
+export interface OpponentPose {
+  x: number; y: number; z: number
+  /** Knockdown fall, applied on the LEAN pivot in the ROOT frame so -Y is always the canvas. Separate from
+   *  x/y/z, which live inside the pitched frame and drive the bob, dodge, duck, hitstun and punch lunge. */
+  fallX: number; fallY: number; fallZ: number
+  pitch: number; roll: number; twist: number; headPitch: number; gloveL: V3; gloveR: V3; kL: number; kR: number; squash: number
+}
+
+/** Arm geometry, shared with OpponentRig so punch targets can be kept inside the IK's reach. */
+export const ARM_L1 = 0.36, ARM_L2 = 0.34
+export const ARM_SH_L = v3(-0.3, 1.43, 0), ARM_SH_R = v3(0.3, 1.43, 0)
+const ARM_REACH = ARM_L1 + ARM_L2 - 0.012
+
+/** Pull a glove target back along the line from the shoulder so two-bone IK never hits its clamp and snaps straight. */
+function inReach(shoulder: V3, target: V3): V3 {
+  const dx = target.x - shoulder.x, dy = target.y - shoulder.y, dz = target.z - shoulder.z
+  const d = Math.hypot(dx, dy, dz)
+  if (d <= ARM_REACH || d < 1e-6) return target
+  const k = ARM_REACH / d
+  return v3(shoulder.x + dx * k, shoulder.y + dy * k, shoulder.z + dz * k)
+}
 
 const GUARD_L = v3(-0.2, 1.36, -0.3), GUARD_R = v3(0.22, 1.33, -0.28)
+/** Knocked down. Positive pitch topples him BACKWARD (the rig faces -Z at the opponent), so he lands face-up. */
+const DOWN_PITCH = 88, DOWN_FALL_Z = 0.55
+const DOWN_GL = v3(-0.88, 1.34, 0), DOWN_GR = v3(0.88, 1.32, 0)
+
+/**
+ * Blend the whole rig from standing (u = 0) to flat on the canvas (u = 1).
+ * fallY is derived from the pitch rather than interpolated linearly: the body rotates about the hip pivot at
+ * 0.95 m, so a linear drop swings the legs straight through the canvas around the middle of the topple.
+ */
+function lying(p: OpponentPose, u: number, t: number): void {
+  const th = DOWN_PITCH * u * Math.PI / 180
+  p.pitch = DOWN_PITCH * u
+  p.fallY = 0.95 * Math.cos(th) + 0.14 * Math.sin(th) - 0.95
+  p.fallZ = DOWN_FALL_Z * u
+  p.headPitch = -6 * u
+  p.roll = Math.sin(t * 1.6) * 2 * u
+  const mix = (a: V3, b: V3): V3 => v3(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, a.z + (b.z - a.z) * u)
+  p.gloveL = mix(GUARD_L, DOWN_GL); p.gloveR = mix(GUARD_R, DOWN_GR)
+}
 const BLOCK_L = v3(-0.12, 1.52, -0.26), BLOCK_R = v3(0.12, 1.5, -0.26)
 
 /** Glove path for a punch given phase (state) and progress 0..1. target = player's head in opponent-local coords. */
@@ -23,34 +62,37 @@ function punchGlove(kind: 'jab' | 'cross', state: string, progress: number, targ
 }
 
 export function opponentPose(f: FighterView, t: number, playerHead: V3): OpponentPose {
-  const p: OpponentPose = { x: 0, y: 0, z: 0, pitch: 0, roll: 0, twist: 0, headPitch: 0, gloveL: { ...GUARD_L }, gloveR: { ...GUARD_R }, kL: 0, kR: 0, squash: 1 }
+  const p: OpponentPose = { x: 0, y: 0, z: 0, fallX: 0, fallY: 0, fallZ: 0, pitch: 0, roll: 0, twist: 0, headPitch: 0, gloveL: { ...GUARD_L }, gloveR: { ...GUARD_R }, kL: 0, kR: 0, squash: 1 }
   const bobY = Math.sin(t * 2.4) * 0.02, bobR = Math.sin(t * 1.7) * 2
   p.y = bobY; p.roll = bobR
   p.gloveL.y += Math.sin(t * 3) * 0.02; p.gloveR.y += Math.cos(t * 3) * 0.02
-  const target = v3(playerHead.x, playerHead.y - 0.05, playerHead.z + 0.18)
+  // +0.06 finishes the glove just inside the head surface, so the punch visibly connects instead of stopping short
+  const target = v3(playerHead.x, playerHead.y - 0.05, playerHead.z + 0.06)
   switch (f.state) {
     case 'windup': case 'active': case 'recover': {
       const g = punchGlove(f.punch, f.state, f.progress, target, f.punch === 'jab' ? GUARD_L : GUARD_R)
-      if (f.punch === 'jab') p.gloveL = g; else p.gloveR = g
+      if (f.punch === 'jab') p.gloveL = inReach(ARM_SH_L, g); else p.gloveR = inReach(ARM_SH_R, g)
       const ext = f.state === 'active' ? 1 : f.state === 'windup' ? Math.max(0, (f.progress - 0.45) / 0.55) : 1 - clamp01(f.progress / 0.55)
-      p.twist = (f.punch === 'jab' ? -18 : 28) * ext; p.pitch = 8 * ext; p.z = -0.12 * ext
+      // the shoulder drives forward with the punch so the fully extended arm reaches the opponent
+      p.twist = (f.punch === 'jab' ? -18 : 30) * ext; p.pitch = 13 * ext; p.z = -0.22 * ext
       // anticipation crouch on the windup, stretch through the extension
       p.squash = f.state === 'windup' && f.progress < 0.45 ? 1 - 0.06 * (f.progress / 0.45) : 1 + 0.05 * ext
       break
     }
     case 'dodge': {
       const u = f.progress < 0.7 ? easeOutCubic(f.progress / 0.7) : 1 - easeInOut((f.progress - 0.7) / 0.3)
-      if (f.dodge === 'duck') { p.y = -0.35 * u; p.pitch = 22 * u; p.headPitch = 10 * u; p.squash = 1 - 0.12 * u } else { const s = f.dodge === 'swayL' ? -1 : 1; p.x = s * 0.32 * u; p.roll = -s * 14 * u }
+      // a visible slip: more lateral travel, the head off the centre line, and weight shifted onto the lead foot
+      if (f.dodge === 'duck') { p.y = -0.4 * u; p.pitch = 26 * u; p.headPitch = 12 * u; p.squash = 1 - 0.14 * u } else { const s = f.dodge === 'swayL' ? -1 : 1; p.x = s * 0.46 * u; p.roll = -s * 24 * u; p.twist = s * 10 * u; p.headPitch = 6 * u }
       break
     }
     case 'hitstun': { const u = 1 - f.progress; p.pitch = -14 * u; p.z = 0.08 * u; p.headPitch = -18 * u; p.squash = 1 - 0.08 * u; break }
     case 'stagger': { const u = 1 - f.progress; p.pitch = -16 * u; p.roll = Math.sin(f.progress * Math.PI * 3) * 12 * u; p.z = 0.18 * u; p.gloveL.y -= 0.35 * u; p.gloveR.y -= 0.35 * u; p.headPitch = -10 * u; break }
-    case 'down': { const u = easeOutCubic(clamp01(f.progress / 0.1)); p.pitch = -82 * u; p.y = -0.15 * u; p.z = 0.55 * u; p.gloveL = v3(-0.45, 0.35, 0.6); p.gloveR = v3(0.45, 0.3, 0.55); p.roll = Math.sin(t * 3) * 3 * u; break }
-    case 'getup': { const u = 1 - easeInOut(f.progress); p.pitch = -82 * u; p.y = -0.15 * u; p.z = 0.55 * u; p.roll = Math.sin(f.progress * Math.PI * 2) * 8; break }
+    case 'down': { lying(p, easeOutCubic(clamp01(f.progress / 0.06)), t); break }
+    case 'getup': { const u = 1 - easeInOut(f.progress); lying(p, u, t); p.squash = 1 - 0.12 * Math.sin(f.progress * Math.PI); p.roll = Math.sin(f.progress * Math.PI * 2) * 8 * u; break }
     default: break
   }
   if (f.guard && (f.state === 'idle' || f.state === 'recover')) { p.gloveL = { ...BLOCK_L }; p.gloveR = { ...BLOCK_R }; p.headPitch = 10; p.pitch = 4 }
-  if (f.hp <= 0 && f.state !== 'down') { p.pitch = -82; p.y = -0.15; p.z = 0.55 }
+  if (f.hp <= 0 && f.state !== 'down' && f.state !== 'getup') lying(p, 1, t)
   return p
 }
 

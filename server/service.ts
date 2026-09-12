@@ -1,5 +1,5 @@
 import { fallback } from './fallback'
-import { instructions, render, type Summary } from './summarize'
+import { instructions, render, type BoxingSummary, type Summary } from './summarize'
 import { parseOutput, STRATEGY_TOOL, TOOLS, type AgentOutput, type Sport } from './tools'
 
 /** effort 'low' = fast in-play call (reasoning off); 'high' = between-round strategy call with full reasoning. */
@@ -58,7 +58,9 @@ export class AgentService {
       if (!call?.arguments) return fb('no tool call in response')
       let args: unknown
       try { args = JSON.parse(call.arguments) } catch { return fb('unparseable tool arguments') }
-      const out = parseOutput(req.sport, args, call.name)
+      // Boxing scripts are filtered against the fighter's real stamina so agents cannot spam punches they cannot pay for.
+      const stamina = req.sport === 'boxing' ? (req.summary as BoxingSummary).me?.stamina : undefined
+      const out = parseOutput(req.sport, args, call.name, stamina)
       if (!out) return fb('tool arguments failed validation')
       return { output: out, latencyMs: this.now() - t0, source: 'llm', model: this.resolved ?? this.model }
     } catch (e) {

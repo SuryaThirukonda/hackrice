@@ -11,9 +11,11 @@ import { BoxingScene } from './games/boxing/BoxingScene'
 import { TutorialScene } from './scenes/TutorialScene'
 import { PreFightScene } from './scenes/PreFightScene'
 import { SettingsScene } from './scenes/SettingsScene'
+import { ControllerScene } from './scenes/ControllerScene'
 import { FightNightScene } from './scenes/FightNightScene'
 import { BowlingScene } from './games/bowling/BowlingScene'
 import { GolfScene } from './games/golf/GolfScene'
+import { controllerInput } from './input/controller'
 
 if (import.meta.env.DEV) {
   window.addEventListener('error', (e) => { const w = window as unknown as { __errs?: string[] }; (w.__errs ??= []).push(String(e.error?.stack ?? e.message)) })
@@ -22,6 +24,7 @@ if (import.meta.env.DEV) {
 }
 
 function start(): void {
+  controllerInput.connect() // phone relay; a no-op until a phone actually claims a slot
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
@@ -31,7 +34,7 @@ function start(): void {
     // The in-app preview pane may not fire requestAnimationFrame while hidden; a setTimeout ticker keeps the game alive in dev.
     fps: { forceSetTimeOut: import.meta.env.DEV, target: 60 },
     scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH, width: window.innerWidth, height: window.innerHeight },
-    scene: [BootScene, TitleScene, MainMenuScene, ModeSelectScene, GameSelectScene, PlaceholderScene, BoxingScene, TutorialScene, PreFightScene, SettingsScene, FightNightScene, BowlingScene, GolfScene, CursorTrail],
+    scene: [BootScene, TitleScene, MainMenuScene, ModeSelectScene, GameSelectScene, PlaceholderScene, BoxingScene, TutorialScene, PreFightScene, SettingsScene, FightNightScene, BowlingScene, GolfScene, ControllerScene, CursorTrail],
   })
 
   // Re-lay out the active screen when the window size changes (menus position everything from scale.width/height).
@@ -48,8 +51,9 @@ function start(): void {
 
   if (import.meta.env.DEV) {
     // Dev-only hooks: step the game clock synchronously (screenshot-driven checks in a throttled tab).
-    const w = window as unknown as { __game?: Phaser.Game; __advance?: (ms: number) => void }
+    const w = window as unknown as { __game?: Phaser.Game; __advance?: (ms: number) => void; __pad?: typeof controllerInput }
     w.__game = game
+    w.__pad = controllerInput
     w.__advance = (ms: number) => { const step = 1000 / 60; for (let t = 0; t < ms; t += step) game.loop.step(game.loop.now + step) }
   }
 }

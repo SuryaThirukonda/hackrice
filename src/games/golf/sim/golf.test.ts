@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Rng } from '../../boxing/sim/rng'
 import { TIERS } from './bot'
 import { CLUBS, FULL_CLUBS, carryTable } from './clubs'
-import { ACC_DEG, HZ, ROLL_DECEL, ROLL_START, RESTITUTION, BOUNCE_KEEP } from './flight'
+import { ACC_DEG, CUP_R, HZ, ROLL_DECEL, ROLL_START, RESTITUTION, BOUNCE_KEEP } from './flight'
 import { HOLES, surfaceAt } from './holes'
 import { GolfRound } from './round'
 import { ShotSim, simulateShot } from './shot'
@@ -116,6 +116,15 @@ describe('cup', () => {
     const ev2 = play(r, shot('putter', 1))
     expect(kinds(ev2)).not.toContain('holed')
     expect(r.ball('b').z).toBeGreaterThan(150 + 5)
+  })
+
+  it('a slow putt that rolls over the edge of the drawn cup drops in', () => {
+    // The cup is drawn at 0.2 m radius. A 2 degree miss over 3 m passes about 0.10 m off centre, which is
+    // visibly inside the hole; at the old 0.054 m capture radius it rolled straight over and missed.
+    expect(CUP_R).toBeGreaterThan(0.1)
+    const r = scripted(0); r.wind = NO_WIND
+    placeBall(r, 'a', 0, 147); placeBall(r, 'b', 0, 147)
+    expect(kinds(play(r, shot('putter', 0.25, 2)))).toContain('holed')
   })
 })
 

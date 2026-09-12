@@ -1,4 +1,4 @@
-import type { AgentOutput, BoxScript, Sport } from './tools'
+import { RECOVER_BELOW, type AgentOutput, type BoxScript, type Sport } from './tools'
 import type { BoxingSummary, BowlingSummary, GolfSummary, Summary } from './summarize'
 
 /** Deterministic scripts used when the model is slow, down, or answers garbage. A dead API still produces a fight. */
@@ -8,7 +8,7 @@ export function fallback(sport: Sport, s: Summary | null, seedTick = 0, strategy
     const b = s as BoxingSummary | null
     const dist = b?.dist ?? 1.5, stamina = b?.me.stamina ?? 100
     let script: BoxScript
-    if (stamina < 25) script = { steps: [{ at_ms: 0, do: 'block_on' }, { at_ms: 200, do: 'out' }, { at_ms: 1400, do: 'block_off' }] }
+    if (stamina < RECOVER_BELOW) script = { steps: [{ at_ms: 0, do: 'block_on' }, { at_ms: 200, do: 'out' }, { at_ms: 1400, do: 'block_off' }] }
     else if (dist > 1.3) script = { steps: [{ at_ms: 0, do: 'in' }, { at_ms: 900, do: 'jab' }, { at_ms: 1300, do: 'block_on' }] }
     else if (seedTick % 3 === 0) script = { steps: [{ at_ms: 0, do: 'jab' }, { at_ms: 450, do: 'in' }, { at_ms: 600, do: 'cross' }, { at_ms: 1200, do: 'block_on' }] }
     else if (seedTick % 3 === 1) script = { steps: [{ at_ms: 0, do: 'block_on' }, { at_ms: 700, do: 'block_off' }, { at_ms: 750, do: 'jab' }, { at_ms: 1100, do: 'jab' }] }

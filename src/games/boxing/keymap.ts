@@ -1,4 +1,5 @@
 import type { KeyState } from '../../input/keys'
+import { phonePunchKind, type ControllerEvent, type ControllerStick } from '../../input/controller'
 import { cmd, type Command } from './sim/types'
 
 export interface BoxingBindings { jab: string[]; cross: string[]; block: string[]; left: string[]; right: string[]; swayL: string[]; swayR: string[]; duck: string[]; in: string[]; out: string[] }
@@ -30,3 +31,50 @@ export function boxingCommand(k: KeyState, b: BoxingBindings = BOXING_KEYS): Com
 }
 /** Same command with the one-shot parts removed, for extra sim steps inside one frame. */
 export const heldOnly = (c: Command): Command => ({ ...c, punch: null, dodge: null })
+
+/** Carried across frames by the scene: the phone's block is a latch, and a slip must re-arm at centre. */
+export interface BoxingControllerState { blocking: boolean; slipArmed: boolean }
+export const boxingControllerState = (): BoxingControllerState => ({ blocking: false, slipArmed: true })
+
+const SLIP_FIRE = 0.6, SLIP_REARM = 0.3, STEP_DEADZONE = 0.5
+
+/**
+ * Phone input in the same Command shape the keyboard produces.
+ *
+ * A (block_start / block_end) holds the guard, B (emergency_power) ducks, and the D-pad left/right flicks a
+ * slip to that side. The slip is edge-triggered off `slipArmed` because the stick is HELD state: without it a
+ * leaning D-pad would re-request a dodge every frame and just sit on the sim's dodge cooldown.
+ * Punch strength rides on the swing: `power` 0..100 from the phone becomes `punchPower` 0..1, which the sim
+ * turns into a 0.35x..1.0x damage multiplier.
+ */
+export function controllerBoxingCommand(
+  stick: ControllerStick,
+  events: readonly ControllerEvent[],
+  state: BoxingControllerState,
+  connected = true,
+): { command: Command; blocking: boolean; slipArmed: boolean } {
+  // The guard latches on the CONNECTION, not on stick traffic: a phone resting on the D-pad still has its
+  // guard up. It drops only when the phone actually goes away, so a disconnect cannot leave it stuck on.
+  let blocking = connected ? state.blocking : false
+  let punch: Command['punch'] = null
+  let punchPower: number | undefined
+  let dodge: Command['dodge'] = null
+  for (const event of events) {
+    if (event.kind === 'action') {
+      if (event.action === 'block_start') blocking = true
+      else if (event.action === 'block_end') blocking = false
+      else if (event.action === 'emergency_power' || event.action === 'placeholder_secondary') dodge ??= 'duck'
+    } else if (event.gesture === 'punch' && punch === null) {
+      punch = phonePunchKind(event)
+      punchPower = event.power / 100
+    }
+  }
+  const x = stick.fresh ? stick.x : 0, y = stick.fresh ? stick.y : 0
+  let slipArmed = state.slipArmed
+  if (Math.abs(x) < SLIP_REARM) slipArmed = true
+  else if (slipArmed && Math.abs(x) > SLIP_FIRE) { dodge ??= x < 0 ? 'swayL' : 'swayR'; slipArmed = false }
+  // phone screen-Y is positive downward, so up on the D-pad is a step in
+  const forward: Command['forward'] = Math.abs(y) > STEP_DEADZONE ? (y < 0 ? 1 : -1) : 0
+  const power = punchPower === undefined ? {} : { punchPower }
+  return { blocking, slipArmed, command: cmd({ punch, ...power, dodge, block: blocking, forward }) }
+}

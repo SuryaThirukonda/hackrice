@@ -13,13 +13,15 @@ export class TitleScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale
     this.city = new ComicBackdrop(this, 3)
     doodles(this, 16)
-    const words = ['THE', 'HOUSE', 'ALWAYS', 'PLAYS']
-    const colors = [P.blue, P.red, P.gold, P.green]
-    let y = H * 0.18
-    words.forEach((w, i) => {
-      const t = this.add.text(W / 2, -120, w, { fontFamily: DISPLAY, fontSize: `${i === 1 ? 128 : 84}px`, color: HEX(colors[i]), stroke: HEX(P.ink), strokeThickness: 14, shadow: { offsetX: 8, offsetY: 10, color: HEX(P.ink), fill: true } }).setOrigin(0.5).setAngle(i % 2 ? 2 : -2)
-      const target = y; y += i === 1 ? 118 : 84
-      this.tweens.add({ targets: t, y: target, duration: 650, delay: i * 140, ease: 'Bounce.Out', onComplete: () => { sfx.stamp(); this.tweens.add({ targets: t, scaleY: 0.86, scaleX: 1.12, duration: 90, yoyo: true }); this.tweens.add({ targets: t, y: target - 6, duration: 1400 + i * 200, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: 300 }) } })
+    // One word, so each letter gets the bounce the old four words shared: they land left to right.
+    const letters = [...'TEMPO']
+    const colors = [P.blue, P.red, P.gold, P.green, P.magenta]
+    const size = Math.min(190, W * 0.17), gap = size * 0.78
+    const x0 = W / 2 - gap * (letters.length - 1) / 2
+    letters.forEach((ch, i) => {
+      const t = this.add.text(x0 + i * gap, -160, ch, { fontFamily: DISPLAY, fontSize: `${size}px`, color: HEX(colors[i]), stroke: HEX(P.ink), strokeThickness: 16, shadow: { offsetX: 8, offsetY: 10, color: HEX(P.ink), fill: true } }).setOrigin(0.5).setAngle(i % 2 ? 3 : -3)
+      const target = H * 0.34
+      this.tweens.add({ targets: t, y: target, duration: 650, delay: i * 110, ease: 'Bounce.Out', onComplete: () => { sfx.stamp(); this.tweens.add({ targets: t, scaleY: 0.86, scaleX: 1.12, duration: 90, yoyo: true }); this.tweens.add({ targets: t, y: target - 8, duration: 1300 + i * 160, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: 300 }) } })
     })
     const sub = this.add.text(W / 2, H * 0.72, 'a casino sports arcade  ·  the room bets on you', { fontFamily: FONT, fontSize: '22px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 18, y: 8 } }).setOrigin(0.5).setAlpha(0)
     this.tweens.add({ targets: sub, alpha: 1, duration: 500, delay: 900 })

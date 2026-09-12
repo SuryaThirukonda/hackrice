@@ -3,7 +3,7 @@ export type DodgeKind = 'swayL' | 'swayR' | 'duck'
 export type Side = 'a' | 'b'
 
 /** What a fighter wants to do this tick. punch/dodge are one-shot edges; the rest are held. */
-export interface Command { punch: PunchKind | null; dodge: DodgeKind | null; block: boolean; forward: -1 | 0 | 1; strafe: -1 | 0 | 1 }
+export interface Command { punch: PunchKind | null; punchPower?: number; dodge: DodgeKind | null; block: boolean; forward: -1 | 0 | 1; strafe: -1 | 0 | 1 }
 export const IDLE: Readonly<Command> = Object.freeze({ punch: null, dodge: null, block: false, forward: 0, strafe: 0 })
 export const cmd = (p: Partial<Command> = {}): Command => ({ ...IDLE, ...p })
 
@@ -27,6 +27,8 @@ export interface Fighter {
   guard: boolean
   guardBroken: boolean
   punch: PunchKind
+  /** 0..1 swing strength. Keyboard and bot punches are always 1; a phone swing scales it. */
+  punchPower: number
   punchId: number
   resolved: boolean
   momentum: number

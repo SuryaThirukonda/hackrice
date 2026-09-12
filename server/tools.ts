@@ -1,5 +1,17 @@
 // Tool definitions the agents call. Kept tiny so responses are fast.
+import { FRAME } from '../src/games/boxing/sim/constants'
+
 export type Sport = 'boxing' | 'bowling' | 'golf'
+
+/** Stamina the simulation actually charges, so the prompt and the server-side budget can never drift from the sim. */
+export const JAB_COST = FRAME.jab.stamina
+export const CROSS_COST = FRAME.cross.stamina
+/** One 2.5 s script may spend this fraction of current stamina. Regen is 8/s resting, so ~45% keeps a fighter solvent. */
+export const SCRIPT_BUDGET = 0.45
+/** Below this the fighter must recover: every punch is dropped from the script. */
+export const RECOVER_BELOW = 30
+/** Hard ceiling regardless of stamina, so a fresh fighter still boxes instead of flailing. */
+export const MAX_PUNCHES = 3
 export type BoxAction = 'jab' | 'cross' | 'block_on' | 'block_off' | 'swayL' | 'swayR' | 'duck' | 'in' | 'out' | 'left' | 'right' | 'idle'
 export const BOX_ACTIONS: BoxAction[] = ['jab', 'cross', 'block_on', 'block_off', 'swayL', 'swayR', 'duck', 'in', 'out', 'left', 'right', 'idle']
 export interface BoxStep { at_ms: number; do: BoxAction }
@@ -20,7 +32,7 @@ const num = (min: number, max: number, description: string) => ({ type: 'number'
 export const TOOLS: Record<Sport, FnTool> = {
   boxing: {
     type: 'function', name: 'act', strict: true,
-    description: 'Script your boxer for the next 2.5 seconds. Steps run in order at at_ms. Keep it short and decisive.',
+    description: 'Script your boxer for the next 2.5 seconds. Steps run in order at at_ms. At most 3 punches, and only ones the BUDGET line says you can afford; punches over budget are dropped before they reach the ring.',
     parameters: {
       type: 'object', additionalProperties: false, required: ['steps', 'taunt'],
       properties: {
@@ -42,8 +54,31 @@ export const TOOLS: Record<Sport, FnTool> = {
 const clamp = (x: unknown, min: number, max: number, d: number): number => { const n = typeof x === 'number' && Number.isFinite(x) ? x : d; return Math.min(max, Math.max(min, n)) }
 const taunt = (x: unknown): string | undefined => (typeof x === 'string' && x.trim() ? x.trim().slice(0, TAUNT_MAX) : undefined)
 
-/** Validate and clamp raw tool arguments. Returns null when the shape is unusable. */
-export function parseOutput(sport: Sport, raw: unknown, tool?: string): AgentOutput | null {
+/**
+ * Drop punches the fighter cannot pay for. The model is told its budget, but this is the guarantee:
+ * left alone, agents script four crosses in a row, gas out, and spend the rest of the round having
+ * punches refused by the simulation. Movement, dodges and blocks are never dropped.
+ */
+export function affordable(steps: BoxStep[], stamina?: number): BoxStep[] {
+  if (stamina === undefined) return steps
+  let left = stamina < RECOVER_BELOW ? 0 : stamina * SCRIPT_BUDGET
+  let thrown = 0
+  const kept: BoxStep[] = []
+  for (const s of steps) {
+    const cost = s.do === 'jab' ? JAB_COST : s.do === 'cross' ? CROSS_COST : 0
+    if (cost > 0) {
+      if (thrown >= MAX_PUNCHES || cost > left) continue
+      left -= cost; thrown++
+    }
+    kept.push(s)
+  }
+  // An all-punch script that is now empty would leave the fighter idle and open, so make it a recovery beat.
+  if (!kept.length) return [{ at_ms: 0, do: 'block_on' }, { at_ms: 250, do: 'out' }, { at_ms: 1800, do: 'block_off' }]
+  return kept
+}
+
+/** Validate and clamp raw tool arguments. `stamina` enables the boxing budget filter. Returns null when the shape is unusable. */
+export function parseOutput(sport: Sport, raw: unknown, tool?: string, stamina?: number): AgentOutput | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
   if (tool === 'strategy') { if (typeof o.plan !== 'string') return null; return { sport, strategy: { plan: o.plan.trim().slice(0, 200), taunt: taunt(o.taunt) } } }
@@ -57,7 +92,7 @@ export function parseOutput(sport: Sport, raw: unknown, tool?: string): AgentOut
       steps.push({ at_ms: Math.round(clamp(st.at_ms, 0, INTERVAL_MS, 0)), do: st.do as BoxAction })
     }
     steps.sort((a, b) => a.at_ms - b.at_ms)
-    return { sport, script: { steps, taunt: taunt(o.taunt) } }
+    return { sport, script: { steps: affordable(steps, stamina), taunt: taunt(o.taunt) } }
   }
   if (sport === 'bowling') return { sport, shot: { lane_pos: clamp(o.lane_pos, -0.45, 0.45, 0.1), angle_deg: clamp(o.angle_deg, -4, 4, 0), power: clamp(o.power, 0, 1, 0.7), hook: clamp(o.hook, -1, 1, 0), taunt: taunt(o.taunt) } }
   const clubs = ['driver', 'wood3', 'iron5', 'iron7', 'wedge', 'putter']
