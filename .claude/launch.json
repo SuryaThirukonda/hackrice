@@ -42,6 +42,26 @@
       ],
       "cwd": "cf",
       "port": 8787
+    },
+    {
+      "name": "version2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "version2",
+      "port": 5174
+    },
+    {
+      "name": "agent",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "agent"
+      ],
+      "cwd": "version2",
+      "port": 8790
     }
   ]
 }
