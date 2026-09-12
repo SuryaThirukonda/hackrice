@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { BowlingSim, scoreFrames } from './bowling'
 import { BaseballSim } from './baseball'
-import type { StartPayload } from './types'
+import type { StartPayload, TierInfo } from './types'
 
 const game = { bowling: { quick_frames: 5, k_hook: 0.8, gutter: 0.92, pocket: 0.28, roll_animation_s: 2.5, input_window_s: 20 }, baseball: { innings: 3, outs_per_half: 3, at_bat_window_s: 45, pitch_gap_s: 2.5, pitches: { fastball: { travel_ms: 900, brk: 0, height: 0.5 }, changeup: { travel_ms: 1250, brk: 0, height: 0.5 } } } }
-const mk = (sport: 'bowling' | 'baseball', seed: number, params: Record<string, unknown>): StartPayload => ({ match_id: 'm', sport, seed, mode: '1p', card: false, tier: { id: 'rookie', name: 'Rookie', params }, tier_b: null, players: { P1: 'Sim' }, seats: [{ seat_id: 'P1' }], scenario: {}, adjustments: {}, game, betting_s: 12, between_s: 2 })
+const mk = (sport: 'bowling' | 'baseball', seed: number, params: TierInfo['params']): StartPayload => ({ match_id: 'm', sport, seed, mode: '1p', card: false, tier: { id: 'rookie', name: 'Rookie', params }, tier_b: null, players: { P1: 'Sim' }, seats: [{ seat_id: 'P1' }], scenario: {}, adjustments: {}, game, betting_s: 12, between_s: 2 })
 const bowlP = { speed_mean: 0.45, speed_sigma: 0.15, spin_mean: 60, spin_sigma: 80, lane_sigma: 0.42 }
 const baseP = { W_ms: 100, pitches: ['fastball', 'changeup'], speed_mult: 0.9, house_dt_sigma_ms: 65, read_strength: 0 }
 

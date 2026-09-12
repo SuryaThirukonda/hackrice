@@ -73,11 +73,17 @@ export class Button extends Phaser.GameObjects.Container {
 
 export class Bar extends Phaser.GameObjects.Container {
   private g: Phaser.GameObjects.Graphics
-  constructor(scene: Phaser.Scene, x: number, y: number, private w: number, private h: number, private color = C.blue, private right = false) {
-    super(scene, x, y); this.g = scene.add.graphics(); this.add(this.g); scene.add.existing(this as unknown as Phaser.GameObjects.GameObject); this.set(0)
+  private barWidth: number
+  private barHeight: number
+  private color: number
+  private right: boolean
+  constructor(scene: Phaser.Scene, x: number, y: number, width: number, height: number, color = C.blue, right = false) {
+    super(scene, x, y)
+    this.barWidth = width; this.barHeight = height; this.color = color; this.right = right
+    this.g = scene.add.graphics(); this.add(this.g); scene.add.existing(this as unknown as Phaser.GameObjects.GameObject); this.set(0)
   }
   set(v: number, color?: number): void {
-    const g = this.g, w = this.w, h = this.h; g.clear()
+    const g = this.g, w = this.barWidth, h = this.barHeight; g.clear()
     g.fillStyle(0x1a1f2b).fillRoundedRect(0, 0, w, h, h / 2)
     const fw = w * Math.max(0, Math.min(1, v))
     if (fw > 0) g.fillStyle(color ?? this.color).fillRoundedRect(this.right ? w - fw : 0, 0, fw, h, h / 2)
@@ -101,7 +107,9 @@ export function apiBase(wsUrl: string): string { return wsUrl.replace(/^wss?:\/\
 export class Toast {
   private t: Phaser.GameObjects.Text
   private timer?: Phaser.Time.TimerEvent
-  constructor(private scene: Phaser.Scene, y = 40) {
+  private scene: Phaser.Scene
+  constructor(scene: Phaser.Scene, y = 40) {
+    this.scene = scene
     this.t = scene.add.text(scene.scale.width / 2, y, '', { fontFamily: FONT, fontSize: '18px', color: '#0b1220', backgroundColor: '#ffe08a', padding: { x: 16, y: 8 }, fontStyle: 'bold' }).setOrigin(0.5).setDepth(100).setAlpha(0)
   }
   show(s: string, ms = 2200): void {

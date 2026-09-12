@@ -13,7 +13,9 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
       '/audio': 'http://localhost:8000',
       '/ws': { target: 'ws://localhost:8000', ws: true },
-      '/controller-ws': { target: 'ws://localhost:9080', ws: true },
+      // The PlayCanvas migration relay is the default. Set
+      // HAP_CONTROLLER_TARGET=ws://localhost:9080 to run the legacy Godot receiver.
+      '/controller-ws': { target: process.env.HAP_CONTROLLER_TARGET ?? 'ws://localhost:8790', ws: true },
     },
   },
   build: { outDir: 'dist', sourcemap: false },

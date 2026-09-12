@@ -13,6 +13,7 @@ import { SettingsScene } from './scenes/SettingsScene'
 import { FightNightScene } from './scenes/FightNightScene'
 import { BowlingScene } from './games/bowling/BowlingScene'
 import { GolfScene } from './games/golf/GolfScene'
+import { controllerInput } from './input/controller'
 
 if (import.meta.env.DEV) {
   window.addEventListener('error', (e) => { const w = window as unknown as { __errs?: string[] }; (w.__errs ??= []).push(String(e.error?.stack ?? e.message)) })
@@ -21,6 +22,7 @@ if (import.meta.env.DEV) {
 }
 
 function start(): void {
+  controllerInput.connect()
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',

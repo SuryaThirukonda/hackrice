@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import OpenAI from 'openai'
 import { WebSocketServer } from 'ws'
 import { AgentService, type ActRequest, type LlmClient } from './service'
+import { ControllerRelay } from './controllerRelay'
 
 function loadEnv(): void {
   for (const p of [resolve(process.cwd(), '.env'), resolve(process.cwd(), '..', '.env')]) {
@@ -48,7 +49,8 @@ const server = createServer(async (req, res) => {
   }
   json(res, 404, { error: 'not found' })
 })
-const wss = new WebSocketServer({ server, path: '/agent/ws' })
+const wss = new WebSocketServer({ noServer: true })
+const controllerRelay = new ControllerRelay()
 wss.on('connection', (ws) => {
   ws.on('message', async (data) => {
     try {
@@ -57,6 +59,13 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({ id: msg.id, ...out }))
     } catch (e) { ws.send(JSON.stringify({ error: String((e as Error).message) })) }
   })
+})
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (pathname === '/agent/ws') {
+    wss.handleUpgrade(request, socket, head, (ws) => wss.emit('connection', ws, request))
+  } else if (controllerRelay.handles(pathname)) controllerRelay.upgrade(request, socket, head)
+  else socket.destroy()
 })
 server.listen(port, () => {
   console.log(`[agent] listening on :${port} model=${model} key=${key ? 'present' : 'missing (fallback scripts only)'}`)

@@ -3,6 +3,7 @@ import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
+import { controllerInput } from '../../input/controller'
 import { loadSettings } from '../../agent/sliders'
 import { comicPanel } from '../../ui/widgets'
 import { DISPLAY, HEX, P } from '../../theme'
@@ -48,6 +49,8 @@ export class BowlingScene extends Phaser.Scene {
   private steps: PracticeStep[] = []
   private stepIx = 0
   private guide: Phaser.GameObjects.GameObject[] = []
+  private controllerAimMode = false
+  private controllerOptionDelay = 0
 
   constructor() { super('bowling') }
 
@@ -68,6 +71,8 @@ export class BowlingScene extends Phaser.Scene {
     this.steps = d.practice ? bowlingPractice(this.bindings) : []
     this.stepIx = 0
     this.aim = defaultAim(); this.charging = false; this.power = null; this.meter.reset()
+    this.controllerAimMode = false; this.controllerOptionDelay = 0
+    controllerInput.setSport('bowling'); controllerInput.clear('controller_1')
     this.hud = new BowlingHud(this)
     this.hud.names = ['YOU', this.houseName]
     this.hud.layout(this.scale.width, this.scale.height)
@@ -173,10 +178,30 @@ export class BowlingScene extends Phaser.Scene {
 
   update(_t: number, deltaMs: number): void {
     if (!this.ready || !this.world) return
-    const inp = bowlingInput(this.keys, this.bindings, this.meter)
+    let inp = bowlingInput(this.keys, this.bindings, this.meter)
     this.keys.endFrame()
     const dtS = Math.min(deltaMs, 100) / 1000
+    this.controllerOptionDelay = Math.max(0, this.controllerOptionDelay - dtS)
+    const stick = controllerInput.stick('controller_1')
+    if (stick.fresh) {
+      const x = Math.abs(stick.x) > 0.1 ? (stick.x < 0 ? -1 : 1) : 0
+      const y = Math.abs(stick.y) > 0.5 ? (stick.y < 0 ? -1 : 1) : 0
+      if (this.controllerAimMode) {
+        inp = { ...inp, aim: inp.aim || x }
+        if (y && this.controllerOptionDelay === 0) {
+          inp = { ...inp, hook: inp.hook || (y < 0 ? 1 : -1) }
+          this.controllerOptionDelay = 0.3
+        }
+      } else inp = { ...inp, moveLane: inp.moveLane || x }
+    }
+    const controllerEvents = controllerInput.drain('controller_1', 'bowling')
     if (this.paused || this.ended) { this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path()); this.hud.update(this.curr, dtS); return }
+    let controllerPower: number | null = null
+    for (const event of controllerEvents) {
+      if (event.kind === 'action' && event.action === 'placeholder_secondary') this.controllerAimMode = !this.controllerAimMode
+      else if (event.kind === 'action' && event.action === 'placeholder_primary' && !this.sim.locked) this.sim.lockSway()
+      else if (event.kind === 'gesture' && event.gesture === 'bowling_swing') controllerPower = Math.max(controllerPower ?? 0, event.power / 100)
+    }
     // aim phase: adjust the shot, charge and release
     if (this.humanTurn) {
       this.aim = applyAim(this.aim, inp, dtS)
@@ -187,6 +212,10 @@ export class BowlingScene extends Phaser.Scene {
       } else if (inp.meterPress && !this.charging) {
         // stage 2: a fresh press starts the charge
         this.charging = true; this.chargeStart = this.time.now
+      }
+      if (controllerPower !== null) {
+        if (!this.sim.locked) this.sim.lockSway()
+        this.release(controllerPower)
       }
       if (this.charging) {
         if (inp.meterDown) { this.power = meterValue(this.time.now - this.chargeStart); this.hud.meter(this.power) }
