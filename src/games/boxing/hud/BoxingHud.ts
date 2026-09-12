@@ -20,6 +20,8 @@ export class BoxingHud {
   private card: Phaser.GameObjects.GameObject[] = []
   private ghostA = 100; private ghostB = 100
   private timerPanel!: Phaser.GameObjects.Graphics
+  private punchWash!: Phaser.GameObjects.Rectangle
+  private punchRing!: Phaser.GameObjects.Arc
   private static: Phaser.GameObjects.GameObject[] = []
   private overlay: Phaser.GameObjects.GameObject[] = []
   names: [string, string] = ['YOU', 'THE HOUSE']
@@ -39,7 +41,11 @@ export class BoxingHud {
     this.nameB = s.add.text(W - 30, 14, this.names[1], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 6 }).setOrigin(1, 0).setDepth(101)
     this.hint = s.add.text(W / 2, H - 26, 'J jab · K cross · Space block · A/D step · Q/E sway · W duck · ↑↓ in/out · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101)
     this.flash = s.add.rectangle(0, 0, W, H, P.red, 0).setOrigin(0).setDepth(90)
-    this.static.push(this.bars, this.timerPanel, this.timer, this.roundTxt, this.nameA, this.nameB, this.hint, this.flash)
+    // One wash and one ring for the phone-punch flash, reused every swing. Per-swing objects leaked:
+    // the scene slows the tween clock during hit-stop, so their fade-out tweens could outlive a fight.
+    this.punchWash = s.add.rectangle(14, 6, Math.min(430, W * 0.42), 96, P.green, 0).setOrigin(0).setDepth(99)
+    this.punchRing = s.add.circle(214, 50, 26).setStrokeStyle(8, P.green).setAlpha(0).setDepth(102)
+    this.static.push(this.bars, this.timerPanel, this.timer, this.roundTxt, this.nameA, this.nameB, this.hint, this.flash, this.punchWash, this.punchRing)
   }
 
   private bar(x: number, y: number, w: number, h: number, ratio: number, ghost: number, color: number, rtl: boolean): void {
@@ -105,10 +111,11 @@ export class BoxingHud {
    *  register before the punch itself resolves. Keyboard punches never trigger this. */
   phonePunch(): void {
     const s = this.scene
-    const wash = s.add.rectangle(14, 6, Math.min(430, this.W * 0.42), 96, P.green, 0.3).setOrigin(0).setDepth(99)
-    const ring = s.add.circle(214, 50, 26).setStrokeStyle(8, P.green).setDepth(102)
-    s.tweens.add({ targets: wash, alpha: 0, duration: 340, ease: 'Quad.Out', onComplete: () => wash.destroy() })
-    s.tweens.add({ targets: ring, scale: 3.6, alpha: 0, duration: 440, ease: 'Cubic.Out', onComplete: () => ring.destroy() })
+    s.tweens.killTweensOf([this.punchWash, this.punchRing])
+    this.punchWash.setAlpha(0.3)
+    this.punchRing.setScale(1).setAlpha(1)
+    s.tweens.add({ targets: this.punchWash, alpha: 0, duration: 340, ease: 'Quad.Out' })
+    s.tweens.add({ targets: this.punchRing, scale: 3.6, alpha: 0, duration: 440, ease: 'Cubic.Out' })
   }
 
   burst(word?: string, color = P.gold, size = 70): void {

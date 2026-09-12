@@ -48,6 +48,13 @@ re-armed at centre, then slipped right.
 Tests: `server/controllerRelay.test.ts` (9 end-to-end socket tests), `src/input/controller.test.ts` (5),
 `src/games/boxing/keymap.test.ts` (6 mapping tests). 162 total, all passing.
 
+**Controls as shipped.** A is a hold on the phone (`block_start` on press, `block_end` on release; no
+timer or cooldown on the phone since the sim charges stamina for a held guard). B is a duck (still
+`emergency_power` on the wire, and the old +10 % power boost is gone: the game never honoured it). The
+detector's learned forward axis now expires after 300 ms of stillness, so a punch may go in any
+direction; the immediate recoil of a punch is still rejected. A swing that registers flashes green on
+the phone pad, on the player's corner of the boxing HUD, and in the motion lab.
+
 **One design note worth keeping:** the guard latch keys off the controller CONNECTION, not off stick traffic.
 Keying it off stick freshness (the original import) meant the guard silently dropped whenever the player was
 not touching the D-pad.
