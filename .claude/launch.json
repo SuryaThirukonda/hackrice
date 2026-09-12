@@ -1,66 +1,18 @@
 {
-  "version": "0.0.1",
+  "version": "0.2.0",
   "configurations": [
     {
-      "name": "backend",
-      "runtimeExecutable": "uv",
-      "runtimeArgs": [
-        "run",
-        "uvicorn",
-        "app.main:app",
-        "--port",
-        "8000"
-      ],
-      "cwd": "backend",
-      "port": 8000,
-      "env": {
-        "HAP_FAST_TIMERS": "1",
-        "HAP_DEV": "1",
-        "HAP_ENGINE": "client"
-      }
-    },
-    {
-      "name": "web",
+      "name": "game",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev",
-        "--",
-        "--host"
-      ],
-      "cwd": "web",
-      "port": 5173
-    },
-    {
-      "name": "edge",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "wrangler",
-        "dev",
-        "--port",
-        "8787"
-      ],
-      "cwd": "cf",
-      "port": 8787
-    },
-    {
-      "name": "version2",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "version2",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": ".",
       "port": 5174
     },
     {
       "name": "agent",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "agent"
-      ],
-      "cwd": "version2",
+      "runtimeArgs": ["run", "agent"],
+      "cwd": ".",
       "port": 8790
     }
   ]

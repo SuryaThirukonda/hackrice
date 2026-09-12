@@ -1,107 +1,58 @@
 # The House Always Plays
 
-Phone-as-motion-remote sports (bowling, baseball, boxing) on a projector, against AI House opponents, with a play-chip
-betting rail for every other phone. Spec: `docs/house-always-plays-implementation-plan.md` (product) and `docs/TECH_PLAN.md`
-(technical). Build history and agent rules: `docs/AGENT_CONTEXT.md`.
+A Phaser 3 arcade sports collection with boxing, bowling, golf, and AI-vs-AI Fight Night betting. The presentation is a 384×216-inspired pixel-art layer scaled by Phaser with nearest-neighbour rendering. Every game still runs its deterministic 120 Hz simulation independently of rendering.
 
-Pages (same app, four routes): `/projector` (the big screen), `/host` (controls and diagnostics), `/rail` (spectators bet),
-`/remote?seat=P1&tok=…` (a phone's motion remote; scan a seat QR on the projector or copy the join URL from `/host`).
-Add `&fake=1` to a remote URL on a laptop for synthetic motion; press **Enter** on the projector to play with the keyboard.
+## Run
 
-## Run modes
-
-### Development (three terminals)
 ```bash
-cd backend && uv run --env-file .env uvicorn app.main:app --port 8000 --reload
-```
-```bash
-cd web && npm run dev -- --host          # Vite :5173 proxies /api and /ws to :8000
-```
-```bash
-# human step: phones need an HTTPS origin for motion sensors. Paste the printed URL into the host page's "Public URL".
-npx wrangler tunnel quick-start --url http://localhost:5173     # or: cloudflared tunnel --url http://localhost:5173
+npm install
+npm run dev      # game on http://localhost:5174
+npm run agent    # optional Fight Night agent service on :8790 (reads .env)
+npm test
+npm run build
 ```
 
-### Production (one process, no Vite)
-```bash
-cd web && npm run build                                   # writes web/dist
-cd backend && uv run --env-file .env uvicorn app.main:app --port 8000
-```
-FastAPI serves `web/dist` (`/projector`, `/host`, `/rail`, `/remote`), the audio cache at `/audio`, and the WebSocket on the
-same origin (`/ws`). Point the tunnel (or the Cloudflare Worker, below) at `:8000`. `scripts/rehearsal.sh` runs this mode.
+Without the agent service or an API key, Fight Night uses deterministic scripted corners.
 
-### Edge front door (stable URL for the QR codes)
-`cf/` holds a Cloudflare Worker that serves `web/dist` at `https://hap.<account>.workers.dev` and proxies `/ws`, `/api/*`,
-`/audio/*` to the laptop's tunnel URL stored in KV. Deploying needs the user's `wrangler login`; see `cf/README.md`. The host
-page has an "Edge Worker backend" form (`host.set_backend_url`) that POSTs the tunnel URL to the Worker's `/backend/set`,
-so when the tunnel URL changes only that field changes.
+## Controls
 
-### Environment knobs (`backend/.env`, see `.env.example`)
-| Variable | Effect |
+| Game | Keys |
 |---|---|
-| `HAP_MODE=normal\|offline\|scripted\|headless` | offline: no persona/TTS network calls (taunt bank + cached audio only); scripted: every match uses the sport's demo scenario; headless: no store (tests/sims) |
-| `HAP_FAST_TIMERS=1` | short windows for unattended runs (betting 0.4 s, between 0.2 s, boxing rounds 6 s; `FAST_TIMER_OVERRIDES` in `app/config.py`) |
-| `HAP_DEV=1` | enables `/remote?…&fake=1` synthetic motion and the desktop dev bar |
-| `HAP_PUBLIC_URL` | base URL baked into QR codes at boot (the host page can change it live) |
-| `HAP_DB` | SQLite path override (default `backend/hap.db`; `rehearsal.sh` uses a private file) |
-| `OPENAI_KEY`, `ELEVENLABS_API_KEY` | optional; without them the offline persona and cache-only voice are used |
+| Boxing | `J` jab, `K` cross, `Space`/`S` block, `A`/`D` step, `Q`/`E` sway, `W` duck, `↑`/`↓` in/out |
+| Bowling | `A`/`D` lane, `Q`/`E` aim, `←`/`→` hook, tap `Space` to lock, then hold/release for power, `Tab` sheet |
+| Golf | `W`/`S` club, `A`/`D` aim, three presses of `Space` for power/accuracy, `Tab` map |
+| Fight Night | `A`/`D` corner, `↑`/`↓` stake, `Enter` place, `Space` skip |
+| Menus | arrows or `W`/`S`, `Enter`, `Esc` |
 
-## Keyboard controls (projector page, after pressing Enter to claim the open seat)
-| Sport | Keys |
-|---|---|
-| Bowling | `←` `→` aim, `A` / `D` spin, hold `Space` to charge, release to roll |
-| Baseball | `Space` swing, `↑` / `↓` swing height |
-| Boxing | `J` jab, `K` hook, hold `Space` block, `P` parry, `A` / `D` dodge |
+All game bindings can be changed in Settings. CRT scanlines can also be toggled there.
 
-The desktop remote (`/remote?seat=P1&tok=…&fake=1`) offers the same actions as buttons and keys.
+## Architecture
 
-## Host page (`/host`)
-Start any sport with a tier and optional seed, force a scripted scenario, run Fight Night (agent vs agent card), pause /
-resume / end, pick the seat set (single, two-glove, head-to-head, tag-team), set the public URL, point the Worker at this
-laptop, flip toggles (persona, TTS, record traces, sponsor moves, idle card). **Parameters**: quick sliders for the motion
-thresholds and market windows, plus a generic editor over every numeric config leaf (`motion`, `market`, `tiers` per sport
-and tier, `game`, `voice`). Changes apply live (motion detector sets rebuild; market windows are read per turn; tier params
-apply at the next match) and the changed leaf is written back to `backend/config/<section>.yaml` (YAML comments in that
-file are not preserved). "Reload config from disk" re-reads all YAML. **Diagnostics**: arena timer jitter p95, projector
-frame-time p95 and fps (sent by the projector every 5 s), per-socket queue depth and dropped-message counts, market counts,
-per-phone hz / clock offset / calibration / last gesture, and a rolling event log.
-
-## Verify
-```bash
-cd backend && uv run pytest -q -m "not slow"          # unit + integration (headless arena, FakeClock)
-cd backend && uv run pytest -q -m slow                # win-rate bands per tier (headless_sim, 40 matches each)
-cd backend && uv run python scripts/check_protocol.py # protocol.py <-> protocol.ts drift guard
-cd web && npm run build
-backend/scripts/rehearsal.sh                          # unattended: offline backend on :8103, bowling -> boxing -> card, ledger audit
-node backend/scripts/load_check.mjs --url ws://localhost:8103 --n 12 --seconds 60   # 12 betting sockets + diagnostics
-uv run python backend/scripts/replay_match.py --list && uv run python backend/scripts/replay_match.py m_1   # replay from the store
+```text
+src/main.ts                 Phaser game and scene flow
+src/retro/                  low-resolution stage, palette, projections and tests
+src/games/*/sim/            deterministic 120 Hz gameplay and bots
+src/games/*/render/         Phaser-only pixel renderers driven by snapshots
+src/games/*/hud/            score, health, meters, help and results
+src/scenes/                 title, menus, settings, tutorial and Fight Night
+src/agent/ + server/        browser agent link and server-side OpenAI service
+src/betting/                fixed-odds play-chip book
+public/art/                 generated, quantized 384×216 background plates
 ```
-`replay_match.py` rebuilds a match from `matches.seed` + `gestures` + `agent_decisions` (+ `sponsor_moves`) and diffs every
-turn against `turns.outcome`; bowling replays are exact for any recording, baseball/boxing are exact for headless recordings
-and best-effort for wall-clock ones (their outcomes depend on server-timeline timing).
 
-Useful scripts (`backend/scripts/`): `fake_remote.py` (a phone stand-in; `--auto` plays matches), `fake_rail.py` (betting
-bots), `hostctl.py` (`seats | start | card | send | watch | wait-end`), `headless_sim.py` (win rates per tier),
-`replay_trace.py` / `record_trace.py` / `gen_synth_traces.py` (motion traces), `precache_voice.py`, `persona_smoke.py`.
+The simulation is the authority. Renderers consume snapshots and events; they never resolve hits, contacts, scores, hazards, or bot choices. A renderer replacement therefore cannot change replay determinism or game physics.
 
-## Human-only steps (need real phones or accounts)
-1. HTTPS origin: run the quick tunnel above (or `cloudflared`), or `mkcert` certs for the hotspot IP installed on team phones.
-2. iOS: the motion permission prompt only appears after a user tap in Safari; the remote's "Pick up the remote" button does it.
-3. Threshold tuning: record real swings with `uv run python scripts/record_trace.py --label bowling_swing --seconds 15`
-   (host toggle "record traces" on), replay with `scripts/replay_trace.py`, then adjust `motion.yaml` (`swing.omega_arm_dps`,
-   `swing.a_sat_ms2`, `punch.a_fwd_ms2`, cooldowns) from the host page sliders until walking is silent and every swing counts.
-4. Cloudflare Worker deploy (`cf/README.md`): `wrangler login`, `wrangler secret put ADMIN_KEY`, `npm run deploy`.
-5. Audio: click "Unlock audio" on the projector once per browser session (autoplay policy).
-6. Optional keys in `backend/.env` for the live persona (OpenAI) and voice (ElevenLabs); `scripts/persona_smoke.py` checks latency.
+## Pixel renderer
 
-## Demo checklist
-- [ ] `npm run build`, backend up in production mode, `curl localhost:8000/api/health` ok.
-- [ ] Tunnel (or Worker) URL pasted into `/host` "Public URL"; projector QR codes re-rendered; a phone opens the rail URL.
-- [ ] Projector: "Unlock audio" clicked; fullscreen; `/host` diagnostics show projector frame p95 < 20 ms.
-- [ ] Phone scans the seat QR, calibrates (hold still, raise), swing meter moves on the projector.
-- [ ] Bowling vs rookie: strike registers, odds board flips, rail phones get paid, a voice line plays (or subtitle in offline mode).
-- [ ] Boxing vs contender: punches, block, parry; health bars; knockdown slow-mo.
-- [ ] Baseball: swings land on arrival; studying meter rises after losses.
-- [ ] Fight Night card from an idle room; rail votes; bout settles.
-- [ ] Fallbacks ready: keyboard play (Enter on the projector), `--fake=1` remote, `HAP_MODE=offline` if the venue Wi-Fi drops.
-- [ ] `scripts/rehearsal.sh` passed on the demo laptop today.
+- One Phaser canvas; no PlayCanvas, WebGL scene graph, secondary canvas, lights, materials, shadows, or post-processing.
+- Generated 384×216 plates are checked in and palette-quantized to 32 colours. Moving fighters, gloves, balls, pins, trails, props, hit bursts, confetti, sweep bar, and top-down golf map are drawn by code.
+- Boxing uses a first-person arcade view for player matches and a side-on broadcast view for Fight Night.
+- Bowling projects every sim pin and the hook preview down the lane, so falling/removed pins match the solver.
+- Golf projects the live ball and shot trail, switches to a sim-data top view, and palette-shifts the meadow/canyon/neon courses.
+- `pixelArt`, `roundPixels`, disabled antialiasing, and CSS nearest-neighbour scaling keep edges crisp.
+
+## Verification
+
+`npm test` covers deterministic sims, replay timing, keymaps, bots, betting, agent execution/service fallbacks, smoke matches, and pixel projection. `npm run build` performs strict TypeScript checking before the production Vite build.
+
+Development builds expose `window.__game`, `window.__advance(ms)`, and `window.__boxing` / `__bowling` / `__golf` for browser-driven verification.
