@@ -19,7 +19,7 @@ PROFILES = {
     # bowling: a human aims at the pocket; aim_sigma is the error of where the ball ends up relative to the pocket
     "bowling": {"aim_sigma": 0.22, "speed_mean": 0.6, "speed_sigma": 0.15, "spin_mean": 150, "spin_sigma": 100},
     "baseball": {"dt_ms": -20, "dt_sigma": 60, "swing_rate": 0.85},
-    "boxing": {"interval_ms": 900, "interval_sigma": 200, "hook_p": 0.3, "block_p": 0.25},
+    "boxing": {"interval_ms": 1500, "interval_sigma": 300, "hook_p": 0.3, "block_p": 0.3},
 }
 
 

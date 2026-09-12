@@ -132,7 +132,7 @@ class BoxingMatch(Match):
         return MarketSpec("match_winner", f"Fight: {self.a.name} vs {self.b.name}", [(self.a.id, self.a.name), (self.b.id, self.b.name)])
 
     # ---- simulation ------------------------------------------------------------------------------------
-    def step(self, dt_s: float | None = None) -> dict[str, Any]:
+    def step(self, dt_s: float | None = None, now: float | None = None) -> dict[str, Any]:
         """Advance one tick. Returns the render summary for match.tick."""
         dt = (dt_s if dt_s is not None else self.tick_ms / 1000.0)
         self.events = []

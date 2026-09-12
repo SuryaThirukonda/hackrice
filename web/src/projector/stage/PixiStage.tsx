@@ -5,11 +5,12 @@ import type { Effects, Scene } from './Scene'
 import { BowlingScene } from './BowlingScene'
 import { PlaceholderScene } from './PlaceholderScene'
 import { BoxingScene } from './BoxingScene'
+import { BaseballScene } from './BaseballScene'
 
 function sceneFor(sport: string | null, fx: Effects): Scene {
   if (sport === 'bowling') return new BowlingScene(fx)
   if (sport === 'boxing') return new BoxingScene(fx)
-  if (sport === 'baseball') { return new PlaceholderScene('Ballpark (scene arrives in M8)') }
+  if (sport === 'baseball') return new BaseballScene(fx, () => useArena.getState().socket?.serverNow() ?? Date.now())
   return new PlaceholderScene('')
 }
 

@@ -30,11 +30,13 @@ FAST_TIMER_OVERRIDES: dict[str, Any] = {
     "game.boxing.round_s": 6,
     "game.boxing.rest_s": 1,
     "game.boxing.down_s": 0.6,
+    "game.baseball.pitch_gap_s": 0.8,
+    "game.baseball.at_bat_window_s": 20,
 }
 
 GAME_DEFAULTS: dict[str, Any] = {
     "bowling": {"quick_frames": 5, "k_hook": 0.8, "gutter": 0.92, "pocket": 0.28, "roll_animation_s": 2.5, "input_window_s": 20},
-    "baseball": {"innings": 3, "outs_per_half": 3, "pitches": {
+    "baseball": {"innings": 3, "outs_per_half": 3, "at_bat_window_s": 45, "pitch_gap_s": 2.5, "pitches": {
         "fastball": {"travel_ms": 900, "brk": 0.0, "height": 0.5},
         "changeup": {"travel_ms": 1250, "brk": 0.0, "height": 0.5},
         "curve": {"travel_ms": 1100, "brk": -0.4, "height": 0.4},

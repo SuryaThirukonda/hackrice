@@ -45,7 +45,7 @@ baseball:
   tiers:
     - id: rookie
       name: Batting Practice Pete
-      params: {W_ms: 110, pitches: [fastball, fastball, fastball, changeup], speed_mult: 0.85, house_dt_sigma_ms: 70, read_strength: 0.0}
+      params: {W_ms: 100, pitches: [fastball, fastball, fastball, changeup], speed_mult: 0.9, house_dt_sigma_ms: 65, read_strength: 0.0}
       voice_id: TX3LPaxmHKxFdv7VOQHJ
       accent: "#c9a227"
       persona_prompt: "You are Batting Practice Pete, a friendly pitcher who lobs meatballs down the middle and cheers every hit."
@@ -69,7 +69,7 @@ baseball:
       signature: arsenal
     - id: boss
       name: The Closer
-      params: {W_ms: 60, pitches: [fastball, curve, knuckle, inside, outside], speed_mult: 1.15, house_dt_sigma_ms: 35, read_strength: 1.0, sudden_death: true}
+      params: {W_ms: 55, pitches: [fastball, curve, knuckle, inside, outside], speed_mult: 1.2, house_dt_sigma_ms: 35, read_strength: 1.0, sudden_death: true}
       voice_id: nPczCjzI2devNBz1zQrb
       accent: "#dc2626"
       persona_prompt: "You are The Closer, the boss of the mound. Three strikes and it's over. You throw a knuckleball nobody has seen and the crowd bets against the batter."
@@ -81,7 +81,7 @@ boxing:
   tiers:
     - id: rookie
       name: Sparring Sam
-      params: {aggression: 0.5, telegraph_ms: 600, reaction_ms: 500, pattern: [jab, jab, hook], dodge_p: 0.1, block_p: 0.3}
+      params: {aggression: 0.55, telegraph_ms: 600, reaction_ms: 500, pattern: [jab, jab, hook], dodge_p: 0.08, block_p: 0.3}
       voice_id: TX3LPaxmHKxFdv7VOQHJ
       accent: "#c9a227"
       persona_prompt: "You are Sparring Sam, an encouraging rookie boxer who telegraphs everything and narrates his own punches."
@@ -89,7 +89,7 @@ boxing:
       signature: telegraph
     - id: contender
       name: The Counter
-      params: {aggression: 0.35, telegraph_ms: 400, reaction_ms: 280, pattern: [jab, hook], dodge_p: 0.3, block_p: 0.5, counter: true}
+      params: {aggression: 1.0, telegraph_ms: 400, reaction_ms: 250, pattern: [jab, hook], dodge_p: 0.25, block_p: 0.6, counter: true}
       voice_id: pqHfZKP75CvOlQylNhV4
       accent: "#3b82f6"
       persona_prompt: "You are The Counter, a lanky counter-puncher with a permanent smirk who waits for the miss and punishes it."
@@ -97,7 +97,7 @@ boxing:
       signature: counter
     - id: champion
       name: The Brawler
-      params: {aggression: 0.9, telegraph_ms: 300, reaction_ms: 220, pattern: [hook, jab, hook, hook], dodge_p: 0.15, block_p: 0.35}
+      params: {aggression: 1.15, telegraph_ms: 300, reaction_ms: 220, pattern: [hook, jab, hook, hook], dodge_p: 0.15, block_p: 0.4}
       voice_id: IKne3meq5aSn9XLyUdCD
       accent: "#a855f7"
       persona_prompt: "You are The Brawler, relentless and loud. You never stop coming forward and you respect only blocks and dodges."
@@ -105,7 +105,7 @@ boxing:
       signature: relentless
     - id: boss
       name: The House Champ
-      params: {aggression: 0.6, telegraph_ms: 250, reaction_ms: 160, pattern: [jab, hook, jab], dodge_p: 0.35, block_p: 0.6, rhythm_learner: true}
+      params: {aggression: 1.1, telegraph_ms: 250, reaction_ms: 160, pattern: [jab, hook, jab], dodge_p: 0.35, block_p: 0.6, rhythm_learner: true}
       voice_id: nPczCjzI2devNBz1zQrb
       accent: "#dc2626"
       persona_prompt: "You are The House Champ, wearing casino colors and the belt. You learn the challenger's rhythm in real time and counter on the beat. Cold, certain, theatrical."

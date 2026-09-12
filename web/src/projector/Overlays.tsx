@@ -81,3 +81,34 @@ export function Meter() {
   const v = Object.values(meters)[0] ?? 0
   return <div className="meter-v"><div className="meter-fill" style={{ height: `${Math.min(100, (v / 30) * 100)}%` }} /></div>
 }
+
+export function StudyingMeter() {
+  const studying = useArena((s) => s.studying)
+  const match = useArena((s) => s.match)
+  if (!match || match.phase === 'ended') return null
+  const st = studying[`house:${match.sport}`] as { level?: number; n?: number } | undefined
+  const level = st?.level ?? 0
+  return (
+    <div className="studying">
+      <div className="studying-label">{match.opponent.name} is studying you</div>
+      <div className="studying-bar"><div className="studying-fill" style={{ width: `${Math.round(level * 100)}%` }} /></div>
+    </div>
+  )
+}
+
+export function BaseballBoard() {
+  const match = useArena((s) => s.match)
+  const tick = useArena((s) => s.tick) as { strikes?: number; human?: { outs: number; runs: number; hits: number; bases: boolean[] }; house?: { runs: number; hits: number }; inning?: number; pitch?: { kind: string } | null } | null
+  if (!match || match.sport !== 'baseball') return null
+  const sc = (match.score ?? {}) as { human?: { runs: number; hits: number; outs: number; bases: boolean[] }; house?: { runs: number; hits: number }; inning?: number; innings?: number }
+  const human = tick?.human ?? sc.human, house = tick?.house ?? sc.house
+  const bases = human?.bases ?? [false, false, false]
+  return (
+    <div className="bb-board">
+      <div className="bb-row"><span className="bb-name you">{match.players ? Object.values(match.players)[0] : 'You'}</span><span className="bb-num">{human?.runs ?? 0}</span><span className="bb-sub">R</span><span className="bb-num">{human?.hits ?? 0}</span><span className="bb-sub">H</span></div>
+      <div className="bb-row"><span className="bb-name house">{match.opponent.name}</span><span className="bb-num">{house?.runs ?? 0}</span><span className="bb-sub">R</span><span className="bb-num">{house?.hits ?? 0}</span><span className="bb-sub">H</span></div>
+      <div className="bb-meta">Inn {tick?.inning ?? sc.inning ?? 1}/{sc.innings ?? 3} · {human?.outs ?? 0} out · {tick?.strikes ?? 0} strikes {tick?.pitch ? `· ${tick.pitch.kind}` : ''}</div>
+      <div className="bb-bases"><span className={bases[1] ? 'on' : ''} /><span className={bases[2] ? 'on' : ''} /><span className={bases[0] ? 'on' : ''} /></div>
+    </div>
+  )
+}

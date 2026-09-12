@@ -217,7 +217,7 @@ class GamesModule:
         m = self.match
         if not m or m.ended or self.phase != "input" or self.paused or not hasattr(m, "step"):
             return
-        summary = m.step()
+        summary = m.step(now=self.loop.clock.now())
         self.loop.emit("match.tick", summary, to=["projector", "remote"])
         if m.input_done():
             self.loop.cancel("match.livetick")

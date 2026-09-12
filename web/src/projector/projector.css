@@ -121,3 +121,17 @@
 .kb-keys { display: flex; flex-wrap: wrap; gap: 6px 12px; font-weight: 800; color: var(--ink-2); }
 kbd { background: #2a3648; color: #fff; border-radius: 6px; padding: 1px 6px; font-family: inherit; font-size: 12px; }
 .phase-banner.boxing { top: auto; bottom: 14px; }
+
+.studying { position: absolute; right: 14px; top: 14px; width: 220px; background: #16203a; border: 2px solid #8b5a2b; border-radius: 14px; padding: 8px 12px; z-index: 3; }
+.studying-label { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #ffe08a; margin-bottom: 6px; }
+.studying-bar { height: 10px; background: #2a3648; border-radius: 999px; overflow: hidden; }
+.studying-fill { height: 100%; background: linear-gradient(90deg, #ffe08a, #d8452e); transition: width 500ms; }
+.bb-board { position: absolute; left: 14px; top: 14px; background: #16203a; border: 2px solid #2a3648; border-radius: 14px; padding: 8px 12px; z-index: 3; font-variant-numeric: tabular-nums; min-width: 230px; }
+.bb-row { display: grid; grid-template-columns: 1fr 34px 14px 34px 14px; align-items: baseline; gap: 4px; font-weight: 900; }
+.bb-name { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bb-name.you { color: #ffe08a; } .bb-name.house { color: #ff9c8f; }
+.bb-num { font-size: 22px; text-align: right; } .bb-sub { font-size: 11px; color: #9fb0c3; }
+.bb-meta { font-size: 12px; color: #9fb0c3; font-weight: 800; margin-top: 4px; }
+.bb-bases { display: flex; gap: 6px; margin-top: 6px; }
+.bb-bases span { width: 14px; height: 14px; transform: rotate(45deg); background: #2a3648; border: 2px solid #9fb0c3; } .bb-bases span.on { background: #ffe08a; }
+.phase-banner.baseball { top: auto; bottom: 14px; }
+.top-right { display: flex; gap: 10px; align-items: center; } .top-right .pill { padding: 6px 14px; font-size: 13px; }
