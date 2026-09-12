@@ -1,8 +1,9 @@
-import { BLEND_ADDITIVE, BLEND_NORMAL, CULLFACE_NONE, Color, Curve, EMITTERSHAPE_BOX, Entity, StandardMaterial, Vec3, type GraphicsDevice } from 'playcanvas'
+import { Environment } from '../../../engine3d/environment'
+import { BLEND_ADDITIVE, Curve, EMITTERSHAPE_BOX, Entity, Vec3, type GraphicsDevice } from 'playcanvas'
 import { P } from '../../../theme'
 import { matteMat, shinyMat, toonMat, unlitMat } from '../../../engine3d/materials'
-import { billboard, decal, orientSegment, part, pivot } from '../../../engine3d/primitives'
-import { carpetTex, crowdTex, leatherTex, noiseTex, panelTex, scuffTex, stripeTex, bumpTex, weaveTex } from '../../../engine3d/textures'
+import { decal, orientSegment, part, pivot } from '../../../engine3d/primitives'
+import { carpetTex, leatherTex, noiseTex, panelTex, scuffTex, stripeTex, bumpTex, weaveTex } from '../../../engine3d/textures'
 import { RING_HALF } from '../sim/constants'
 import type { V3 } from '../../../engine3d/springs'
 import { Rng } from '../sim/rng'
@@ -16,7 +17,7 @@ export class RingScene {
   private hop = 0
   private device: GraphicsDevice
 
-  constructor(root: Entity, device: GraphicsDevice, batch: { stat: number }) {
+  constructor(root: Entity, device: GraphicsDevice, batch: { stat: number; crowd: number }) {
     this.device = device
     const B = batch.stat
     const R = RING_HALF + 0.35
@@ -80,19 +81,20 @@ export class RingScene {
       part(s, 'leg', 'cylinder', matteMat(0x141414), { pos: { x: 0, y: 0.25, z: 0 }, scale: { x: 0.05, y: 0.5, z: 0.05 }, outline: false })
       part(s, 'bucket', 'cylinder', toonMat(0xd8d8e0), { pos: { x: 0.4, y: 0.16, z: 0 }, scale: { x: 0.26, y: 0.32, z: 0.26 }, outlineK: 0.02 })
     })
-    // billboard crowd in three rings with three poses and random tints
-    const texes = [crowdTex(device, 0), crowdTex(device, 1), crowdTex(device, 2)]
-    const tints = [0x6b5aa0, 0x8a6fc0, 0x5a7ab0, 0xa07a8a]
-    const fanMats = texes.map((tex, k) => { const m = new StandardMaterial(); const c = new Color(((tints[k] >> 16) & 255) / 255, ((tints[k] >> 8) & 255) / 255, (tints[k] & 255) / 255); m.useLighting = false; m.diffuse = c; m.emissive = c; m.emissiveMap = tex; m.opacityMap = tex; m.opacityMapChannel = 'a'; m.blendType = BLEND_NORMAL; m.depthWrite = false; m.cull = CULLFACE_NONE; m.useTonemap = false; m.useFog = true; m.update(); return m })
-    for (let ring = 0; ring < 2; ring++) {
-      const n = 30 + ring * 12, rad = 7.2 + ring * 2.2, y = ring * 0.85
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + rng.range(-0.06, 0.06)
-        const s = rng.range(1.6, 2.1)
-        const e = billboard(root, 'fan', texes[i % 3], s * 0.7, s, tints[i % tints.length], false, fanMats[i % 3])
-        e.setLocalPosition(Math.cos(a) * rad, y + s / 2 - 0.25, Math.sin(a) * rad)
-        this.crowd.push({ e, phase: rng.range(0, 6.28), y: y + s / 2 - 0.25, s })
+    // Low-poly crowd blocks in rising tiers; seeded variation is presentation-only.
+    const crowdStage = new Environment(root, 'crowd-blocks')
+    for (const side of [-1, 1]) for (let row = 0; row < 4; row++) for (let i = 0; i < 20; i++) {
+      const x = (i - 9.5) * 0.88, z = side * (7.2 + row * 1.15)
+      const y = 0.45 + row * 0.55
+      const fan = pivot(root, 'fan', { x, y, z })
+      const color = [0x50637d, 0x7b627c, 0x426e79, 0x8a765f][(i + row) % 4]
+      part(fan, 'fan-body', 'capsule', crowdStage.mat(color, true), { pos: { x: 0, y: 0, z: 0 }, scale: { x: 0.4, y: 0.28, z: 0.3 }, outline: false, shadows: false, batch: batch.crowd })
+      part(fan, 'fan-head', 'sphere', crowdStage.mat(0xa38c82, true), { pos: { x: 0, y: 0.42, z: 0 }, scale: { x: 0.25, y: 0.28, z: 0.25 }, outline: false, shadows: false, batch: batch.crowd })
+      for (const side of [-1, 1]) {
+        part(fan, 'fan-arm', 'capsule', crowdStage.mat(color, true), { pos: { x: side * 0.23, y: -0.02, z: 0 }, scale: { x: 0.11, y: 0.2, z: 0.11 }, outline: false, shadows: false, batch: batch.crowd })
+        part(fan, 'fan-leg', 'capsule', crowdStage.mat(0x536375, true), { pos: { x: side * 0.11, y: -0.34, z: 0.08 }, scale: { x: 0.12, y: 0.16, z: 0.12 }, outline: false, shadows: false, batch: batch.crowd })
       }
+      this.crowd.push({ e: fan, phase: rng.range(0, 6.28), y, s: 1 })
     }
     // spotlights: plain lamp cones with a warm bulb (no glow pass)
     for (const [x, z] of LAMP_POS) {
@@ -100,8 +102,8 @@ export class RingScene {
       part(root, 'bulb', 'sphere', unlitMat(0xffe6a8), { pos: { x, y: 4.95, z }, scale: { x: 0.2, y: 0.2, z: 0.2 }, outline: false, shadows: false, batch: B })
     }
     // arena floor and back wall with carpet and panel textures
-    part(root, 'arenaFloor', 'box', matteMat(0x3a2f5a, { diffuseMap: carpetTex(device, '#3a2f5a', '#31284e'), tiling: 30, toon: false }), { pos: { x: 0, y: -0.62, z: 0 }, scale: { x: 30, y: 0.04, z: 30 }, outline: false, shadows: false, batch: B })
-    const wallMat = matteMat(0x4a3f7a, { diffuseMap: panelTex(device, '#4a3f7a', '#332a5a'), tiling: 10, toon: false })
+    part(root, 'arenaFloor', 'box', matteMat(0xffffff, { diffuseMap: carpetTex(device, '#89959e', '#7a8892'), tiling: 30, toon: false }), { pos: { x: 0, y: -0.62, z: 0 }, scale: { x: 30, y: 0.04, z: 30 }, outline: false, shadows: false, batch: B })
+    const wallMat = matteMat(0xffffff, { diffuseMap: panelTex(device, '#e4e2d9', '#c8cec9'), tiling: 10, toon: false })
     for (const [x, z, ry] of [[0, -13, 0], [0, 13, 0], [-13, 0, 90], [13, 0, 90]] as number[][]) part(root, 'wall', 'box', wallMat, { pos: { x, y: 3, z }, euler: { x: 0, y: ry, z: 0 }, scale: { x: 26, y: 7.2, z: 0.3 }, outline: false, shadows: false, batch: B })
     // ambient dust motes drifting in the light
     const dust = new Entity('dust')
@@ -109,20 +111,46 @@ export class RingScene {
       scaleGraph: new Curve([0, 0.02, 1, 0.02]), alphaGraph: new Curve([0, 0, 0.3, 0.5, 1, 0]) })
     dust.setLocalPosition(0, 2.4, 0)
     root.addChild(dust)
-    part(root, 'sky', 'sphere', unlitMat(0x1c1a48, true), { scale: { x: 60, y: 60, z: 60 }, outline: false, shadows: false })
-    // lit band behind the seats so the crowd silhouettes read
-    part(root, 'seatWall', 'cylinder', unlitMat(0x3d3570, true), { pos: { x: 0, y: 1.6, z: 0 }, scale: { x: 24, y: 3.2, z: 24 }, outline: false, shadows: false })
+    part(root, 'sky', 'sphere', unlitMat(0xcbd5d7, true), { scale: { x: 60, y: 60, z: 60 }, outline: false, shadows: false })
+    // Open grandstands: solid enclosing cylinders would hide the venue from ringside.
+    const venue = new Environment(root, 'arena-architecture', B)
+    for (const side of [-1, 1]) {
+      for (let row = 0; row < 4; row++) {
+        const z = side * (7.2 + row * 1.15), y = -0.4 + row * 0.55
+        venue.box('terrace', 0x7b8992, { x: 0, y, z }, { x: 20, y: 0.5, z: 1.2 })
+        for (let seat = 0; seat < 22; seat++) {
+          const x = (seat - 10.5) * 0.84
+          venue.box('seat-back', row % 2 ? 0x394969 : 0x30415e, { x, y: y + 0.65, z: z + side * 0.3 }, { x: 0.62, y: 0.55, z: 0.16 }, true)
+        }
+      }
+      venue.box('arena-ribbon', 0xe7bd76, { x: 0, y: 3.5, z: side * 12.5 }, { x: 24, y: 0.14, z: 0.08 }, true)
+      for (const x of [-10, -5, 5, 10]) venue.box('wall-pier', 0x87959b, { x, y: 3, z: side * 12.6 }, { x: 0.5, y: 7, z: 0.6 })
+      venue.truss({ x: -4, y: 5.6, z: side * 4 }, { x: 4, y: 5.6, z: side * 4 })
+      venue.truss({ x: side * 4, y: 5.6, z: -4 }, { x: side * 4, y: 5.6, z: 4 })
+    }
+    venue.screen(0, 4.4, -12.5, 5, 0xf0c879)
+    venue.label(device, 'RINGSIDE / BOXING', { x: 0, y: 4.4, z: -12.37 }, 4.7, 1.65)
+    // Daylit sports-hall windows and pane mullions above the side aisles.
+    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const z = (i - 2) * 4.5
+      venue.box('window-frame', 0x7c8f99, { x: side * 12.78, y: 4.3, z }, { x: 0.12, y: 2.5, z: 3.6 })
+      venue.box('window-glass', 0xd9edf3, { x: side * 12.7, y: 4.3, z }, { x: 0.025, y: 2.25, z: 3.35 }, true)
+      venue.box('window-mullion', 0x8498a3, { x: side * 12.66, y: 4.3, z }, { x: 0.04, y: 2.3, z: 0.08 })
+    }
+
+    for (let i = 0; i < 3; i++) venue.box('ring-step', 0x52617b, { x: R + 0.5 + i * 0.25, y: -0.15 - i * 0.15, z: 1.5 }, { x: 0.5, y: 0.15, z: 1.2 })
+
   }
 
   /** Crowd bob and camera facing, cone flicker. */
   update(t: number, dt: number, cam: { x: number; y: number; z: number }): void {
+    void cam
     this.hop = Math.max(0, this.hop - dt * 2.2)
     this.flicker = Math.max(0, this.flicker - dt * 3)
     for (const c of this.crowd) {
       const bob = Math.sin(t * 2.2 + c.phase) * 0.03 + Math.max(0, Math.sin(t * 14 + c.phase)) * this.hop * 0.3
       const p = c.e.getLocalPosition(); c.e.setLocalPosition(p.x, c.y + bob, p.z)
-      c.e.lookAt(cam.x, c.y + bob, cam.z)
-      c.e.rotateLocal(0, 180, 0)
+
     }
   }
   cheer(): void { this.hop = 1 }

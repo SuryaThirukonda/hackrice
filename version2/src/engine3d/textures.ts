@@ -1,7 +1,7 @@
 import { ADDRESS_REPEAT, FILTER_LINEAR_MIPMAP_LINEAR, PIXELFORMAT_RGBA8, Texture, type GraphicsDevice } from 'playcanvas'
 
 function toTexture(device: GraphicsDevice, c: HTMLCanvasElement, name: string, repeat = true): Texture {
-  const t = new Texture(device, { width: c.width, height: c.height, format: PIXELFORMAT_RGBA8, mipmaps: true, name })
+  const t = new Texture(device, { width: c.width, height: c.height, format: PIXELFORMAT_RGBA8, mipmaps: true, anisotropy: 8, name })
   t.setSource(c)
   if (repeat) { t.addressU = ADDRESS_REPEAT; t.addressV = ADDRESS_REPEAT }
   t.minFilter = FILTER_LINEAR_MIPMAP_LINEAR

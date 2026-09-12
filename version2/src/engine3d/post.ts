@@ -13,9 +13,9 @@ export class Post {
     const f = this.frame
     f.rendering.renderFormats = [PIXELFORMAT_RGBA16F]
     f.rendering.toneMapping = TONEMAP_ACES
-    f.rendering.sharpness = 0
+    f.rendering.sharpness = 0.25
     f.bloom.intensity = 0 // no glow: the look is texture and ink, not neon
-    f.vignette.intensity = 0.5; f.vignette.inner = 0.45; f.vignette.outer = 1.3; f.vignette.curvature = 0.6; f.vignette.color = col(0x0a0612)
+    f.vignette.intensity = 0.12; f.vignette.inner = 0.45; f.vignette.outer = 1.3; f.vignette.curvature = 0.6; f.vignette.color = col(0x0a0612)
     f.grading.enabled = true; f.grading.saturation = this.baseSat; f.grading.contrast = 1.04; f.grading.brightness = 1.0; f.grading.tint = col(0xffffff)
     f.dof.enabled = false; f.dof.nearBlur = false; f.dof.blurRadius = 3; f.dof.focusRange = 2.5
     f.taa.enabled = false
@@ -28,7 +28,7 @@ export class Post {
     // SSAO only on high: it is the single most expensive pass on integrated GPUs
     f.ssao.type = q === 'high' ? SSAOTYPE_LIGHTING : SSAOTYPE_NONE
     f.ssao.intensity = 0.45; f.ssao.radius = 10; f.ssao.samples = 8; f.ssao.blurEnabled = true
-    f.rendering.renderTargetScale = q === 'high' ? 1 : 0.8
+    f.rendering.renderTargetScale = 1 // full resolution; quality controls effects instead of blurring the scene
     f.update()
   }
   /** Per-world colour tint and saturation. */

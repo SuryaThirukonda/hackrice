@@ -4,7 +4,7 @@ import { part, pivot } from '../../../engine3d/primitives'
 import { P } from '../../../theme'
 import type { Prop, Theme } from '../sim/types'
 
-/** Colours (hex) and fog for one course theme. Meadow mirrors the original course look exactly. */
+/** Colours (hex) and fog for one course theme. Meadow uses a restrained daylight palette for projector readability. */
 export interface ThemePalette {
   rough: number; course: number; fairway: number; green: number; sand: number; water: number; trunk: number; canopy: number
   skyTop: number; skyHorizon: number
@@ -13,7 +13,7 @@ export interface ThemePalette {
 
 export const THEMES: Record<Theme, ThemePalette> = {
   meadow: {
-    rough: 0x2f7d3a, course: 0x45a04f, fairway: 0x7ed957, green: 0xa8f06a, sand: 0xf1dfb8, water: 0x2ad4ff, trunk: 0x8a5a2b, canopy: 0x2e8b45,
+    rough: 0x397c56, course: 0x559b62, fairway: 0x83bd68, green: 0xa4ce7a, sand: 0xf1dfb8, water: 0x46b9cc, trunk: 0x795b43, canopy: 0x3d885d,
     skyTop: P.sky1, skyHorizon: 0xbfefff, fog: { color: 0xbfefff, start: 350, end: 1200 },
   },
   canyon: {

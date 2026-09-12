@@ -78,7 +78,7 @@ export class Engine3D {
     this.post.setQuality(q)
     this.key.light!.castShadows = q !== 'low'
     this.key.light!.shadowResolution = q === 'high' ? 2048 : 1024
-    this.app.graphicsDevice.maxPixelRatio = q === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : 1
+    this.app.graphicsDevice.maxPixelRatio = q === 'low' ? 1 : Math.min(window.devicePixelRatio || 1, 2)
   }
 
   /** A root entity for one game's content; disabled until shown. */

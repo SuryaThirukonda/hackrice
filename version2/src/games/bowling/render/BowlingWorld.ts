@@ -1,3 +1,4 @@
+import { lightSport } from '../../../engine3d/environment'
 import type { Entity } from 'playcanvas'
 import { Engine3D } from '../../../engine3d/Engine3D'
 import { pivot } from '../../../engine3d/primitives'
@@ -7,7 +8,7 @@ import type { Snapshot, V2 } from '../sim/types'
 import { Fx } from '../../../engine3d/fx'
 import { LaneScene, WZ } from './LaneScene'
 
-const CAMERA_EYE = { x: 2.15, y: 2.05, z: WZ(-2.1) }
+const CAMERA_EYE = { x: 0.35, y: 2.3, z: WZ(-6.2) }
 const CAMERA_LOOK = { x: 0, y: 0.28, z: WZ(PIN_Z - 1.7) }
 
 /** Everything 3D for one bowling game: the alley, simulated objects, effects and a fixed cinematic camera. */
@@ -34,9 +35,10 @@ export class BowlingWorld {
     this.camRig.addChild(cam)
   }
   show(w: number, h: number): void {
+    lightSport(this.engine, 'bowling')
     this.engine.show(this.root, w, h)
-    this.engine.applyLook('bowling', { sky: { top: '#0e1234', horizon: '#3a2a5a', ground: '#0a0812' }, fog: { color: 0x0f0c2a, start: 16, end: 70 }, tint: 0xf4f0ff, saturation: 1.1, exposure: 1.25, ambient: 0x46507a })
-    this.engine.camera.camera!.fov = 47
+    this.engine.applyLook('bowling', { sky: { top: '#e7e8e4', horizon: '#f7edda', ground: '#8d9caa' }, tint: 0xffffff, saturation: 1.02, exposure: 1.05, ambient: 0xabb7c0 })
+    this.engine.camera.camera!.fov = 49
     this.engine.aimLights({ x: 0, y: 0.25, z: WZ(PIN_Z) }, { x: CAMERA_EYE.x, z: CAMERA_EYE.z })
   }
   hide(): void { this.engine.hide() }

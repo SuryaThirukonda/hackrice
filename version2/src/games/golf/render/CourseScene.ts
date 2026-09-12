@@ -1,7 +1,10 @@
-import { AppBase, CULLFACE_NONE, Entity, FOG_LINEAR, Mesh, MeshInstance, type GraphicsDevice, type StandardMaterial } from 'playcanvas'
+import { waterTextures } from '../../../engine3d/water'
+import { pointInPolygon } from '../sim/holes'
+import { landscapePeak } from '../../../engine3d/environment'
+import { Texture, AppBase, CULLFACE_NONE, Entity, FOG_LINEAR, Mesh, MeshInstance, type GraphicsDevice, type StandardMaterial } from 'playcanvas'
 import { col, flatMat, matteMat, unlitMat } from '../../../engine3d/materials'
 import { grassTex, noiseTex } from '../../../engine3d/textures'
-import { part, pivot } from '../../../engine3d/primitives'
+import { facetedSphere, part, pivot } from '../../../engine3d/primitives'
 import { P } from '../../../theme'
 import type { GolfSnapshot, Hole, Player, Theme, V2, V3 } from '../sim/types'
 import { THEMES, buildProp, type ThemePalette } from './themes'
@@ -70,9 +73,19 @@ function turf(device: GraphicsDevice, hex: number, two = false): StandardMateria
 /** Turf, hazard, tree and sky materials for one theme. */
 interface ThemeMats { rough: StandardMaterial; course: StandardMaterial; fairway: StandardMaterial; water: StandardMaterial; sand: StandardMaterial; green: StandardMaterial; trunk: StandardMaterial; canopy: StandardMaterial; sky: StandardMaterial; horizon: StandardMaterial }
 function themeMats(t: ThemePalette, device: GraphicsDevice): ThemeMats {
-  const water = matteMat(t.water, { gloss: 0.85, specular: 0.8, metalness: 0.2, toon: false }); water.cull = CULLFACE_NONE; water.update()
+  const waves = waterTextures(device)
+  const water = matteMat(0x3b99ae, { diffuseMap: waves.color, normalMap: waves.normal, bumpiness: 0.35, gloss: 0.92, specular: 0.85, metalness: 0.12, tiling: 0.5, toon: false }); water.cull = CULLFACE_NONE; water.update()
+  // Mown bands live in UV space, clipped exactly by the authoritative fairway mesh.
+  const fairway = matteMat(t.fairway)
+  const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 64
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = hex6(t.fairway); ctx.fillRect(0, 0, 32, 64)
+  ctx.fillStyle = hex6(shade(t.fairway, 0.88)); ctx.fillRect(0, 32, 32, 32)
+  const mowing = new Texture(device, { name: 'fairway-mowing', width: 32, height: 64, mipmaps: true })
+  mowing.setSource(canvas)
+  fairway.diffuse = col(0xffffff); fairway.diffuseMap = mowing; fairway.diffuseMapTiling.set(0.5, 0.5); fairway.update()
   return {
-    rough: turf(device, t.rough), course: turf(device, t.course, true), fairway: turf(device, t.fairway, true), water, sand: matteMat(t.sand, { diffuseMap: noiseTex(device, hex6(t.sand), hex6(shade(t.sand, 0.85)), 0.3, 64, 77), tiling: 1, toon: false }), green: turf(device, t.green),
+    rough: matteMat(t.rough), course: matteMat(t.course), fairway, water, sand: matteMat(t.sand, { diffuseMap: noiseTex(device, hex6(t.sand), hex6(shade(t.sand, 0.85)), 0.3, 64, 77), tiling: 1, toon: false }), green: turf(device, t.green),
     trunk: flatMat(t.trunk), canopy: flatMat(t.canopy), sky: unlitMat(t.skyTop, true), horizon: unlitMat(t.skyHorizon, true),
   }
 }
@@ -100,9 +113,9 @@ export class CourseScene {
   constructor(root: Entity, device: GraphicsDevice) {
     this.root = root; this.device = device
     const m = this.matsFor('meadow')
-    this.sky = part(root, 'sky', 'sphere', m.sky, { scale: { x: 1600, y: 1600, z: 1600 }, outline: false })
+    this.sky = part(root, 'sky', 'sphere', m.sky, { scale: { x: 1600, y: 1600, z: 1600 }, outline: false, shadows: false, receive: false })
     // a squashed inner sphere reads as a glow band around the horizon from anywhere on the course
-    this.horizon = part(root, 'horizon', 'sphere', m.horizon, { pos: { x: 0, y: -20, z: 0 }, scale: { x: 1500, y: 160, z: 1500 }, outline: false })
+    this.horizon = part(root, 'horizon', 'sphere', m.horizon, { pos: { x: 0, y: -20, z: 0 }, scale: { x: 1500, y: 160, z: 1500 }, outline: false, shadows: false, receive: false })
     this.balls = {
       a: part(root, 'ballA', 'sphere', flatMat(0xffffff), { scale: { x: BALL_DRAW_R * 2, y: BALL_DRAW_R * 2, z: BALL_DRAW_R * 2 } }),
       b: part(root, 'ballB', 'sphere', flatMat(0xfff1a0), { scale: { x: BALL_DRAW_R * 2, y: BALL_DRAW_R * 2, z: BALL_DRAW_R * 2 } }),
@@ -145,7 +158,41 @@ export class CourseScene {
     part(h, 'rough', 'box', tm.rough, { pos: { x: (minX + maxX) / 2 * MX, y: -0.1, z: (minZ + maxZ) / 2 }, scale: { x: maxX - minX, y: 0.2, z: maxZ - minZ }, outline: false })
     h.addChild(flatPoly(this.device, hole.course, Y.course, tm.course, 'course'))
     h.addChild(flatPoly(this.device, hole.fairway, Y.fairway, tm.fairway, 'fairway'))
-    hole.water.forEach((w, i) => h.addChild(flatPoly(this.device, w, Y.water, tm.water, `water${i}`)))
+    const shallows = matteMat(0x6babb0, { gloss: 0.8, specular: 0.6 })
+    const bankStone = matteMat(0x9b9f8e)
+    const reed = matteMat(0x6f8548)
+    h.once('destroy', () => { shallows.destroy(); bankStone.destroy(); reed.destroy() })
+    hole.water.forEach((w, i) => {
+      h.addChild(flatPoly(this.device, w, Y.water, tm.water, `water${i}`))
+      // Narrow, irregular shallow-water shelves stay INSIDE the hazard polygon.
+      for (let edge = 0; edge < w.length; edge++) {
+        const a = w[edge], b = w[(edge + 1) % w.length]
+        const length = Math.hypot(b.x - a.x, b.z - a.z), count = Math.ceil(length / 2)
+        const nx = -(b.z - a.z) / length, nz = (b.x - a.x) / length
+        const mid = { x: (a.x + b.x) / 2 + nx * 0.1, z: (a.z + b.z) / 2 + nz * 0.1 }
+        const direction = pointInPolygon(mid, w) ? 1 : -1
+        for (let j = 0; j < count; j++) {
+          const u = j / count, v = (j + 1) / count
+          const p = { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u }
+          const q = { x: a.x + (b.x - a.x) * v, z: a.z + (b.z - a.z) * v }
+          const depth = 0.7 + 0.5 * (1 + Math.sin(j * 0.65 + edge))
+          const nextDepth = 0.7 + 0.5 * (1 + Math.sin((j + 1) * 0.65 + edge))
+          const r = { x: q.x + nx * direction * nextDepth, z: q.z + nz * direction * nextDepth }
+          const t = { x: p.x + nx * direction * depth, z: p.z + nz * direction * depth }
+          if (pointInPolygon(r, w) && pointInPolygon(t, w)) h.addChild(flatPoly(this.device, [p, q, r, t], Y.water + 0.003, shallows, 'water-shelf'))
+          if (j % 2 === 0 && !pointInPolygon(p, hole.fairway)) {
+            for (let stalk = 0; stalk < 3; stalk++) {
+              const height = 0.8 + (stalk + j % 3) * 0.22
+              part(h, 'waterside-reed', 'cylinder', reed, { pos: { x: p.x * MX + stalk * 0.16, y: height / 2, z: p.z + 0.3 }, scale: { x: 0.07, y: height, z: 0.07 }, euler: { x: 0, y: 0, z: (stalk - 1) * 12 }, outline: false, shadows: false })
+            }
+          }
+          // Pebbles at the far ends, outside the fairway, soften the engineered bank.
+          if (j % 3 === 0 && !pointInPolygon(p, hole.fairway)) {
+            facetedSphere(this.device, h, 'river-stone', bankStone, { pos: { x: p.x * MX, y: 0.15, z: p.z }, scale: { x: 1.7, y: 0.65, z: 1.2 }, bands: 7, outline: false, shadows: false })
+          }
+        }
+      }
+    })
     for (const b of hole.bunkers) part(h, 'bunker', 'cylinder', tm.sand, { pos: { x: b.c.x * MX, y: Y.bunker / 2, z: b.c.z }, scale: { x: b.r * 2, y: Y.bunker, z: b.r * 2 }, outline: false })
     const c = { x: hole.cup.x * MX, z: hole.cup.z }
     part(h, 'green', 'cylinder', tm.green, { pos: { x: c.x, y: Y.green / 2, z: c.z }, scale: { x: hole.greenR * 2, y: Y.green, z: hole.greenR * 2 }, outline: false })
@@ -157,7 +204,36 @@ export class CourseScene {
     for (const dx of [-1, 1]) part(h, 'teeMarker', 'sphere', this.mats.tee, { pos: { x: hole.tee.x * MX + dx, y: GROUND_TOP + 0.15, z: hole.tee.z }, scale: { x: 0.3, y: 0.3, z: 0.3 } })
     for (const t of hole.trees) {
       part(h, 'trunk', 'cylinder', tm.trunk, { pos: { x: t.x * MX, y: 1.5, z: t.z }, scale: { x: 0.7, y: 3, z: 0.7 }, outlineK: 0.08 })
-      this.canopies.push(part(h, 'canopy', 'cone', tm.canopy, { pos: { x: t.x * MX, y: 6.4, z: t.z }, scale: { x: 5, y: 7, z: 5 }, outlineK: 0.14 }))
+      this.canopies.push(facetedSphere(this.device, h, 'canopy', tm.canopy, { pos: { x: t.x * MX, y: 6.4, z: t.z }, scale: { x: 6, y: 7, z: 6 }, bands: 8, outline: false }))
+    }
+    // Scenery is outside the playable course bounds; no decorative hazard alters a lie.
+    const palette = THEMES[hole.theme]
+    const mountain = matteMat(hole.theme === 'meadow' ? 0x658b8c : shade(palette.canopy, 0.85))
+    const distant = matteMat(palette.skyHorizon)
+    const centerX = (minX + maxX) / 2 * MX, centerZ = (minZ + maxZ) / 2
+    const radiusX = (maxX - minX) / 2 + 25, radiusZ = (maxZ - minZ) / 2 + 25
+    for (let i = 0; i < 20; i++) {
+      const angle = i / 20 * Math.PI * 2
+      const height = 35 + (i * 17 % 43)
+      landscapePeak(this.device, h, i % 3 ? mountain : distant,
+        { x: centerX + Math.cos(angle) * radiusX, y: -2, z: centerZ + Math.sin(angle) * radiusZ },
+        { x: 160, y: height, z: 140 }, i)
+
+    }
+    h.once('destroy', () => { mountain.destroy(); distant.destroy() })
+    if (hole.theme !== 'canyon') {
+      for (const side of [-1, 1]) for (let i = 0; i < 16; i++) {
+        const x = (side < 0 ? minX + 138 : maxX - 138) * MX
+        const z = minZ + 150 + (maxZ - minZ - 300) * i / 15
+        const height = 7 + i % 4
+        part(h, 'boundary-trunk', 'box', tm.trunk, { pos: { x, y: 2, z }, scale: { x: 0.8, y: 4, z: 0.8 }, outline: false, shadows: false })
+        facetedSphere(this.device, h, 'boundary-canopy', tm.canopy, { pos: { x, y: height * 0.7, z }, scale: { x: 8, y: height, z: 8 }, bands: 8, outline: false, shadows: false })
+      }
+    }
+    // A low collar gives the target shape without moving the playable green boundary.
+    part(h, 'green-collar', 'cylinder', tm.fairway, { pos: { x: c.x, y: 0.035, z: c.z }, scale: { x: hole.greenR * 2 + 1.5, y: 0.07, z: hole.greenR * 2 + 1.5 }, outline: false, shadows: false })
+    for (const tree of hole.trees) {
+      for (const side of [-1, 1]) facetedSphere(this.device, h, 'branch-crown', tm.canopy, { pos: { x: tree.x * MX + side * 1.8, y: 4.9, z: tree.z + side * 0.8 }, scale: { x: 4.5, y: 4, z: 4.5 }, bands: 7, outline: false, shadows: false })
     }
     for (const pr of hole.props ?? []) this.props.push(buildProp(h, pr, pr.p.x * MX, GROUND_TOP, pr.p.z))
     // wind sock beside the tee: pole, then a cone hanging from a pivot that rotates to the wind
@@ -203,6 +279,12 @@ export class CourseScene {
 
   update(t: number, dt: number): void {
     void dt
+    if (this.theme) {
+      const water = this.matsFor(this.theme).water
+      water.normalMapOffset.set(t * 0.007, t * 0.011)
+      water.diffuseMapOffset.set(t * 0.003, 0)
+      water.update()
+    }
     const k = Math.min(1, Math.hypot(this.wind.x, this.wind.z) / 6)
     const sway = Math.sin(t * 1.3) * 1.5 * k
     for (let i = 0; i < this.canopies.length; i++) { const e = this.canopies[i]; e.setLocalEulerAngles(0, 0, sway + Math.sin(t * 1.7 + i) * 0.6 * k) }

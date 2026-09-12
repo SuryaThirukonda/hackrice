@@ -1,3 +1,4 @@
+import { lightSport } from '../../../engine3d/environment'
 import type { Entity } from 'playcanvas'
 import { Engine3D } from '../../../engine3d/Engine3D'
 import { pivot } from '../../../engine3d/primitives'
@@ -42,6 +43,7 @@ export class GolfWorld {
   }
 
   show(w: number, h: number): void {
+    lightSport(this.engine, 'golf')
     this.engine.show(this.root, w, h)
     this.engine.applyLook('golf', { sky: { top: '#3fb6ff', horizon: '#ffe6b0', ground: '#2f7d3a', sun: { x: 0.7, y: 0.3, color: 'rgba(255,240,200,1)' } }, fog: { color: 0xcfe9ff, start: 160, end: 900 }, tint: 0xfff8ee, saturation: 1.12, exposure: 1.2, ambient: 0x4a5a7a })
   }
@@ -75,7 +77,7 @@ export class GolfWorld {
     } else {
       const dx = Math.sin(aim.heading * RAD), dz = Math.cos(aim.heading * RAD)
       if (aim.putting) { p = { x: b.x - dx * 2.6, y: 2.4, z: b.z - dz * 2.6 }; l = { x: cup.x, y: 0, z: cup.z } }
-      else { p = { x: b.x - dx * 3.2, y: 1.7, z: b.z - dz * 3.2 }; l = { x: b.x + dx * 25, y: 0, z: b.z + dz * 25 } }
+      else { p = { x: b.x - dx * 4.8, y: 3.2, z: b.z - dz * 4.8 }; l = { x: b.x + dx * 25, y: 0, z: b.z + dz * 25 } }
     }
     // snap in and out of the map view (a spring through a vertical look direction would roll the camera)
     if (this.first || mode === 'top' || this.mode === 'top') { this.pos.set(p); this.look.set(l) } else { this.pos.to(p, dt); this.look.to(l, dt) }

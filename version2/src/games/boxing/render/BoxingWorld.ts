@@ -1,3 +1,4 @@
+import { lightSport } from '../../../engine3d/environment'
 
 import { Engine3D } from '../../../engine3d/Engine3D'
 import { CameraRig } from '../../../engine3d/CameraRig'
@@ -33,7 +34,7 @@ export class BoxingWorld {
     this.engine = engine
     this.spectator = spectator
     this.root = engine.newWorld('boxing')
-    const batch = { stat: engine.batchGroup('ring-static', false, 60) }
+    const batch = { stat: engine.batchGroup('ring-static', false, 60), crowd: engine.batchGroup('ring-crowd', true, 60) }
     this.ring = new RingScene(this.root, engine.app.graphicsDevice, batch)
     this.fx = new Fx(this.root)
     this.opp = new OpponentRig(this.root, oppColor, P.blue, engine.app.graphicsDevice)
@@ -49,11 +50,12 @@ export class BoxingWorld {
       this.ringside.addChild(engine.camera)
       engine.camera.setLocalPosition(0, 0, 0); engine.camera.setLocalEulerAngles(0, 0, 0)
     }
-    engine.generateBatches([batch.stat])
+    engine.generateBatches([batch.stat, batch.crowd])
   }
   show(w: number, h: number): void {
+    lightSport(this.engine, 'boxing')
     this.engine.show(this.root, w, h)
-    this.engine.applyLook('boxing', { sky: { top: '#10163a', horizon: '#6b4a3a', ground: '#0a0812', sun: { x: 0.5, y: 0.35, color: 'rgba(255,220,170,0.9)' } }, fog: { color: 0x1c1a48, start: 12, end: 60 }, tint: 0xfff3e8, saturation: 1.1, exposure: 1.2, ambient: 0x2c3358 })
+    this.engine.applyLook('boxing', { sky: { top: '#e7e8e4', horizon: '#f7edda', ground: '#8d9caa' }, tint: 0xffffff, saturation: 1.02, exposure: 1.05, ambient: 0xabb7c0 })
     this.engine.camera.camera!.fov = this.spectator ? 44 : 62
     this.fovS = this.spectator ? 52 : 70
   }
