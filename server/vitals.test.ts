@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { applyFace, applyMetrics, BASELINE_READINGS, demoMetrics, emptyVitals, listCameras, REQUESTED_WELLNESS_METRICS, toMs, VitalsBridge, type VitalsState } from './vitals'
+import { applyFace, applyMetrics, BASELINE_READINGS, CORE_WELLNESS_METRICS, demoMetrics, emptyVitals, FACE_WELLNESS_METRICS, listCameras, REQUESTED_WELLNESS_METRICS, toMs, VitalsBridge, type VitalsState } from './vitals'
 
 const us = (ms: number): number => ms * 1000
 const pulse = (value: number, at: number, stable = true, confidence = 90) => ({ cardio: { pulseRate: [{ value, stable, confidence, timestamp: us(at) }] } })
 
 describe('vitals reducer', () => {
   it('requests only the wellness MVP metrics, never arterial-pressure or HRV models', () => {
-    expect(REQUESTED_WELLNESS_METRICS).toEqual([0, 2, 11, 12, 13, 14, 15])
-    for (const face of [11, 12, 13, 14]) expect(REQUESTED_WELLNESS_METRICS).toContain(face)
+    expect(CORE_WELLNESS_METRICS).toEqual([0, 2, 15])
+    expect(FACE_WELLNESS_METRICS).toEqual([11, 12, 13, 14])
+    expect(REQUESTED_WELLNESS_METRICS).toEqual([0, 2, 15, 11, 12, 13, 14])
+    for (const face of FACE_WELLNESS_METRICS) expect(REQUESTED_WELLNESS_METRICS).toContain(face)
     expect(REQUESTED_WELLNESS_METRICS).not.toContain(16)
     expect(REQUESTED_WELLNESS_METRICS).not.toContain(17)
   })

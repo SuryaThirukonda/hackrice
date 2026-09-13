@@ -21,6 +21,7 @@ const COPY: Readonly<Record<string, string>> = {
   ChestNotVisible: 'Step back slightly (show chest)',
   MultipleFacesFound: 'Only one person in frame',
   FaceNotForward: 'Face the camera',
+  FrameRateTooLow: 'Hold still — waiting for a steadier camera feed',
 }
 
 /** The SDK's own hint is usually a sentence a person can follow; a bare code name is not. */
@@ -33,4 +34,17 @@ export function consumerValidation(validation: string, guidance: string): string
   const known = COPY[String(validation).replace(/^k/, '')]
   if (known) return known
   return human(guidance) ? guidance.trim() : 'Adjust position'
+}
+
+/** Map SDK / bridge error strings into short consumer copy. Never show raw codes as the primary line. */
+export function consumerCameraError(error: string | null | undefined, guidance: string | null | undefined): string {
+  const raw = `${error ?? ''} ${guidance ?? ''}`
+  if (/processing failed|\(8/i.test(raw)) {
+    return 'Camera sensing failed. Check lighting and framing, then tap Retry — or play with phone movement only.'
+  }
+  if (/credit|exhausted/i.test(raw)) return 'Camera wellness unavailable (account credits). You can still play with phone movement.'
+  if (/auth|api key|PRESSAGE|PRESAGE/i.test(raw)) return 'Camera wellness unavailable (API key). You can still play with phone movement.'
+  if (guidance && human(guidance)) return guidance.trim()
+  if (error && human(error)) return error.trim()
+  return 'Camera wellness unavailable. You can still play with phone movement.'
 }

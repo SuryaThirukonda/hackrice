@@ -276,8 +276,16 @@ export class GolfScene extends Phaser.Scene {
     const perHole = sc.holes.map((h) => h.strokes.a), mean = perHole.length ? perHole.reduce((a, b) => a + b, 0) / perHole.length : 8
     const spread = perHole.length ? Math.sqrt(perHole.reduce((n, x) => n + (x - mean) ** 2, 0) / perHole.length) : 5
     const performance = Math.max(0, Math.min(1, .7 - sc.toPar.a * .08)), consistency = Math.max(0, Math.min(1, 1 - spread / 4))
-    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency); wipeTo(this, 'recovery') }) }
-    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency); wipeTo(this, 'session-summary') }) }
+    const sportResult = {
+      title: 'GOLF RESULT',
+      lines: [
+        `Score  ${toParText(sc.toPar.a)}`,
+        `Strokes  ${sc.totals.a}`,
+        `Consistency  ${Math.round(consistency * 100)}%`,
+      ],
+    }
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency, sportResult); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency, sportResult); wipeTo(this, 'session-summary') }) }
     this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : r?.winner === 'draw' ? P.blue : P.red, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
   }
 

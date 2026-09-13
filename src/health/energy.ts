@@ -8,6 +8,8 @@ export type EnergyConfidence = 'LOW' | 'MODERATE' | 'HIGH'
 export interface Epoch {
   t: number; mean: number; peak: number; swings: number; rotation: number
   accelRms?: number; gyroRms?: number; activeFraction?: number; actionPower?: number; motionLoad?: number
+  /** Optional 0..1 head-motion index (boxing supplement). */
+  headMotion?: number
 }
 
 /** Adult Compendium 2024 exergame anchors. Tempo boxing is not assigned competitive-boxing METs. */

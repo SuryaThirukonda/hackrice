@@ -142,7 +142,7 @@ export class HealthStore {
     return this.db.prepare('select * from sessions where ended_at is not null order by ended_at desc limit ?').all(limit).map((r) => toRow(r as Record<string, unknown>))
   }
 
-  summary(now = Date.now(), days = 7): HealthSummary {
+  summary(now = Date.now(), days = 7, displayWeightKg: number | null = null): HealthSummary {
     const finished = this.sessions(10_000)
     const byDay = new Map<string, DaySummary>()
     for (let i = days - 1; i >= 0; i--) {
@@ -152,30 +152,44 @@ export class HealthStore {
     const bySport = Object.fromEntries(SPORTS.map((s) => [s, { sessions: 0, activeSeconds: 0, kcal: 0, swings: 0, romMean: 0 }])) as HealthSummary['bySport']
     const romCount: Record<HealthSport, number> = { boxing: 0, bowling: 0, golf: 0 }
     for (const s of finished) {
+      const kcal = this.energyFor(s, displayWeightKg)
       const d = byDay.get(dayOf(s.endedAt ?? s.startedAt))
-      if (d) { d.activeSeconds += s.activeSeconds; d.kcal += s.kcal ?? 0; d.swings += s.swings; d.sessions += 1 }
+      if (d) { d.activeSeconds += s.activeSeconds; d.kcal += kcal ?? 0; d.swings += s.swings; d.sessions += 1 }
       const b = bySport[s.sport]
-      b.sessions += 1; b.activeSeconds += s.activeSeconds; b.kcal += s.kcal ?? 0; b.swings += s.swings
+      b.sessions += 1; b.activeSeconds += s.activeSeconds; b.kcal += kcal ?? 0; b.swings += s.swings
       if (s.swings > 0) { b.romMean += s.romMean; romCount[s.sport] += 1 }
     }
     for (const s of SPORTS) if (romCount[s]) bySport[s].romMean /= romCount[s]
     const daysOut = [...byDay.values()]
-    // streak: consecutive days ending today with any active seconds
     let streak = 0
     for (let i = daysOut.length - 1; i >= 0 && daysOut[i].activeSeconds > 0; i--) streak += 1
     const last = finished[0] ?? null
     const today = daysOut[daysOut.length - 1]
+    const lastWithEnergy = last ? { ...last, kcal: this.energyFor(last, displayWeightKg), epochs: this.epochs(last.id) } : null
     return {
       today,
       todayActiveSeconds: today.activeSeconds,
       days: daysOut,
       bySport,
       romTrend: finished.filter((s) => s.swings > 0).slice(0, 20).reverse().map((s) => ({ id: s.id, sport: s.sport, endedAt: s.endedAt ?? s.startedAt, romMean: s.romMean, romMax: s.romMax })),
-      lastSession: last ? { ...last, epochs: this.epochs(last.id) } : null,
+      lastSession: lastWithEnergy,
       streakDays: streak,
       latestVitals: this.latestVital(),
       lastAdaptation: this.latestAdaptation(),
     }
+  }
+
+  /**
+   * Display energy from epochs + current body weight when possible.
+   * Does not mutate stored epochs. Aggregate-only rows without weight → null (NOT ESTIMATED).
+   */
+  energyFor(row: SessionRow, displayWeightKg: number | null = null): number | null {
+    const w = displayWeightKg !== null && displayWeightKg >= 20 ? displayWeightKg : row.weightKg
+    if (w === null || w < 20) return null
+    const epochs = this.epochs(row.id)
+    if (epochs.length) return summarize(row.sport, epochs, [], w).kcal
+    if (row.weightKg === null) return null
+    return row.kcal
   }
 
   addAdaptation(sessionId: number, at: number, player: PlayerState, previousDifficulty: number, newDifficulty: number, decision: AdaptationDecision): void {

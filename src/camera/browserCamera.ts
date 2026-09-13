@@ -29,7 +29,10 @@ export class BrowserCamera {
       return this.state
     }
     try {
-      this.stream = await media.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false })
+      this.stream = await media.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+        audio: false,
+      })
     } catch (e) {
       const err = e as { name?: string; message?: string }
       this.state = 'error'
@@ -41,8 +44,9 @@ export class BrowserCamera {
     video.autoplay = true
     video.playsInline = true
     video.srcObject = this.stream
-    // Comic frame, and mirrored so moving left moves the preview left. Frames are pumped unmirrored.
-    video.style.cssText = 'position:absolute;object-fit:cover;transform:scaleX(-1);border:4px solid #14121a;border-radius:16px;box-shadow:8px 8px 0 #14121a;background:#000;pointer-events:none'
+    // Comic frame above the Phaser canvas (z-index 1), mirrored so moving left moves the preview left.
+    // Frames are pumped from the raw video element (CSS transform does not affect drawImage).
+    video.style.cssText = 'position:absolute;z-index:5;object-fit:cover;transform:scaleX(-1);border:4px solid #14121a;border-radius:16px;box-shadow:8px 8px 0 #14121a;background:#000;pointer-events:none'
     this.video = video
     // A muted local stream autoplays everywhere, but a blocked play() must not fail the whole start.
     try { await video.play() } catch { /* frames still arrive once it is in the document */ }

@@ -8,11 +8,19 @@ import { loadSettings, type Difficulty } from '../agent/sliders'
 export type ControllerMode = 'phone' | 'keyboard' | null
 export type CameraMode = 'off' | 'live' | 'skipped'
 
+/** Sport-specific consumer lines — never a generic performance %. */
+export interface SportResult {
+  title: string
+  lines: string[]
+}
+
 export interface CompletedSegment {
   sport: HealthSport
   summary: SessionSummaryLine | null
+  /** Internal adaptation score 0..1 — not shown as "Performance %". */
   performance: number
   consistency: number
+  sportResult?: SportResult
   player?: PlayerState
   decision?: AdaptationDecision
 }
@@ -79,8 +87,8 @@ class TempoFlow {
     return null
   }
 
-  addSegment(sport: HealthSport, summary: SessionSummaryLine | null, performance: number, consistency: number): CompletedSegment {
-    const row = { sport, summary, performance, consistency }
+  addSegment(sport: HealthSport, summary: SessionSummaryLine | null, performance: number, consistency: number, sportResult?: SportResult): CompletedSegment {
+    const row = { sport, summary, performance, consistency, sportResult }
     this.segments.push(row)
     return row
   }

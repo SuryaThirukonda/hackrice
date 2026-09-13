@@ -76,7 +76,11 @@ const server = createServer(async (req, res) => {
     const q = new URL(url, 'http://localhost').searchParams
     const m = /^\/health\/session\/(\d+)\/(add|finish)$/.exec(path)
     const adapt = /^\/health\/session\/(\d+)\/adaptation$/.exec(path)
-    if (req.method === 'GET' && path === '/health/summary') return json(res, 200, health.summary(Date.now(), Math.max(1, Math.min(90, Number(q.get('days') ?? 7)))))
+    if (req.method === 'GET' && path === '/health/summary') {
+      const weight = Number(q.get('weightKg'))
+      const displayWeight = Number.isFinite(weight) && weight >= 20 ? weight : null
+      return json(res, 200, health.summary(Date.now(), Math.max(1, Math.min(90, Number(q.get('days') ?? 7))), displayWeight))
+    }
     if (req.method === 'GET' && path === '/health/sessions') return json(res, 200, health.sessions(Math.max(1, Math.min(500, Number(q.get('limit') ?? 50)))))
     if (req.method === 'POST' && path === '/health/session') {
       const b = await readJson(req); const sport = sportOf(b.sport)

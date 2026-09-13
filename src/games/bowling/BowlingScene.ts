@@ -184,8 +184,16 @@ export class BowlingScene extends Phaser.Scene {
     const rolls = this.sim.rolls.a.flat(), mean = rolls.length ? rolls.reduce((a, b) => a + b, 0) / rolls.length : 0
     const spread = rolls.length ? Math.sqrt(rolls.reduce((n, x) => n + (x - mean) ** 2, 0) / rolls.length) : 10
     const performance = Math.max(0, Math.min(1, sb.a.total / 200)), consistency = Math.max(0, Math.min(1, 1 - spread / 5))
-    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency); wipeTo(this, 'recovery') }) }
-    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency); wipeTo(this, 'session-summary') }) }
+    const sportResult = {
+      title: 'BOWLING RESULT',
+      lines: [
+        `Score  ${sb.a.total}`,
+        `Strikes  ${strikes(this.sim.rolls.a)}`,
+        `Consistency  ${Math.round(consistency * 100)}%`,
+      ],
+    }
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency, sportResult); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency, sportResult); wipeTo(this, 'session-summary') }) }
     this.hud.result(youWin ? 'YOU WIN!' : r === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
   }
 

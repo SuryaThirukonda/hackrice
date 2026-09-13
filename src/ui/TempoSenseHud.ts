@@ -56,13 +56,17 @@ export function tempoSenseHud(
     const snap = sensingSession.snapshot
     const move = live.motionLoad >= 0.55 ? 'HIGH' : live.motionLoad >= 0.28 ? 'MID' : live.moving ? 'LOW' : '—'
     const cam = snap.phase === 'good' || snap.phase === 'warming' || snap.phase === 'preview' ? '● CAMERA' : snap.phase === 'off' ? '○ CAMERA' : '○ CAM ERR'
-    const pulse = snap.phase === 'good' && snap.pulse ? `♥  ${Math.round(snap.pulse)}` : '♥  —'
+    const pulse = snap.pulseTier === 'trusted' && snap.pulse
+      ? `♥  ${Math.round(snap.pulse)}`
+      : snap.pulseTier === 'estimating' && snap.pulse
+        ? `♥  ${Math.round(snap.pulse)} ~`
+        : '♥  —'
     const expr = snap.dominantExpression && snap.facePresent ? `🙂  ${snap.dominantExpression.toUpperCase().slice(0, 8)}` : '🙂  —'
     const text = `${cam}|MOVE ${move}|${pulse}|${expr}`
     if (text === last) return
     last = text
     line1.setText(`${cam}   MOVE ${move}`)
-    line2.setText(pulse)
+    line2.setText(snap.pulseTier === 'estimating' ? `${pulse}  EST` : pulse)
     line3.setText(expr)
     paint()
   }

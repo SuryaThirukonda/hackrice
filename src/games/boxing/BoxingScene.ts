@@ -220,8 +220,16 @@ export class BoxingScene extends Phaser.Scene {
     ]
     const accuracy = m.a.thrown ? m.a.landed / m.a.thrown : 0
     const performance = Math.max(0, Math.min(1, accuracy * .65 + (m.a.dealtTotal / Math.max(1, m.a.dealtTotal + m.b.dealtTotal)) * .35))
-    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy); wipeTo(this, 'recovery') }) }
-    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy); wipeTo(this, 'session-summary') }) }
+    const sportResult = {
+      title: 'BOXING RESULT',
+      lines: [
+        r?.by === 'ko' ? `Result  KO · R${r.round}` : r?.by === 'decision' ? 'Result  Decision' : 'Result  Draw',
+        `Hit accuracy  ${Math.round(accuracy * 100)}%`,
+        `Damage  ${Math.round(m.a.dealtTotal)} dealt`,
+      ],
+    }
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy, sportResult); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy, sportResult); wipeTo(this, 'session-summary') }) }
     this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
   }
 

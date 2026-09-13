@@ -4,6 +4,8 @@ import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
 import { loadSettings, saveSettings, type GameSettings, type Quality } from '../agent/sliders'
+import { formatWeightLabel } from '../health/weightInput'
+import { openWeightEditor } from '../ui/weightEditor'
 import { Engine3D } from '../engine3d/Engine3D'
 import { BOXING_HELP, BOXING_KEYS, keyLabel } from '../games/boxing/keymap'
 import { BOWLING_HELP, BOWLING_KEYS } from '../games/bowling/keymap'
@@ -30,6 +32,7 @@ export class SettingsScene extends Phaser.Scene {
   private row = 0
   private waiting = false
   private content: Phaser.GameObjects.GameObject[] = []
+  private closeWeight: (() => void) | null = null
   constructor() { super('settings') }
   init(): void { this.s = loadSettings(); this.row = 0; this.waiting = false }
   create(): void {
@@ -38,6 +41,7 @@ export class SettingsScene extends Phaser.Scene {
     const kb = this.input.keyboard!
     const rows = allRows(this.s.bindings).length + 6 // sound, quality, wellness profile, bindings, reset
     kb.on('keydown', (e: KeyboardEvent) => {
+      if (this.closeWeight) return // DOM editor owns keys
       if (this.waiting) {
         if (e.code !== 'Escape') {
           const r = allRows(this.s.bindings)[this.row - 5]
@@ -51,17 +55,29 @@ export class SettingsScene extends Phaser.Scene {
       else if (e.code === 'Enter' || e.code === 'Space') this.activate()
       else if (e.code === 'Escape') wipeTo(this, 'menu')
     })
+    this.events.once('shutdown', () => { this.closeWeight?.(); this.closeWeight = null })
     this.draw()
   }
   private activate(): void {
     if (this.row === 0) { this.s.sound = !this.s.sound; saveSettings(this.s); sfx.select() }
     else if (this.row === 1) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }
-    else if (this.row === 2) { this.s.weightKg = this.s.weightKg === null ? 70 : this.s.weightKg >= 120 ? null : this.s.weightKg + 5; saveSettings(this.s); sfx.select() }
+    else if (this.row === 2) { this.editWeight(); return }
     else if (this.row === 3) { this.s.weightUnit = this.s.weightUnit === 'kg' ? 'lb' : 'kg'; saveSettings(this.s); sfx.select() }
     else if (this.row === 4) { const goals = [20, 30, 45, 60]; this.s.dailyGoalMinutes = goals[(goals.indexOf(this.s.dailyGoalMinutes) + 1) % goals.length] ?? 30; saveSettings(this.s); sfx.select() }
     else if (this.row === allRows(this.s.bindings).length + 5) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
     else { this.waiting = true }
     this.draw()
+  }
+  private editWeight(): void {
+    if (this.closeWeight) return
+    const host = this.game.canvas.parentElement ?? document.body
+    this.closeWeight = openWeightEditor(host, this.s, (next) => {
+      this.s = next
+      saveSettings(this.s)
+      sfx.select()
+      this.closeWeight = null
+      this.draw()
+    }, () => { this.closeWeight = null; this.draw() })
   }
   private draw(): void {
     for (const o of this.content) o.destroy()
@@ -85,7 +101,7 @@ export class SettingsScene extends Phaser.Scene {
     }
     line(0, 'SOUND', this.s.sound ? 'ON' : 'OFF')
     line(1, '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
-    const shownWeight = this.s.weightKg === null ? 'NOT SET (energy hidden)' : this.s.weightUnit === 'kg' ? `${this.s.weightKg} kg` : `${Math.round(this.s.weightKg * 2.20462)} lb`
+    const shownWeight = this.s.weightKg === null ? 'TAP TO SET' : formatWeightLabel(this.s.weightKg, this.s.weightUnit)
     line(2, 'BODY WEIGHT', shownWeight, 'WELLNESS')
     line(3, 'WEIGHT UNIT', this.s.weightUnit.toUpperCase(), 'WELLNESS')
     line(4, 'ACTIVE MINUTE GOAL', `${this.s.dailyGoalMinutes} min`, 'WELLNESS')

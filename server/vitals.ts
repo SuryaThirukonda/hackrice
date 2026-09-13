@@ -70,16 +70,26 @@ export const MIN_CONFIDENCE = 40
 /** Hand-picked SDK MetricType codes for Tempo's product path. The cardio bundle also includes
  * ARTERIAL_PRESSURE_TRACE (16), which loads a separate phasic-BP model and is outside Tempo's
  * wellness scope. Requesting the whole bundle can fail an otherwise valid pulse session when that
- * model is not provisioned. HRV (17) is likewise excluded from product adaptation. */
-export const REQUESTED_WELLNESS_METRICS = Object.freeze([
-  0,  // CHEST_BREATHING: supplies the breathing waveform
+ * model is not provisioned. HRV (17) is likewise excluded from product adaptation.
+ *
+ * Face analysis (11–14) is valuable but not always provisioned on every Presage key. The bridge
+ * starts with the full set and silently falls back to CORE metrics if the SDK reports
+ * ProcessingFailed (8), so pulse/breathing still work. */
+export const CORE_WELLNESS_METRICS = Object.freeze([
+  0,  // CHEST_BREATHING
   2,  // BREATHING_RATE
-  11, // FACE_LANDMARKS: only read as "is a face in frame"
+  15, // PULSE_RATE
+])
+export const FACE_WELLNESS_METRICS = Object.freeze([
+  11, // FACE_LANDMARKS
   12, // BLINKING
   13, // TALKING
   14, // EXPRESSIONS
-  15, // PULSE_RATE
 ])
+export const REQUESTED_WELLNESS_METRICS = Object.freeze([...CORE_WELLNESS_METRICS, ...FACE_WELLNESS_METRICS])
+
+/** SDK SmartSpectraErrorCode.kProcessingFailed — often means a requested model is unavailable or frames are unusable. */
+export const PROCESSING_FAILED = 8
 
 /** Video devices the OS exposes. Only Linux enumerates them as files; elsewhere the SDK is the only way to know. */
 export function listCameras(): { checked: boolean; devices: string[] } {
@@ -280,13 +290,22 @@ export class VitalsBridge {
   /** Set only in custom-input mode: the browser owns the camera and pushes frames through pushFrame. */
   private rgbFormat = 0
   private lastFrameUs = 0
+  private custom = false
+  private includeFace = true
+  private recovering = false
+  private startOpts: { cameraIndex?: number; demo?: boolean; input?: VitalsInput } = {}
   framesAccepted = 0
   constructor(apiKey: () => string, mode: VitalsState['mode'] = 'live') { this.apiKey = apiKey; this.mode = mode; this.state = emptyVitals(mode) }
 
   async start(opts: { cameraIndex?: number; demo?: boolean; input?: VitalsInput } = {}): Promise<VitalsState> {
     await this.stop()
+    this.startOpts = opts
     const demo = opts.demo === true || opts.input === 'demo' || this.mode === 'mock'
     const custom = !demo && opts.input === 'custom'
+    this.custom = custom
+    // Fresh Enable Camera tries face metrics again; internal recovery keeps includeFace=false.
+    if (!this.recovering) this.includeFace = true
+    this.recovering = false
     this.state = {
       ...emptyVitals(this.mode), status: 'starting', startedAt: Date.now(),
       source: demo ? 'demo' : custom ? 'custom' : 'camera',
@@ -322,17 +341,33 @@ export class VitalsBridge {
     catch (e) { this.state.status = 'unavailable'; this.state.error = `SmartSpectra SDK not available: ${(e as Error).message.slice(0, 160)}`; this.state.guidance = this.state.error; return this.state }
     const validationNames = Object.fromEntries(Object.entries(mod.ValidationCode).map(([k, v]) => [v, k.replace(/^k/, '')]))
     const statusNames = Object.fromEntries(Object.entries(mod.ProcessingStatus).map(([k, v]) => [v, k.replace(/^k/, '').toLowerCase()]))
+    const metrics = this.includeFace ? [...REQUESTED_WELLNESS_METRICS] : [...CORE_WELLNESS_METRICS]
     let sdk: Sdk | null = null
     try {
-      sdk = new mod.SmartSpectraSDK({ apiKey: key, requestedMetrics: [...REQUESTED_WELLNESS_METRICS], enableTelemetry: false, enableAccumulatedOutput: false })
+      sdk = new mod.SmartSpectraSDK({ apiKey: key, requestedMetrics: metrics, enableTelemetry: false, enableAccumulatedOutput: false })
       sdk.on('processingStatus', ((status: number) => { const name = statusNames[status] ?? `status ${status}`; this.state.status = name === 'running' ? 'running' : this.state.status === 'error' ? 'error' : 'starting'; this.state.validation = name }) as never)
       sdk.on('validationStatus', ((code: number, _ts: number, hint: string) => { this.state.validation = validationNames[code] ?? `code ${code}`; this.state.guidance = hint || (this.state.validation === 'Ok' ? 'Good measurement' : this.state.validation) }) as never)
       sdk.on('metrics', ((buf: Buffer) => { try { this.ingest(mod.decodeMetrics(buf) as DecodedMetrics) } catch (e) { this.state.guidance = `could not decode metrics: ${(e as Error).message}` } }) as never)
-      sdk.on('error', ((code: number, message: string, retryable: boolean) => { this.state.status = 'error'; this.state.error = `${message} (${code}${retryable ? ', retryable' : ''})`; this.state.guidance = this.state.error }) as never)
+      sdk.on('error', ((code: number, message: string, retryable: boolean) => {
+        // Face models are not on every Presage account. Drop them once and restart so pulse still works.
+        if (code === PROCESSING_FAILED && this.includeFace && this.custom && retryable) {
+          this.includeFace = false
+          this.recovering = true
+          this.state.guidance = 'Retrying camera sensing without face analysis…'
+          void this.start({ ...this.startOpts, input: 'custom' })
+          return
+        }
+        this.state.status = 'error'
+        this.state.error = `${message} (${code}${retryable ? ', retryable' : ''})`
+        this.state.guidance = code === PROCESSING_FAILED
+          ? 'Camera sensing failed. Check lighting and framing, then tap Retry — or play with phone movement only.'
+          : this.state.error
+      }) as never)
       if (custom) { this.rgbFormat = mod.PixelFormat?.kRGB ?? 0; sdk.useCustomInput() }
       else sdk.useCamera({ deviceIndex: opts.cameraIndex ?? 0, width: 1280, height: 720, fps: 30 })
       sdk.start()
       this.sdk = sdk
+      if (!this.includeFace) this.state.guidance = 'camera sensing ready (pulse only)'
     } catch (e) {
       // A failed start must not leave a live native instance behind.
       if (sdk) { try { await sdk.destroy() } catch { /* never started */ } }
@@ -359,6 +394,7 @@ export class VitalsBridge {
     this.lastFrameUs = timestampUs
     if (this.framesAccepted === 0) this.state.guidance = 'reading from your camera…'
     this.framesAccepted += 1
+    if (this.state.status === 'starting' && this.framesAccepted >= 8) this.state.status = 'running'
     return true
   }
 

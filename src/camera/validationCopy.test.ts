@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { consumerValidation } from './validationCopy'
+import { consumerCameraError, consumerValidation } from './validationCopy'
 
 describe('consumer camera guidance', () => {
   it('turns every validation code the SDK reports into one short instruction', () => {
@@ -22,10 +22,15 @@ describe('consumer camera guidance', () => {
     expect(consumerValidation('kTooDark', '')).toBe('Add more light')
   })
   it('falls back to the SDK hint only when it reads like a sentence', () => {
-    expect(consumerValidation('FrameRateTooLow', 'move a little closer to the camera')).toBe('move a little closer to the camera')
+    expect(consumerValidation('FrameRateTooLow', 'camera has to be higher than 25 hz')).toBe('Hold still — waiting for a steadier camera feed')
     expect(consumerValidation('CameraTuning', '')).toBe('Adjust position')
     expect(consumerValidation('code 42', 'code 42')).toBe('Adjust position')
     expect(consumerValidation('status 3', 'kFaceNotForward')).toBe('Adjust position')
     expect(consumerValidation('running', 'FrameRateTooLow')).toBe('Adjust position')
+  })
+  it('turns SmartSpectra ProcessingFailed into short Retry copy', () => {
+    expect(consumerCameraError('SmartSpectra processing failed. (8, retryable)', null))
+      .toMatch(/Check lighting and framing/)
+    expect(consumerCameraError(null, 'Camera sensing failed. Check lighting')).toMatch(/Check lighting/)
   })
 })

@@ -29,6 +29,11 @@ export function motionLoad(sport: HealthSport, epoch: Epoch): number {
   const frequency = c01(epoch.swings / 3)
   const power = c01(epoch.actionPower ?? (epoch.swings ? epoch.peak / 18 : 0))
   const rom = c01(epoch.rotation / 360)
-  return c01(accel * w.acceleration + rotation * w.rotation + active * w.activeFraction + frequency * w.actionFrequency + power * w.actionPower + rom * w.rangeOfMotion)
+  const base = c01(accel * w.acceleration + rotation * w.rotation + active * w.activeFraction + frequency * w.actionFrequency + power * w.actionPower + rom * w.rangeOfMotion)
+  // Optional boxing head-motion boost (landmarks) — capped; phone motion stays primary.
+  if (sport === 'boxing' && epoch.headMotion !== undefined) {
+    return c01(base + Math.min(0.06, epoch.headMotion * 0.06))
+  }
+  return base
 }
 

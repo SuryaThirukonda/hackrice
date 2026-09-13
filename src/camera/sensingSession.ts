@@ -4,7 +4,9 @@
  */
 import { BrowserCamera } from '../camera/browserCamera'
 import { FramePump } from '../camera/framePump'
-import { consumerValidation } from '../camera/validationCopy'
+import { consumerCameraError, consumerValidation } from '../camera/validationCopy'
+import { ExpressionAggregator, type ExpressionSummary } from '../wellness/expressions'
+import { pulseTier, type PulseTier } from '../wellness/presageQuality'
 
 export type SensingPhase = 'off' | 'requesting' | 'preview' | 'warming' | 'good' | 'unavailable' | 'error'
 
@@ -13,9 +15,14 @@ export interface SensingSnapshot {
   guidance: string
   validation: string
   pulse: number | null
+  pulseTier: PulseTier
   baselinePulse: number | null
+  breathing: number | null
+  hrvRmssd: number | null
   facePresent: boolean
   dominantExpression: string | null
+  expressionSummary: ExpressionSummary | null
+  headMotion: number
   mode: 'live' | 'mock' | 'off'
   mock: boolean
   error: string | null
@@ -23,13 +30,19 @@ export interface SensingSnapshot {
 
 type VitalsWire = {
   status: string
-  source: 'camera' | 'demo' | null
+  source: 'camera' | 'custom' | 'demo' | null
   guidance: string
   validation: string
-  pulse: { value: number; at: number } | null
+  pulse: { value: number; at: number; confidence?: number; stable?: boolean } | null
+  rawPulse?: number | null
+  breathing?: { value: number; at: number; confidence?: number; stable?: boolean } | null
+  hrv?: { rmssd: number; at: number } | null
   baselinePulse: number | null
   facePresent?: boolean
+  validFace?: boolean
   dominantExpression?: string | null
+  expressionProbs?: Partial<Record<string, number>> | null
+  faceUpdatedAt?: number
   mode?: 'live' | 'mock' | 'off'
   error?: string | null
 }
@@ -43,14 +56,20 @@ class SensingSession {
   private phase: SensingPhase = 'off'
   private last: SensingSnapshot = blank()
   private pollTimer: ReturnType<typeof setInterval> | null = null
+  private expressions = new ExpressionAggregator()
+  private lastPollAt = 0
+  private headMotion = 0
 
   get snapshot(): SensingSnapshot { return this.last }
   get cameraReady(): boolean { return this.camera.state === 'ready' }
-  get phaseName(): SensingPhase { return this.phase }
+  get phaseNow(): SensingPhase { return this.phase }
+  get expressionSummary(): ExpressionSummary { return this.expressions.summary() }
+  get latestHeadMotion(): number { return this.headMotion }
 
   /** Enable camera: one Tempo action → OS permission → custom Presage input. */
   async enable(host: HTMLElement, previewRect: DOMRect): Promise<SensingSnapshot> {
     this.phase = 'requesting'
+    this.expressions.reset()
     this.publish()
     const cam = await this.camera.start()
     if (cam !== 'ready') {
@@ -68,7 +87,8 @@ class SensingSession {
         this.phase = vitals.status === 'unavailable' ? 'unavailable' : 'error'
         this.last = {
           ...blank(), phase: this.phase, mode: vitals.mode ?? 'off', mock: vitals.source === 'demo',
-          error: vitals.error ?? vitals.guidance, guidance: vitals.guidance || 'Camera wellness unavailable',
+          error: vitals.error ?? vitals.guidance,
+          guidance: consumerCameraError(vitals.error, vitals.guidance),
         }
         this.startPoll()
         return this.last
@@ -89,11 +109,7 @@ class SensingSession {
     }
   }
 
-  /** Hide DOM preview but keep the stream + pump for in-game Tempo Sense. */
-  hidePreview(): void {
-    this.camera.hidePreview()
-  }
-
+  hidePreview(): void { this.camera.hidePreview() }
   setPreviewRect(rect: DOMRect): void { this.camera.setRect(rect) }
 
   async retry(host: HTMLElement, previewRect: DOMRect): Promise<SensingSnapshot> {
@@ -101,7 +117,6 @@ class SensingSession {
     return this.enable(host, previewRect)
   }
 
-  /** Stop sensing; keepPreview=false also releases the MediaStream. */
   async stop(keepPreview = false): Promise<void> {
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null }
     this.pump?.stop(); this.pump = null
@@ -110,17 +125,17 @@ class SensingSession {
       this.camera.stop()
       this.phase = 'off'
       this.last = blank()
+      this.expressions.reset()
+      this.headMotion = 0
     }
   }
 
-  /** Keep sensing alive into gameplay: hide preview, continue poll + pump. */
-  continueIntoPlay(): void {
-    this.camera.hidePreview()
-  }
+  continueIntoPlay(): void { this.camera.hidePreview() }
 
   private startPoll(): void {
     if (this.pollTimer) return
-    this.pollTimer = setInterval(() => { void this.pollOnce() }, 500)
+    this.lastPollAt = performance.now()
+    this.pollTimer = setInterval(() => { void this.pollOnce() }, 400)
   }
 
   private async pollOnce(): Promise<SensingSnapshot> {
@@ -128,20 +143,48 @@ class SensingSession {
       const r = await fetch('/vitals', { cache: 'no-store' })
       if (!r.ok) return this.last
       const v = await r.json() as VitalsWire
-      const guidance = consumerValidation(v.validation, v.guidance)
-      const good = v.validation === 'Ok' && v.pulse && Date.now() - v.pulse.at <= 5000
+      const now = Date.now()
+      const wall = performance.now()
+      const dt = Math.max(0.05, Math.min(2, (wall - this.lastPollAt) / 1000))
+      this.lastPollAt = wall
+
+      const conf = v.pulse?.confidence ?? 0
+      const stable = v.pulse?.stable === true
+      const pulseAt = v.pulse?.at ?? 0
+      const displayValue = v.pulse?.value ?? v.rawPulse ?? null
+      const tier = pulseTier(displayValue, conf, stable, v.validation, pulseAt || now, now)
+      // Trusted pulse marks "good"; estimating still counts as warming with a live number.
+      const trustedOk = tier === 'trusted' && v.validation === 'Ok'
       if (v.status === 'error') this.phase = 'error'
       else if (v.status === 'unavailable') this.phase = 'unavailable'
-      else if (good) this.phase = 'good'
-      else if (this.camera.state === 'ready') this.phase = v.status === 'running' || v.status === 'starting' ? 'warming' : 'preview'
+      else if (trustedOk) this.phase = 'good'
+      else if (this.camera.state === 'ready') this.phase = v.status === 'running' || v.status === 'starting' || tier === 'estimating' ? 'warming' : 'preview'
+
+      const usableFace = v.validFace === true || (v.facePresent === true && v.validation === 'Ok')
+      this.expressions.sample(dt, usableFace, v.expressionProbs ?? null)
+      const liveExpr = this.expressions.liveExpression()
+      const summary = this.expressions.summary()
+
+      // Without landmark centers on the wire yet, keep a decaying head-motion placeholder (boxing can still boost when set).
+      this.headMotion = Math.max(0, this.headMotion * 0.85)
+
+      const guidance = this.phase === 'error' || this.phase === 'unavailable'
+        ? consumerCameraError(v.error, v.guidance)
+        : consumerValidation(v.validation, v.guidance)
+
       this.last = {
         phase: this.phase,
         guidance,
         validation: v.validation,
-        pulse: v.pulse?.value ?? null,
+        pulse: tier === 'none' ? null : displayValue,
+        pulseTier: tier,
         baselinePulse: v.baselinePulse,
+        breathing: v.breathing?.value ?? null,
+        hrvRmssd: v.hrv?.rmssd ?? null,
         facePresent: v.facePresent === true,
-        dominantExpression: v.dominantExpression ?? null,
+        dominantExpression: liveExpr ?? v.dominantExpression ?? null,
+        expressionSummary: summary.coverage >= 0.15 ? summary : null,
+        headMotion: this.headMotion,
         mode: v.mode ?? 'off',
         mock: v.source === 'demo' || v.mode === 'mock',
         error: v.error ?? null,
@@ -157,8 +200,9 @@ class SensingSession {
 
 function blank(): SensingSnapshot {
   return {
-    phase: 'off', guidance: 'Camera off', validation: '', pulse: null, baselinePulse: null,
-    facePresent: false, dominantExpression: null, mode: 'off', mock: false, error: null,
+    phase: 'off', guidance: 'Camera off', validation: '', pulse: null, pulseTier: 'none', baselinePulse: null,
+    breathing: null, hrvRmssd: null, facePresent: false, dominantExpression: null, expressionSummary: null,
+    headMotion: 0, mode: 'off', mock: false, error: null,
   }
 }
 

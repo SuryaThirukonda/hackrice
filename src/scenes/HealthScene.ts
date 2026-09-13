@@ -5,6 +5,7 @@ import { wipeTo } from '../fx/transitions'
 import { loadSettings } from '../agent/sliders'
 import type { HealthSummary } from '../../server/health'
 import { formatActive, formatGoalProgress, type HealthSport } from '../health/energy'
+import { formatEstimatedEnergy, intensityBar, movementIntensity, sessionRomLabel } from '../health/display'
 import { adaptationCopy } from '../wellness/adaptation'
 
 const SPORT_COLOR: Record<HealthSport, number> = { boxing: P.red, bowling: P.blue, golf: P.green }
@@ -15,7 +16,7 @@ const weekday = (day: string, fallbackIndex: number): string => {
   return DAYS[new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay()] ?? DAYS[fallbackIndex]
 }
 
-/** Wellness history with clear hierarchy: Today → Week → Last session → Body → Sports. */
+/** Wellness history: Today → Last session → Body → ROM → Tempo → Week. */
 export class HealthScene extends Phaser.Scene {
   private city!: ComicBackdrop
   private drawn: Phaser.GameObjects.GameObject[] = []
@@ -35,7 +36,9 @@ export class HealthScene extends Phaser.Scene {
   update(_t: number, dt: number): void { this.city.update(dt) }
   private async refresh(): Promise<void> {
     try {
-      const r = await fetch('/health/summary?days=7', { cache: 'no-store' }); if (!r.ok) throw new Error()
+      const w = loadSettings().weightKg
+      const q = w !== null ? `&weightKg=${encodeURIComponent(String(w))}` : ''
+      const r = await fetch(`/health/summary?days=7${q}`, { cache: 'no-store' }); if (!r.ok) throw new Error()
       const s = await r.json() as HealthSummary; this.status.setVisible(false); this.render(s)
     } catch { this.status.setText('WELLNESS HISTORY OFFLINE\nstart  npm run agent').setAlign('center').setVisible(true); this.render(null) }
   }
@@ -56,27 +59,21 @@ export class HealthScene extends Phaser.Scene {
     const pad = 24 * k, top = 108 * k, settings = loadSettings(), goal = settings.dailyGoalMinutes
     const todaySec = s?.todayActiveSeconds ?? s?.today?.activeSeconds ?? 0
     const today = s?.today, last = s?.lastSession
+    const energy = formatEstimatedEnergy(today?.kcal)
+    const intensity = movementIntensity(last?.motionLoad ?? 0)
 
-    // TODAY strip
     panel(pad, top, W - pad * 2, 128 * k, .2, true)
-    const primary: readonly (readonly [string, string, string, number])[] = settings.weightKg
-      ? [
-        ['ACTIVE TIME', formatActive(todaySec), `${formatGoalProgress(todaySec, goal)} MIN`, P.teal],
-        ['MOVEMENT', String(today?.swings ?? 0), 'ACTIONS', P.teal],
-        ['ACTIVE ENERGY', `~${Math.round(today?.kcal ?? 0)}`, 'KCAL EST.', P.orange],
-        ['SESSIONS', String(today?.sessions ?? 0), 'TODAY', P.blue],
-      ]
-      : [
-        ['ACTIVE TIME', formatActive(todaySec), `${formatGoalProgress(todaySec, goal)} MIN`, P.teal],
-        ['MOVEMENT', String(today?.swings ?? 0), 'ACTIONS', P.teal],
-        ['ACTIVITY LOAD', `${Math.round((last?.motionLoad ?? 0) * 100)}%`, 'LAST SESSION', P.teal],
-        ['SESSIONS', String(today?.sessions ?? 0), 'TODAY', P.blue],
-      ]
+    const primary: readonly (readonly [string, string, string, number])[] = [
+      ['ACTIVE TIME', formatActive(todaySec), `${formatGoalProgress(todaySec, goal)} MIN`, P.teal],
+      ['MOVEMENT', String(today?.swings ?? 0), 'ACTIONS', P.teal],
+      ['EST. ACTIVE ENERGY', energy.value, energy.estimated ? `${energy.unit.toUpperCase()} EST.` : 'ADD WEIGHT', P.orange],
+      ['SESSIONS', String(today?.sessions ?? 0), 'TODAY', P.blue],
+    ]
     primary.forEach(([label, value, note, color], i) => {
       const cellW = (W - pad * 2) / 4, x = pad + cellW * i
       if (i) add(this.add.rectangle(x, top + 18 * k, 2 * k, 92 * k, P.ink, .14).setOrigin(.5, 0).setDepth(11))
-      txt(x + 20 * k, top + 16 * k, label, 12, color, true)
-      txt(x + 20 * k, top + 42 * k, value, 34, color, true)
+      txt(x + 20 * k, top + 16 * k, label, 11, color, true)
+      txt(x + 20 * k, top + 42 * k, value, 32, color, true)
       txt(x + 20 * k, top + 92 * k, note, 11, 0x5a4632)
     })
 
@@ -84,22 +81,24 @@ export class HealthScene extends Phaser.Scene {
     const leftW = (W - pad * 2 - gap) * .55, rightX = pad + leftW + gap, rightW = W - pad - rightX
     const half = (lowerH - gap) / 2
 
-    // LAST SESSION
     panel(pad, lowerY, leftW, half, -.2)
     section(pad + 18 * k, lowerY + 14 * k, 'LAST SESSION', last ? SPORT_COLOR[last.sport] : P.blue)
     if (!last) {
       txt(pad + 18 * k, lowerY + 52 * k, 'NO SESSION YET', 22, P.ink, true)
       txt(pad + 18 * k, lowerY + 86 * k, 'Finish a Tempo Session to build your story.', 12, 0x5a4632)
     } else {
+      const rom = sessionRomLabel(last.sport, last.romMean, last.romMax, last.swings)
+      const lastEnergy = formatEstimatedEnergy(last.kcal)
       txt(pad + 18 * k, lowerY + 50 * k, last.sport.toUpperCase(), 26, SPORT_COLOR[last.sport], true)
       txt(pad + leftW - 18 * k, lowerY + 54 * k, new Date(last.endedAt ?? last.startedAt).toLocaleDateString(), 11, 0x5a4632, false, 1)
       txt(pad + 18 * k, lowerY + 88 * k, `${formatActive(last.activeSeconds)} active  ·  ${last.swings} actions`, 13, P.ink)
-      txt(pad + 18 * k, lowerY + 112 * k, `Movement load  ${Math.round(last.motionLoad * 100)}%`, 12, 0x5a4632)
-      txt(pad + 18 * k, lowerY + 136 * k, last.weightKg ? `~${Math.round(last.kcal ?? 0)} kcal estimated` : 'Energy not calculated · add weight in Settings', 11, 0x5a4632)
-      // Mini motion bars from last session epochs if present
+      txt(pad + 18 * k, lowerY + 112 * k, `MOVEMENT INTENSITY  ${intensity}`, 12, 0x5a4632)
+      txt(pad + 18 * k, lowerY + 132 * k, intensityBar(last.motionLoad), 12, P.teal)
+      txt(pad + 18 * k, lowerY + 156 * k, lastEnergy.estimated ? `Est. active energy  ${lastEnergy.value} ${lastEnergy.unit}` : 'Est. active energy  NOT ESTIMATED', 11, 0x5a4632)
+      if (rom) txt(pad + 18 * k, lowerY + 178 * k, `${rom.label}  ${rom.degrees}°`, 11, 0x5a4632)
       const epochs = last.epochs ?? []
       if (epochs.length > 4) {
-        const chartX = pad + 18 * k, chartY = lowerY + half - 28 * k, chartW = leftW - 40 * k, chartH = 36 * k
+        const chartX = pad + 18 * k, chartY = lowerY + half - 20 * k, chartW = leftW - 40 * k, chartH = 28 * k
         const step = Math.max(1, Math.floor(epochs.length / 40))
         const samples = epochs.filter((_, i) => i % step === 0).slice(0, 40)
         const maxLoad = Math.max(0.2, ...samples.map((e) => e.motionLoad ?? 0))
@@ -111,7 +110,6 @@ export class HealthScene extends Phaser.Scene {
       }
     }
 
-    // TEMPO RESPONSE
     panel(pad, lowerY + half + gap, leftW, half, .25)
     section(pad + 18 * k, lowerY + half + gap + 14 * k, 'TEMPO RESPONSE', P.purple)
     const a = s?.lastAdaptation
@@ -124,7 +122,6 @@ export class HealthScene extends Phaser.Scene {
       txt(pad + 18 * k, lowerY + half + gap + 90 * k, adaptationCopy(a.reasonCode) ?? 'Tempo kept the next segment steady.', 11, 0x5a4632)
     }
 
-    // BODY RESPONSE
     panel(rightX, lowerY, rightW, half, .2)
     section(rightX + 18 * k, lowerY + 14 * k, 'BODY RESPONSE', P.blue)
     const v = s?.latestVitals
@@ -133,33 +130,37 @@ export class HealthScene extends Phaser.Scene {
       txt(rightX + 18 * k, lowerY + 88 * k, 'Enable camera on Ready-Up for pulse.', 12, 0x5a4632)
     } else {
       txt(rightX + 18 * k, lowerY + 52 * k, `${Math.round(v.pulse)} BPM`, 30, P.blue, true)
-      txt(rightX + 18 * k, lowerY + 96 * k, 'LATEST USABLE PULSE', 11, 0x5a4632)
-      // Simple start→now visual if we only have latest
-      const midY = lowerY + half - 36 * k
-      add(this.add.circle(rightX + 40 * k, midY, 8 * k, P.teal).setDepth(12))
-      add(this.add.rectangle(rightX + 40 * k, midY - 2 * k, rightW - 100 * k, 4 * k, P.ink, .25).setOrigin(0).setDepth(12))
-      add(this.add.circle(rightX + rightW - 48 * k, midY, 10 * k, P.blue).setDepth(12))
-      txt(rightX + 28 * k, midY + 16 * k, 'SESSION', 10, 0x5a4632)
-      txt(rightX + rightW - 70 * k, midY + 16 * k, 'NOW', 10, 0x5a4632)
+      txt(rightX + 18 * k, lowerY + 96 * k, 'LATEST PULSE', 11, 0x5a4632)
+      if (v.breathing) txt(rightX + 18 * k, lowerY + 120 * k, `Breathing  ${Math.round(v.breathing)} / min`, 12, 0x5a4632)
+      if (v.hrvRmssd) txt(rightX + 18 * k, lowerY + 144 * k, `HRV RMSSD  ${Math.round(v.hrvRmssd)}  (extended)`, 11, 0x5a4632)
     }
 
-    // WEEKLY ACTIVE MINUTES
+    // ROM trend (same sport only)
     panel(rightX, lowerY + half + gap, rightW, half, -.2)
-    section(rightX + 18 * k, lowerY + half + gap + 14 * k, 'ACTIVE MINUTES · WEEK', P.teal)
+    section(rightX + 18 * k, lowerY + half + gap + 14 * k, 'ROM · ACTIVE MIN', P.teal)
+    const trendSport = last?.sport
+    const romTrend = (s?.romTrend ?? []).filter((r) => !trendSport || r.sport === trendSport).slice(-7)
+    if (romTrend.length >= 2) {
+      txt(rightX + 18 * k, lowerY + half + gap + 48 * k, `ROM TREND · ${trendSport?.toUpperCase() ?? 'SPORT'}`, 11, 0x5a4632)
+      const maxRom = Math.max(1, ...romTrend.map((r) => r.romMean))
+      romTrend.forEach((r, i) => {
+        const cell = (rightW - 36 * k) / Math.max(7, romTrend.length)
+        const x = rightX + 18 * k + i * cell
+        const h = Math.max(4 * k, 36 * k * (r.romMean / maxRom))
+        const base = lowerY + half + gap + 100 * k
+        add(this.add.rectangle(x + cell * .2, base - h, cell * .5, h, P.magenta).setOrigin(0).setDepth(12))
+      })
+    }
     const days = s?.days ?? Array.from({ length: 7 }, () => ({ day: '', activeSeconds: 0 }))
-    const chartY = lowerY + lowerH - 28 * k, chartTop = lowerY + half + gap + 52 * k
+    const chartY = lowerY + lowerH - 28 * k, chartTop = lowerY + half + gap + (romTrend.length >= 2 ? 120 * k : 52 * k)
     const max = Math.max(goal, ...days.map((d) => d.activeSeconds / 60), 1)
     days.forEach((d, i) => {
       const cell = (rightW - 36 * k) / 7, x = rightX + 18 * k + i * cell
-      const h = Math.max(3 * k, (chartY - chartTop) * (d.activeSeconds / 60) / max)
+      const h = Math.max(3 * k, Math.max(0, chartY - chartTop) * (d.activeSeconds / 60) / max)
       add(this.add.rectangle(x + cell * .18, chartY - h, cell * .55, h, d.activeSeconds ? P.teal : 0xcfc3a7).setOrigin(0).setDepth(12))
       txt(x + cell * .45, chartY + 4 * k, weekday(d.day ?? '', i), 10, 0x5a4632, false, .5)
     })
 
-    // Sport breakdown strip at very bottom if space — compact under week if tall enough; else footer only
-    if (s?.bySport && lowerH > 280 * k) {
-      // skip — already dense
-    }
-    txt(W - pad, H - 18 * k, 'S SETTINGS  ·  R REFRESH  ·  Energy estimated  ·  Expressions are not a diagnosis', 10, P.ink, false, 1)
+    txt(W - pad, H - 18 * k, 'S SETTINGS  ·  R REFRESH  ·  Energy estimated from motion + weight  ·  Not a diagnosis', 10, P.ink, false, 1)
   }
 }
