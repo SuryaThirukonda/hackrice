@@ -153,7 +153,7 @@ export class BoxingHud {
   clearCard(): void { for (const o of this.card) o.destroy(); this.card = [] }
 
   /** Big cartoony referee knockdown counter in the center of the ring. */
-  knockdownCount(n: number, who: 'a' | 'b'): void {
+  knockdownCount(n: number, who: 'a' | 'b', spectator = false): void {
     const W = this.W, H = this.H, s = this.scene
     this.clearCard()
 
@@ -188,10 +188,10 @@ export class BoxingHud {
         strokeThickness: 16,
       }).setOrigin(0.5)
 
-      const sub = s.add.text(0, panelH / 2 - 28, who === 'a' ? 'GET UP! TAP KEYS OR SHAKE!' : 'STAY DOWN!', {
+      const sub = s.add.text(0, panelH / 2 - 28, this.countLine(n, who, spectator), {
         fontFamily: FONT,
         fontSize: '18px',
-        color: HEX(who === 'a' ? P.red : P.ink),
+        color: HEX(who === 'a' && !spectator ? P.red : P.ink),
         fontStyle: '900',
       }).setOrigin(0.5)
 
@@ -218,8 +218,8 @@ export class BoxingHud {
     }
 
     if (this.countSub) {
-      this.countSub.setText(who === 'a' ? (n >= 8 ? 'LAST CHANCE! GET UP NOW!' : 'GET UP! TAP KEYS / SHAKE!') : (n >= 8 ? 'ALMOST OUT!' : 'STAY DOWN!'))
-      this.countSub.setColor(HEX(who === 'a' ? P.red : P.ink))
+      this.countSub.setText(this.countLine(n, who, spectator))
+      this.countSub.setColor(HEX(who === 'a' && !spectator ? P.red : P.ink))
     }
 
     if (this.countBurst) {
@@ -259,6 +259,14 @@ export class BoxingHud {
         ease: 'Quad.Out',
       })
     }
+  }
+
+  /** The line under the count. The referee's count is fixed by the sim (up at eight unless it is a KO) and
+   *  ignores every input, so the board never asks for key taps or a shake. Fight Night names the fighter. */
+  private countLine(n: number, who: 'a' | 'b', spectator: boolean): string {
+    if (spectator) return `${this.names[who === 'a' ? 0 : 1].toUpperCase()} IS DOWN${n >= 8 ? ' · ALMOST OUT' : ''}`
+    if (who === 'a') return n >= 8 ? 'LAST CHANCE!' : 'GET UP BEFORE TEN!'
+    return n >= 8 ? 'ALMOST OUT!' : 'STAY DOWN!'
   }
 
   clearKnockdownCount(): void {

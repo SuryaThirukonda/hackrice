@@ -115,6 +115,7 @@ export class BoxingScene extends Phaser.Scene {
     this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
+    controllerInput.clear('head_tracker') // a head snap made while the ring was loading must not dodge at the bell
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
       engine.setQuality(loadSettings().quality)
@@ -183,7 +184,7 @@ export class BoxingScene extends Phaser.Scene {
         break
       case 'count':
         sfx.count()
-        this.hud.knockdownCount(e.n, e.who)
+        this.hud.knockdownCount(e.n, e.who, this.card)
         break
       case 'getup':
         sfx.bell(1)

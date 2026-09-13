@@ -583,3 +583,17 @@
     height: 58px;
   }
 }
+
+/* Keyboard focus stays visible on every control (the restyle dropped the old outline). */
+.play-remote button:focus-visible,
+.play-remote a:focus-visible,
+.play-remote summary:focus-visible {
+  outline: 3px solid var(--c-ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .punch-ring {
+    animation-duration: 1ms;
+  }
+}
