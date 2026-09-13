@@ -196,7 +196,11 @@ export class VitalsBridge {
       sdk.start()
       this.sdk = sdk
     } catch (e) {
-      this.state.status = 'error'; this.state.error = (e as Error).message.slice(0, 200); this.state.guidance = this.state.error
+      const message = (e as Error).message.slice(0, 200)
+      // "input is unavailable" is what the SDK says when it cannot open any camera at all.
+      this.state.status = 'error'
+      this.state.error = /input is unavailable/i.test(message) ? `${message} No camera could be opened at index ${opts.cameraIndex ?? 0}: this machine may have no webcam, or another app holds it. Try the demo, or run the service on the laptop with the camera.` : message
+      this.state.guidance = this.state.error
     }
     return this.state
   }
