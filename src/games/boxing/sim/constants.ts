@@ -44,6 +44,9 @@ export const DODGE_TICKS = 30
 export const DODGE_IFRAMES = 22 // ticks 0..21 are invulnerable
 export const DODGE_COOLDOWN = 54
 export const DODGE_STAMINA = 4
+/** Stamina handed back when a dodge actually evades a punch: more than the dodge cost, so reading the
+ *  opponent is rewarded and a defensive fighter is never the one who runs dry. */
+export const DODGE_REWARD = 12
 export const SWAY_SLIDE = 1.0
 export const HEAD_SWAY = 0.35
 export const HEAD_DUCK = 0.35
@@ -51,11 +54,11 @@ export const HEAD_LERP = 0.25
 
 // stamina
 export const STAMINA_MAX = 100
-export const REGEN_IDLE = 8
-export const REGEN_FAST = 3
+/** Per second at rest or while moving. Moving costs nothing: only punches, blocks and dodges spend stamina. */
+export const REGEN_IDLE = 18
 export const FATIGUE_KNEE = 30
 export const GETUP_STAMINA = 40
-export const REST_STAMINA = 30
+export const REST_STAMINA = 45
 
 // rounds and knockdowns
 export const ROUNDS = 3

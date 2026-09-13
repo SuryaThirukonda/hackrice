@@ -1,4 +1,4 @@
-import { BLOCK_HOLD_DRAIN, REGEN_GUARD, CANCEL_WINDOW, COUNTDOWN_STEP, COUNT_TICKS, DODGE_COOLDOWN, DODGE_STAMINA, DODGE_TICKS, DT, FRAME, GETUP_COUNT, GETUP_STAMINA, GETUP_TICKS, GUARD_MOVE_MUL, GUARD_RECOVER_STAMINA, HEAD_DUCK, HEAD_SWAY, KD_LIMIT_ROUND, MOVE_BACK, MOVE_FWD, MOVE_STRAFE, PUNCH_CARRY, REGEN_FAST, REGEN_IDLE, REST_S, REST_STAMINA, ROUNDS, ROUND_S, STAMINA_MAX, START_DIST, SWAY_SLIDE, ticks } from './constants'
+import { BLOCK_HOLD_DRAIN, REGEN_GUARD, CANCEL_WINDOW, COUNTDOWN_STEP, COUNT_TICKS, DODGE_COOLDOWN, DODGE_STAMINA, DODGE_TICKS, DT, FRAME, GETUP_COUNT, GETUP_STAMINA, GETUP_TICKS, GUARD_MOVE_MUL, GUARD_RECOVER_STAMINA, HEAD_DUCK, HEAD_SWAY, KD_LIMIT_ROUND, MOVE_BACK, MOVE_FWD, MOVE_STRAFE, PUNCH_CARRY, REGEN_IDLE, REST_S, REST_STAMINA, ROUNDS, ROUND_S, STAMINA_MAX, START_DIST, SWAY_SLIDE, ticks } from './constants'
 import { Bot } from './bot'
 import { canMove, createFighter, setState } from './fighter'
 import { clampRopes, dist, facing, integrate, rightOf, separate } from './physics'
@@ -153,7 +153,7 @@ export class BoxingMatch {
 
   private stamina(f: Fighter): void {
     if (f.guard) f.stamina = Math.max(1, f.stamina - (BLOCK_HOLD_DRAIN - REGEN_GUARD) * DT)
-    else if (f.state === 'idle') f.stamina = Math.min(STAMINA_MAX, f.stamina + (f.moving > MOVE_FWD * 0.5 ? REGEN_FAST : REGEN_IDLE) * DT)
+    else if (f.state === 'idle') f.stamina = Math.min(STAMINA_MAX, f.stamina + REGEN_IDLE * DT) // footwork is free
     if (f.guardBroken && f.stamina >= GUARD_RECOVER_STAMINA) f.guardBroken = false
   }
 

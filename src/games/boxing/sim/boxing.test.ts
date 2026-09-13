@@ -187,7 +187,7 @@ describe('stagger, hitstun, stamina', () => {
     expect(ps.some((p) => p.who === 'a' && p.result === 'hit')).toBe(true)
     expect(ps.some((p) => p.who === 'b')).toBe(false)
   })
-  it('stamina: punches cost, idle regen is 8/s, gassed fighters cannot punch, tired punches are slow and weak', () => {
+  it('stamina: punches cost, idle regen is 18/s, gassed fighters cannot punch, tired punches are slow and weak', () => {
     const m = fighting(); place(m, 1.0)
     run(m, 2, once(cmd({ punch: 'jab' })))
     expect(m.a.stamina).toBeCloseTo(STAMINA_MAX - FRAME.jab.stamina, 5)
@@ -195,7 +195,7 @@ describe('stagger, hitstun, stamina', () => {
     m.a.stamina = 50
     const s0 = m.a.stamina
     run(m, HZ)
-    expect(m.a.stamina - s0).toBeCloseTo(8, 1)
+    expect(m.a.stamina - s0).toBeCloseTo(18, 1)
     m.a.stamina = 3
     const ev = run(m, 5, once(cmd({ punch: 'jab' })))
     expect(ev.some((e) => e.kind === 'gassed')).toBe(true)
@@ -351,9 +351,9 @@ describe('fight feel: bot pressure, cadence, stamina economy', () => {
   it('punches per minute sit in the tier bands', () => {
     expect(perMinute('rookie').ppm).toBeGreaterThan(4); expect(perMinute('rookie').ppm).toBeLessThan(10)
     expect(perMinute('champ').ppm).toBeGreaterThan(perMinute('rookie').ppm)
-    expect(perMinute('champ').ppm).toBeLessThan(22)
+    expect(perMinute('champ').ppm).toBeLessThan(36) // refill is 18/s and footwork is free, so a champ boxes at pace
   })
-  it('stamina is a real limiter: the 11th jab in a row is refused, and a long guard drains the bar slowly', () => {
+  it('stamina is a real limiter: a run of jabs is refused before the 14th, and a long guard drains the bar slowly', () => {
     const m = fighting(); place(m, 2.5) // out of reach so nothing lands; only costs matter
     let refused = 0, thrown = 0
     for (let i = 0; i < 14; i++) {
@@ -361,7 +361,7 @@ describe('fight feel: bot pressure, cadence, stamina economy', () => {
       if (ev.some((e) => e.kind === 'gassed')) refused++
       if (ev.some((e) => e.kind === 'windup')) thrown++
     }
-    expect(thrown).toBeLessThanOrEqual(11)
+    expect(thrown).toBeLessThanOrEqual(13) // regen pauses while a punch is in flight, so spam still runs dry
     expect(refused).toBeGreaterThanOrEqual(1)
     const g = fighting(); place(g, 2.5)
     const s0 = g.a.stamina

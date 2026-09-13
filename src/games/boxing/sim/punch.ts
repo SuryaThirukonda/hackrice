@@ -1,4 +1,4 @@
-import { BLOCK_DMG_MUL, BLOCK_KNOCK_MUL, DODGE_IFRAMES, FRAME, GUARD_BREAK_STAGGER, HITSTOP, HITSTOP_STAGGER, MOMENTUM_DMG, MOMENTUM_KNOCK, MOVE_FWD, SHAKE, STAGGER_BONUS, STAGGER_DMG, STAGGER_TICKS } from './constants'
+import { STAMINA_MAX, DODGE_REWARD, BLOCK_DMG_MUL, BLOCK_KNOCK_MUL, DODGE_IFRAMES, FRAME, GUARD_BREAK_STAGGER, HITSTOP, HITSTOP_STAGGER, MOMENTUM_DMG, MOMENTUM_KNOCK, MOVE_FWD, SHAKE, STAGGER_BONUS, STAGGER_DMG, STAGGER_TICKS } from './constants'
 import { fatigueDmg, fatigueTime, setState } from './fighter'
 import type { Fighter, Flags, PunchKind, SimEvent, V2 } from './types'
 
@@ -34,6 +34,8 @@ export function resolvePunch(att: Fighter, def: Fighter, snap: DefSnap, dir: V2,
   const fd = FRAME[att.punch], m = att.momentum
   if (snap.state === 'down' || snap.state === 'getup') return
   if (snap.state === 'dodge' && snap.dodgeTick < DODGE_IFRAMES) {
+    // a dodge that actually evades pays the defender back, with interest
+    def.stamina = Math.min(STAMINA_MAX, def.stamina + DODGE_REWARD)
     out.events.push({ kind: 'punch', who: att.id, punch: att.punch, result: 'dodged', dmg: 0, momentum: m })
     return
   }

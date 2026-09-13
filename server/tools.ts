@@ -6,10 +6,12 @@ export type Sport = 'boxing' | 'bowling' | 'golf'
 /** Stamina the simulation actually charges, so the prompt and the server-side budget can never drift from the sim. */
 export const JAB_COST = FRAME.jab.stamina
 export const CROSS_COST = FRAME.cross.stamina
-/** One 2.5 s script may spend this fraction of current stamina. Regen is 8/s resting, so ~45% keeps a fighter solvent. */
-export const SCRIPT_BUDGET = 0.45
+/** One 2.5 s script may spend this fraction of current stamina. Regen is 18/s at rest and footwork is
+ *  free, so a script can spend most of what it has and still come out solvent. */
+export const SCRIPT_BUDGET = 0.6
 /** Below this the fighter must recover: every punch is dropped from the script. */
-export const RECOVER_BELOW = 30
+/** Below this a script throws nothing. The prompt in summarize.ts states the same number in words. */
+export const RECOVER_BELOW = 15
 /** Hard ceiling regardless of stamina, so a fresh fighter still boxes instead of flailing. */
 export const MAX_PUNCHES = 3
 export type BoxAction = 'jab' | 'cross' | 'block_on' | 'block_off' | 'swayL' | 'swayR' | 'duck' | 'in' | 'out' | 'left' | 'right' | 'idle'
