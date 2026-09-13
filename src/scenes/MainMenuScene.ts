@@ -32,7 +32,7 @@ export class MainMenuScene extends Phaser.Scene {
     const shadow = this.add.ellipse(W * 0.19, H * (compact ? .72 : .62) + (compact ? 56 : 74), compact ? 92 : 120, compact ? 20 : 26, P.ink, 0.5)
     this.tweens.add({ targets: shadow, scaleX: 0.7, alpha: 0.25, duration: 700, yoyo: true, repeat: -1, ease: 'Quad.Out' })
     const items: [string, number, string, () => void][] = [
-      ['TEMPO SESSION', P.red, 'movement · recovery · adaptive play', () => wipeTo(this, 'tempo-session')],
+      ['TEMPO SESSION', P.red, 'pick a sport · ready up · play', () => wipeTo(this, 'tempo-session')],
       ['FREE PLAY', P.teal, 'pick a sport and opponent', () => wipeTo(this, 'mode')],
       ['FIGHT NIGHT', P.orange, 'two AI fighters, bet your chips', () => wipeTo(this, 'fightnight')],
       ['CONNECT A PHONE', P.magenta, 'scan a QR to use a phone as a controller', () => openControllerConnect(this)],

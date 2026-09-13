@@ -18,6 +18,7 @@ import { BowlingScene } from './games/bowling/BowlingScene'
 import { GolfScene } from './games/golf/GolfScene'
 import { controllerInput } from './input/controller'
 import { TempoSessionScene } from './scenes/TempoSessionScene'
+import { ReadyUpScene } from './scenes/ReadyUpScene'
 import { BaselineScene } from './scenes/BaselineScene'
 import { RecoveryScene } from './scenes/RecoveryScene'
 import { SessionSummaryScene } from './scenes/SessionSummaryScene'
@@ -39,7 +40,7 @@ function start(): void {
     // The in-app preview pane may not fire requestAnimationFrame while hidden; a setTimeout ticker keeps the game alive in dev.
     fps: { forceSetTimeOut: import.meta.env.DEV, target: 60 },
     scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH, width: window.innerWidth, height: window.innerHeight },
-    scene: [BootScene, TitleScene, MainMenuScene, TempoSessionScene, BaselineScene, RecoveryScene, SessionSummaryScene, ModeSelectScene, GameSelectScene, PlaceholderScene, BoxingScene, TutorialScene, PreFightScene, SettingsScene, FightNightScene, BowlingScene, GolfScene, ControllerScene, HealthScene, CursorTrail],
+    scene: [BootScene, TitleScene, MainMenuScene, TempoSessionScene, ReadyUpScene, BaselineScene, RecoveryScene, SessionSummaryScene, ModeSelectScene, GameSelectScene, PlaceholderScene, BoxingScene, TutorialScene, PreFightScene, SettingsScene, FightNightScene, BowlingScene, GolfScene, ControllerScene, HealthScene, CursorTrail],
   })
 
   // Re-lay out the active screen when the window size changes (menus position everything from scale.width/height).

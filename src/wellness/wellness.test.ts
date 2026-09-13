@@ -28,7 +28,7 @@ describe('wellness core', () => {
   it('falls back without physiology and keeps adaptation deterministic and bounded', () => {
     const p = buildPlayerState({ performance: .8, motionIntensity: .6, engagement: .9, consistency: .7, recovery: null })
     const e = new AdaptationEngine(), d = e.decide(p, 'boxing')
-    expect(p.sources.physiology).toBe(false); expect(d.reasonCode).toBe('movement_only_progress'); expect(e.apply(.99, d)).toBeLessThanOrEqual(1)
+    expect(p.sources.physiology).toBe(false); expect(d.reasonCode).toBe('strong_performance_movement'); expect(e.apply(.99, d)).toBeLessThanOrEqual(1)
   })
   it('plans deterministic goal-appropriate sessions', () => {
     const p = new SessionPlanner(); expect(p.plan('energize', 10)).toEqual(p.plan('energize', 10))
@@ -37,8 +37,16 @@ describe('wellness core', () => {
   it('applies a boundary decision next-sport bias without changing the stored plan', () => {
     tempoFlow.start('energize', 10); const plan = JSON.stringify(tempoFlow.plan); expect(tempoFlow.nextSport()).toBe('boxing')
     const segment = tempoFlow.addSegment('boxing', null, .5, .5)
-    segment.decision = { difficultyDelta: 0, recoverySecondsDelta: 15, nextSportBias: 'bowling', reasonCode: 'high_exertion_limited_recovery' }
+    segment.decision = { difficultyDelta: -.03, recoverySecondsDelta: 10, nextSportBias: 'bowling', reasonCode: 'low_performance_high_movement' }
     expect(tempoFlow.peekNextSport()).toBe('bowling'); expect(tempoFlow.nextSport()).toBe('bowling')
     expect(JSON.stringify(tempoFlow.plan)).toBe(plan)
+  })
+  it('starts a single-sport session from Ready-Up without the intent maze', () => {
+    tempoFlow.startSport('boxing')
+    expect(tempoFlow.selectedSport).toBe('boxing')
+    expect(tempoFlow.nextSport()).toBe('boxing')
+    expect(tempoFlow.readyToStart).toBe(false)
+    tempoFlow.controllerMode = 'keyboard'
+    expect(tempoFlow.readyToStart).toBe(true)
   })
 })

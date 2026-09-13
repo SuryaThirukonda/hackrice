@@ -62,7 +62,7 @@ export class RecoveryScene extends Phaser.Scene {
     text(W - left - cardW + 24 * k, top + 112 * k, `RECOVERY  ${recoveryLabel(this.recovery)}`, 14, P.ink)
     if (decision) text(W - left - cardW + 24 * k, top + 146 * k, `NEXT SPORT  ${tempoFlow.peekNextSport()?.toUpperCase() ?? 'COOLDOWN'}`, 14, P.blue)
     text(W - left - cardW + 24 * k, top + (decision ? 184 : 168) * k, decision ? decision.difficultyDelta > 0 ? `REACTION +${Math.round(decision.difficultyDelta * 100)}%` : decision.difficultyDelta < 0 ? `CHALLENGE ${Math.round(decision.difficultyDelta * 100)}%` : 'CHALLENGE HELD' : 'PREPARING…', 25, decision ? P.purple : P.orange)
-    if (decision) text(W - left - cardW + 24 * k, top + 232 * k, adaptationCopy(decision.reasonCode), 11, 0x5a4632, 0, cardW - 48 * k)
+    if (decision) text(W - left - cardW + 24 * k, top + 232 * k, adaptationCopy(decision.reasonCode) ?? 'Tempo kept the next segment steady.', 11, 0x5a4632, 0, cardW - 48 * k)
     const status = this.recovery === null ? 'Physiology unavailable · continuing with movement + performance.' : `Signal good · ${Math.round(this.recovery * 100)}% toward starting pulse.`
     text(W / 2, H - 138 * k, status, 12, this.recovery === null ? P.orange : P.green, .5)
     if (this.adapted) add(new ComicButton(this, W / 2, H - 78 * k, 'CONTINUE', () => this.continue(), { color: P.green, w: 300 * k, h: 58 * k, size: Math.round(24 * k) }))

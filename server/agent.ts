@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage } from 'node:http'
 import { mkdirSync } from 'node:fs'
 import { HealthStore } from './health'
 import { VitalsBridge, listCameras } from './vitals'
+import { handleFrameMessage } from './vitalsFrames'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import OpenAI from 'openai'
@@ -61,7 +62,11 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && path === '/vitals') return json(res, 200, vitals.state)
     if (req.method === 'GET' && path === '/vitals/devices') return json(res, 200, listCameras())
     if (req.method === 'GET' && path === '/vitals/history') return json(res, 200, health.vitalsHistory(Date.now() - Math.max(1, Math.min(24 * 60, Number(q.get('minutes') ?? 30))) * 60_000))
-    if (req.method === 'POST' && path === '/vitals/start') { const b = await readJson(req); return json(res, 200, await vitals.start({ cameraIndex: Number.isFinite(Number(b.cameraIndex)) ? Number(b.cameraIndex) : 0, demo: b.demo === true })) }
+    if (req.method === 'POST' && path === '/vitals/start') {
+      const b = await readJson(req)
+      const input = b.input === 'custom' || b.input === 'camera' || b.input === 'demo' ? b.input : undefined
+      return json(res, 200, await vitals.start({ cameraIndex: Number.isFinite(Number(b.cameraIndex)) ? Number(b.cameraIndex) : 0, demo: b.demo === true, input }))
+    }
     if (req.method === 'POST' && path === '/vitals/stop') return json(res, 200, await vitals.stop())
     if (req.method === 'OPTIONS') return json(res, 204, {})
     return json(res, 404, { error: 'not_found' })
@@ -119,11 +124,24 @@ const server = createServer(async (req, res) => {
 // rejects every other path with a 400, which would make the controller relay unreachable on this port.
 const wss = new WebSocketServer({ noServer: true })
 const relay = new ControllerRelay()
+// Camera frames from the browser get their own socket: they are binary, an order of magnitude bigger than
+// controller packets, and must never be able to stall the input relay.
+const frames = new WebSocketServer({ noServer: true, maxPayload: 2 * 1024 * 1024 })
 server.on('upgrade', (request, socket, head) => {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
   if (pathname === '/agent/ws') wss.handleUpgrade(request, socket, head, (ws) => wss.emit('connection', ws, request))
+  else if (pathname === '/vitals-frames-ws') frames.handleUpgrade(request, socket, head, (ws) => frames.emit('connection', ws, request))
   else if (relay.handles(pathname)) relay.upgrade(request, socket, head)
   else socket.destroy()
+})
+frames.on('connection', (ws) => {
+  ws.on('message', (data: Buffer, isBinary: boolean) => {
+    const reply = handleFrameMessage(vitals, data, isBinary)
+    if (!reply) return
+    ws.send(JSON.stringify(reply))
+    // An error is terminal: the page has to ask for a reading before it may push frames.
+    if (reply.type === 'error') ws.close(1008, reply.code)
+  })
 })
 wss.on('connection', (ws) => {
   ws.on('message', async (data) => {
@@ -146,5 +164,6 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 server.listen(port, () => {
   console.log(`[agent] listening on :${port} model=${model} key=${key ? 'present' : 'missing (fallback scripts only)'}`)
   console.log('[controller] relay on /controller-ws (phones) and /controller-game-ws (game)')
+  console.log('[vitals] browser camera frames on /vitals-frames-ws (after POST /vitals/start { input: "custom" })')
   void service.health().then((h) => console.log('[agent] health', JSON.stringify(h)))
 })

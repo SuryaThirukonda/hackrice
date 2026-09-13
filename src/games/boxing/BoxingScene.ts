@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { HealthTracker, summaryLine } from '../../health/tracker'
-import { healthBadge } from '../../health/liveBadge'
+import { tempoSenseHud } from '../../ui/TempoSenseHud'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { controllerInput } from '../../input/controller'
@@ -45,7 +45,7 @@ export class BoxingScene extends Phaser.Scene {
   private paused = false
   private ended = false
   private health!: HealthTracker
-  private badge: { update: () => void; destroy: () => void } | null = null
+  private badge: { update: () => void; destroy: () => void; layout: (W: number, H: number) => void } | null = null
   private ready = false
   private startedAt = 0
   private eventLog: string[] = []
@@ -109,7 +109,7 @@ export class BoxingScene extends Phaser.Scene {
     controllerInput.setSport('boxing')
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('boxing')
-    this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
+    this.badge?.destroy(); this.badge = tempoSenseHud(this, 'boxing', this.health)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
     void Engine3D.get().then((engine) => {
@@ -127,6 +127,7 @@ export class BoxingScene extends Phaser.Scene {
 
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
+    this.badge?.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 

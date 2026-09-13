@@ -9,6 +9,8 @@ const PROXY = {
   // Anchored: a bare prefix would also capture the lab pages (/vitals.html) and send them to the service.
   '^/health(/|$)': { target: 'http://localhost:8790', changeOrigin: true },
   '^/vitals(/|$)': { target: 'http://localhost:8790', changeOrigin: true },
+  // Binary camera frames from the page to the service. Anchored /vitals above cannot catch this path.
+  '/vitals-frames-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
   '/controller-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
   '/controller-game-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
 }
