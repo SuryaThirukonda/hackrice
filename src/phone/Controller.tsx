@@ -566,7 +566,7 @@ export default function Controller() {
                   onKeyUp={endBlock} onBlur={endBlock}><Shield /></button>
               : <button className="face-a" aria-label="A Start motion" disabled={!attemptReady} onClick={startAttempt}><Play /></button>}
               {sport === 'boxing' && <small>{blocking ? 'GUARD UP' : 'HOLD'}</small>}</div>
-            <div><button className="face-b" aria-label={sport === 'boxing' ? 'B Duck' : attemptActive ? 'B Cancel motion' : 'B Toggle aim mode'} onClick={sport === 'boxing' ? duck : () => { if (attemptActive) cancelAttempt(); else sendControllerAction('placeholder_secondary', 'Aim / movement toggled') }}>{sport === 'boxing' ? <Duck /> : <Cancel />}</button></div>
+            <div><button className="face-b" aria-label={sport === 'boxing' ? 'B Duck' : sport === 'bowling' ? 'B Arm the throw' : attemptActive ? 'B Cancel motion' : 'B Toggle aim mode'} onClick={sport === 'boxing' ? duck : sport === 'bowling' ? () => sendControllerAction('placeholder_secondary', 'Throw armed · now swing') : () => { if (attemptActive) cancelAttempt(); else sendControllerAction('placeholder_secondary', 'Aim / movement toggled') }}>{sport === 'boxing' ? <Duck /> : <Cancel />}</button></div>
           </div>
         </div>
         <div className="console-grille">▰ ▰ ▰ ▰ ▰</div>

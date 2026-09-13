@@ -10,8 +10,13 @@ export const POWER_EXP = 0.7   // launch speed = full speed * frac^POWER_EXP, so
 /** Capture radius. A regulation hole is 0.054 m, but the cup is drawn at 0.2 m radius (CourseScene 'cup' cylinder,
  *  scale 0.4) and the ball is drawn at 0.12 m, so at 0.054 the ball visibly rolled across the hole and missed.
  *  Matched to just inside the drawn cup so anything passing over the hole slowly drops in. */
-export const CUP_R = 0.18
-export const CUP_MAX_SPEED = 2.0
+/** The ball's own radius, as modelled: touching means the ball's edge reaches the cup's edge, not its centre. */
+export const BALL_R = 0.03
+/** Drawn cup radius. The render draws the cup as a 0.4 m cylinder. */
+export const CUP_DRAWN_R = 0.2
+/** Capture radius, centre to centre: the moment the ball touches the drawn hole it is in. There is no
+ *  speed limit and no lip-out; a ball that reaches the hole is finished. */
+export const CUP_R = CUP_DRAWN_R + BALL_R
 export const PUTT_SPEED = 12
 export const ACC_DEG = 8
 export const ACC_LOSS = 0.06

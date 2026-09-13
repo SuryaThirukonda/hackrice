@@ -141,8 +141,11 @@ export class GolfHud {
     if (!st.myTurn) { this.meterTxt.setText(''); return }
     g.fillStyle(P.ink, 0.9).fillRoundedRect(b.x + 4, b.y + 5, b.w, b.h, 8)
     g.fillStyle(P.paper).fillRoundedRect(b.x, b.y, b.w, b.h, 8)
-    if (m.state === 'idle') this.meterTxt.setText('SPACE to start the swing')
-    else if (m.state === 'power') {
+    if (m.state === 'idle') this.meterTxt.setText('SPACE to start the swing  ·  or A on the phone')
+    else if (m.state === 'armed') {
+      g.fillStyle(P.green, 0.35).fillRoundedRect(b.x + 4, b.y + 4, b.w - 8, b.h - 8, 5)
+      this.meterTxt.setText('ARMED  ·  swing the phone, any direction')
+    } else if (m.state === 'power') {
       const fw = Math.max(0, Math.min(1, m.value)) * (b.w - 8)
       g.fillStyle(m.value > 0.85 ? P.red : m.value > 0.5 ? P.gold : P.green).fillRoundedRect(b.x + 4, b.y + 4, fw, b.h - 8, 5)
       this.meterTxt.setText(`POWER ${Math.round(m.value * 100)}%  ·  SPACE`)

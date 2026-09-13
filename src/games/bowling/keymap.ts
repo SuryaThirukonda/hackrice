@@ -1,4 +1,5 @@
 import type { KeyState } from '../../input/keys'
+import type { ControllerEvent, ControllerStick } from '../../input/controller'
 import { SHOT_LIMITS } from './sim/constants'
 
 export interface BowlingBindings { left: string[]; right: string[]; aimL: string[]; aimR: string[]; hookL: string[]; hookR: string[]; roll: string[]; confirm: string[]; sheet: string[] }
@@ -72,3 +73,32 @@ export function applyAim(s: AimState, i: BowlingInput, dtS: number): AimState {
   }
 }
 export const defaultAim = (): AimState => ({ lanePos: 0, angleDeg: 0, hook: 0 })
+
+// ---- phone controller ----
+export interface BowlingControllerState { hookArmed: boolean; armed: boolean }
+export const bowlingControllerState = (): BowlingControllerState => ({ hookArmed: true, armed: false })
+/** One frame of phone input for bowling. hook, lock and arm are one-shots; swingPower is 0..1 or null. */
+export interface BowlingPhoneCommand { hook: Axis; lock: boolean; arm: boolean; swingPower: number | null }
+const HOOK_FIRE = 0.6, HOOK_REARM = 0.3
+
+/**
+ * Left/right on the D-pad add one step of hook per flick, re-arming at centre. A locks the sweeping
+ * line. B arms the throw, and only an armed throw takes the next swing as the ball's power: the phone
+ * can be swung about freely until the player has said they mean it. A dropped phone disarms.
+ */
+export function controllerBowlingCommand(stick: ControllerStick, events: readonly ControllerEvent[], state: BowlingControllerState, connected = true): { command: BowlingPhoneCommand; hookArmed: boolean; armed: boolean } {
+  const x = stick.fresh ? stick.x : 0
+  let hookArmed = state.hookArmed, hook: Axis = 0
+  if (Math.abs(x) < HOOK_REARM) hookArmed = true
+  else if (hookArmed && Math.abs(x) > HOOK_FIRE) { hook = x < 0 ? -1 : 1; hookArmed = false }
+  let armed = connected ? state.armed : false
+  let lock = false, arm = false, swingPower: number | null = null
+  for (const event of events) {
+    if (event.kind === 'action') {
+      // A on the phone arrives as `placeholder_primary` from the phone's swing flow (see the golf mapping).
+      if (event.action === 'block_start' || event.action === 'placeholder_primary') lock = true
+      else if (event.action === 'emergency_power' || event.action === 'placeholder_secondary') { armed = true; arm = true }
+    } else if (armed && swingPower === null) { swingPower = Math.max(0, Math.min(1, event.power / 100)); armed = false }
+  }
+  return { hookArmed, armed, command: { hook, lock, arm, swingPower } }
+}

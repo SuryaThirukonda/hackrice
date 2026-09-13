@@ -16,12 +16,19 @@ Without the agent service or an API key, Fight Night uses deterministic scripted
 
 ## Phone controller
 
-A phone can play boxing alongside the keyboard: swing in any direction to punch, with damage scaled
-by swing speed and a wrist turn making it a cross; hold `A` to keep the guard up and release to drop
-it; `B` ducks; D-pad left/right slips and up/down steps in and out. Both inputs are merged every
-frame, so either can be used at any time. A swing that registers flashes green on the phone, on the
-player's corner of the screen, and in the motion lab. Bowling and golf are keyboard-only so far; the
-transport and the relay already carry their sport stamp.
+A phone plays all three sports alongside the keyboard. Both inputs are merged every frame, so either
+can be used at any moment, and a swing that registers flashes green on the phone, on the player's
+corner of the screen, and in the motion lab.
+
+| Phone | Boxing | Golf | Bowling |
+|---|---|---|---|
+| Swing | punch, any direction; speed sets damage, a wrist turn makes it a cross | the shot, once armed; speed sets power, accuracy is perfect | the roll, once armed; speed sets power |
+| `A` | hold to guard | arm the swing | lock the sweeping line |
+| `B` | duck | cancel the arm | arm the throw |
+| D-pad ←→ | slip | aim | one step of hook per flick |
+| D-pad ↑↓ | step in / out | longer / shorter club | — |
+
+The bowling aim marker is a blue line, thicker once locked.
 
 A phone needs HTTPS, because browsers only expose the motion sensors on a secure origin. `npm run dev`
 therefore starts a Cloudflare quick tunnel by itself and prints the address next to the local one. No

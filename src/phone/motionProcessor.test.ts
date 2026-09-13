@@ -295,22 +295,23 @@ describe('MotionProcessor', () => {
     expect(events).toHaveLength(1)
     expect(events[0].gesture).toBe('golf_swing')
     expect(events[0].peakRotation).toBeGreaterThan(250)
-    expect(events[0].power).toBeGreaterThan(35)
-    expect(events[0].power).toBeLessThan(60)
+    // an ordinary swing lands in the 20s: the ceiling was raised so 100 takes an all-out effort
+    expect(events[0].power).toBeGreaterThan(15)
+    expect(events[0].power).toBeLessThan(35)
     expect(Math.hypot(...events[0].direction)).toBeCloseTo(1, 6)
   })
 
-  it('scores a strong swing around 75–85 instead of saturating at 100', () => {
-    const { processor, events, nextTime } = calibratedProcessor('golf')
-    feedVectors(
-      processor,
-      nextTime,
-      [...swingFrames(38, 650, [0.1, 0.99, 0]), ...quietFrames(10)],
-    )
-
-    expect(events).toHaveLength(1)
-    expect(events[0].power).toBeGreaterThanOrEqual(70)
-    expect(events[0].power).toBeLessThanOrEqual(88)
+  it('scores a strong swing in the 40s and 50s, and only an all-out swing near 100', () => {
+    const strong = calibratedProcessor('golf')
+    feedVectors(strong.processor, strong.nextTime, [...swingFrames(38, 650, [0.1, 0.99, 0]), ...quietFrames(10)])
+    expect(strong.events).toHaveLength(1)
+    expect(strong.events[0].power).toBeGreaterThanOrEqual(40)
+    expect(strong.events[0].power).toBeLessThanOrEqual(58)
+    // 100 is still reachable, it just costs everything the arm has
+    const allOut = calibratedProcessor('golf')
+    feedVectors(allOut.processor, allOut.nextTime, [...swingFrames(72, 1_500, [0.1, 0.99, 0]), ...quietFrames(10)])
+    expect(allOut.events).toHaveLength(1)
+    expect(allOut.events[0].power).toBeGreaterThanOrEqual(95)
   })
 
   it('detects a separately tuned bowling swing and direction', () => {
@@ -324,7 +325,7 @@ describe('MotionProcessor', () => {
     expect(events).toHaveLength(1)
     expect(events[0].gesture).toBe('bowling_swing')
     expect(events[0].direction[1]).toBeGreaterThan(0.5)
-    expect(events[0].power).toBeGreaterThan(25)
+    expect(events[0].power).toBeGreaterThan(10) // a gentle roll; the raised ceiling keeps 100 for a real heave
   })
 
   it('can gate detection to a single capture window', () => {

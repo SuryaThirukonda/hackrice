@@ -6,7 +6,8 @@ import { KeyState } from '../../input/keys'
 import { loadSettings } from '../../agent/sliders'
 import { comicPanel } from '../../ui/widgets'
 import { DISPLAY, HEX, P } from '../../theme'
-import { GOLF_HELP, GOLF_KEYS, SwingMeter, golfInput, keyLabel, type GolfBindings } from './keymap'
+import { GOLF_HELP, GOLF_KEYS, SwingMeter, golfInput, keyLabel, type GolfBindings, controllerGolfCommand, golfControllerState } from './keymap'
+import { controllerInput } from '../../input/controller'
 import { golfPractice, type GolfPracticeStep, type GolfPracticeUi } from './tutorial'
 import { GolfHud, CLUB_NAMES, toParText } from './hud/GolfHud'
 import { GolfWorld, type AimState } from './render/GolfWorld'
@@ -54,6 +55,7 @@ export class GolfScene extends Phaser.Scene {
   private bindings: GolfBindings = GOLF_KEYS
   private meter = new SwingMeter()
   private club: Club = 'driver'
+  private pad = golfControllerState()
   private heading = 0
   private topView = false
   private aiming = false          // true while the player is in control of an aim phase
@@ -95,6 +97,9 @@ export class GolfScene extends Phaser.Scene {
     this.acc = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []
     this.meter.reset(); this.topView = false; this.aiming = false; this.previewShown = false; this.previewDirty = true
     this.detach = this.keys.attach(window)
+    controllerInput.setSport('golf')
+    controllerInput.clear('controller_1')
+    this.pad = golfControllerState()
     this.input.keyboard!.on('keydown-ESC', () => this.togglePause())
     this.input.keyboard!.on('keydown-H', () => { if (!this.ended) this.togglePause() })
     this.input.keyboard!.on('keydown-Q', () => { if (this.paused) this.quit() })
@@ -264,14 +269,20 @@ export class GolfScene extends Phaser.Scene {
     const dtS = Math.min(deltaMs, 100) / 1000
     const inp = golfInput(this.keys, this.bindings)
     this.keys.endFrame()
+    // Drained every frame, in or out of turn, so a swing thrown during the House's shot never waits in
+    // the queue to fire the moment the player's turn begins. The keyboard wins any field it is using.
+    const remote = controllerGolfCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'golf'), this.pad)
+    this.pad = { clubArmed: remote.clubArmed }
     if (this.paused || this.ended) { this.world?.apply(this.curr, this.aimState(), dtS); this.hud.update(this.curr, this.hudState(), dtS); return }
 
     // player's aim phase
     if (this.myTurn()) {
       if (!this.aiming) { this.aiming = true; this.beginAim() }
-      if (inp.club !== 0) this.cycleClub(inp.club)
-      if (inp.aim !== 0) {
-        const d = inp.aim * (this.club === 'putter' ? PUTT_AIM_RATE : AIM_RATE) * dtS
+      const club = inp.club !== 0 ? inp.club : remote.command.club
+      const aim = inp.aim !== 0 ? inp.aim : remote.command.aim
+      if (club !== 0) this.cycleClub(club)
+      if (aim !== 0) {
+        const d = aim * (this.club === 'putter' ? PUTT_AIM_RATE : AIM_RATE) * dtS
         this.heading += d; this.previewDirty = true; this.practiceUi.aimTurnedDeg += Math.abs(d)
       }
       if (inp.view) { this.topView = !this.topView; sfx.hover() }
@@ -280,6 +291,10 @@ export class GolfScene extends Phaser.Scene {
         this.meter.press()
         if (this.meter.state === 'power') { sfx.hover(); this.practiceUi.swings++ } else if (this.meter.state === 'accuracy') sfx.select(); else if (this.meter.state === 'done') sfx.stamp()
       }
+      // phone: A arms, B cancels, and an armed swing carries the power straight into the shot
+      if (remote.command.arm && this.meter.state === 'idle') { this.meter.arm(); sfx.select(); this.hud.burst('ARMED · SWING', P.green, 40) }
+      if (remote.command.cancel && this.meter.state === 'armed') { this.meter.cancel(); sfx.back() }
+      if (remote.command.swingPower !== null && this.meter.fromSwing(remote.command.swingPower)) { sfx.stamp(); this.practiceUi.swings++ }
       if (this.meter.state === 'done') this.fire()
     } else this.aiming = false
     this.updatePreview(t)

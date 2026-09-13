@@ -69,10 +69,15 @@ not touching the D-pad.
   reached from the main menu and from every pause screen), both fed by `scripts/tunnel.mjs` through
   `src/input/joinLink.ts`. The in-game screen also shows each slot's live claim state and warns when
   the relay itself is unreachable.
-- Bowling and golf mappings. Golf needs a decision: `SwingMeter` is a three-press state machine producing power
-  AND accuracy, while a swing gesture only carries power. Simplest faithful option is to set power from the
-  swing, accuracy to the perfect value, and force the meter to `done` so both input paths still fire through
-  `fire()`.
+- ~~Bowling and golf mappings.~~ Done. Note the phone's own flow outside boxing: A sends `placeholder_primary`,
+  runs a three-second countdown, then opens a two-second capture window and publishes the best swing in it,
+  so the game arms on that action and the swing arrives up to five seconds later. In bowling B arms the
+  throw even during the capture window; in golf B cancels. Power ceilings were raised on both swing sports
+  so a committed swing reads in the 40s to 60s and only an all-out one reads 100. Golf: D-pad aims and changes club, A arms, the swing sets power with
+  perfect accuracy (`SwingMeter.arm/fromSwing`, both paths end in `done` and fire through `fire()`). Bowling:
+  D-pad flicks add hook, A locks the sweep, B arms, the swing releases with its power. The lane marker is a
+  blue line. Bot tiers were lowered across all three games, inside the floors the suites pin (a rookie must
+  still throw, a bowling champ must still average 150 and release near centre).
 
 ### Damage from swing speed: resolved
 

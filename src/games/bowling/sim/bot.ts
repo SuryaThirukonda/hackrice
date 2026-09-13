@@ -25,9 +25,11 @@ export function aimShot(targetX: number, hook = 0, power = 0.75): Shot {
 export const pocketShot = (hook = 0.6, power = 0.75): Shot => aimShot(POCKET_X, hook, power)
 
 export const TIERS: Record<'rookie' | 'pro' | 'champ', BotParams> = {
-  rookie: { aimNoiseDeg: 1.1, powerNoise: 0.15, hookSkill: 0.1, spareSkill: 0.3, timing: 0.2 },
-  pro: { aimNoiseDeg: 0.45, powerNoise: 0.08, hookSkill: 0.6, spareSkill: 0.65, timing: 0.6 },
-  champ: { aimNoiseDeg: 0.18, powerNoise: 0.04, hookSkill: 0.9, spareSkill: 0.9, timing: 0.92 },
+  rookie: { aimNoiseDeg: 1.5, powerNoise: 0.2, hookSkill: 0.05, spareSkill: 0.2, timing: 0.14 },
+  pro: { aimNoiseDeg: 0.65, powerNoise: 0.11, hookSkill: 0.45, spareSkill: 0.5, timing: 0.45 },
+  // The champ's release timing stays where it was: the suite pins how close to centre a champ releases,
+  // and anything looser fails it. Aim, power, hook and spare skill are all softer than before.
+  champ: { aimNoiseDeg: 0.22, powerNoise: 0.045, hookSkill: 0.85, spareSkill: 0.86, timing: 0.92 },
 }
 
 /** Deterministic opponent: pocket ball on a full rack, centroid of the standing pins otherwise, seeded noise on top. */

@@ -1,6 +1,6 @@
 import type { Rng } from '../../boxing/sim/rng'
 import { CLUBS } from './clubs'
-import { ACC_DEG, ACC_LOSS, BOUNCE_JITTER_DEG, BOUNCE_KEEP, CUP_MAX_SPEED, CUP_R, DT, LIE_MUL, MAX_SHOT_TICKS, POWER_EXP, PUTT_SPEED, RESTITUTION, ROLL_DECEL, ROLL_START, flyStep } from './flight'
+import { ACC_DEG, ACC_LOSS, BOUNCE_JITTER_DEG, BOUNCE_KEEP, CUP_R, DT, LIE_MUL, MAX_SHOT_TICKS, POWER_EXP, PUTT_SPEED, RESTITUTION, ROLL_DECEL, ROLL_START, flyStep } from './flight'
 import { surfaceAt } from './holes'
 import type { Hole, Shot, ShotEvent, Surface, V2, V3 } from './types'
 
@@ -81,8 +81,10 @@ export class ShotSim {
       const k = (sp - dec) / sp
       this.vel.x *= k; this.vel.z *= k
       this.pos.x += this.vel.x * DT; this.pos.z += this.vel.z * DT
+      // Touching the hole is holing it, at any speed: the segment test catches a ball that crosses the cup
+      // between two ticks, so a fast putt cannot skip over it either.
       if (surf === 'green' && segDist(this.hole.cup, prev, this.pos) <= CUP_R) {
-        if (sp < CUP_MAX_SPEED) { this.pos.x = this.hole.cup.x; this.pos.z = this.hole.cup.z; this.stop(); this.outcome = 'holed'; ev.push({ kind: 'cup' }) }
+        this.pos.x = this.hole.cup.x; this.pos.z = this.hole.cup.z; this.stop(); this.outcome = 'holed'; ev.push({ kind: 'cup' })
       }
     }
     if (this.t % TRAIL_EVERY === 0 || this.done) this.trail.push({ ...this.pos })

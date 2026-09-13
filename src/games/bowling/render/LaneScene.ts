@@ -1,10 +1,11 @@
 import { Environment } from '../../../engine3d/environment'
+import { v3 } from '../../../engine3d/springs'
 import { Entity } from 'playcanvas'
 import { P } from '../../../theme'
 import { flatMat, matteMat, shinyMat, toonMat, unlitMat } from '../../../engine3d/materials'
 import { carpetTex, panelTex, woodTex } from '../../../engine3d/textures'
 import type { GraphicsDevice } from 'playcanvas'
-import { part, pivot } from '../../../engine3d/primitives'
+import { part, pivot, orientSegment } from '../../../engine3d/primitives'
 import { Rng } from '../../boxing/sim/rng'
 import { BALL_R, BALL_START_Z, DECK_END_Z, GUTTER_W, LANE_HALF, LANE_LEN, OIL_Z, PIN_SPOTS } from '../sim/constants'
 import { previewPath } from '../sim/preview'
@@ -27,9 +28,9 @@ export class LaneScene {
   pins: Entity[] = []
   ball: Entity
   aimGuide: Entity
-  private dots: Entity[] = []
-  private dotGold = unlitMat(P.gold)
-  private dotGreen = unlitMat(P.green)
+  /** Path segments: cylinders laid end to end, so the marker reads as one blue line rather than dots. */
+  private segments: Entity[] = []
+  private lineBlue = unlitMat(P.blue)
   private rigs: PinRig[] = []
   private crowd: { e: Entity; phase: number; y: number }[] = []
   private hop = 0
@@ -175,9 +176,9 @@ export class LaneScene {
     this.ball = part(root, 'ball', 'sphere', shinyMat(P.magenta), { pos: { x: 0, y: BALL_R, z: WZ(BALL_START_Z) }, scale: { x: BALL_R * 2, y: BALL_R * 2, z: BALL_R * 2 }, outlineK: 0.02 })
     const hole = unlitMat(0x141414)
     for (const [hx, hy] of [[-0.12, 0.42], [0.12, 0.42], [0, 0.2]]) part(this.ball, 'hole', 'sphere', hole, { pos: { x: hx, y: hy, z: 0.36 }, scale: { x: 0.12, y: 0.12, z: 0.12 }, outline: false })
-    // aim guide: a dotted predicted path (straight run, hook curve after the oil, or the gutter drop)
-    this.aimGuide = pivot(root, 'aimGuide', { x: 0, y: 0.01, z: 0 })
-    for (let i = 0; i < 64; i++) { const d = part(this.aimGuide, 'dot', 'cylinder', this.dotGold, { scale: { x: 0.07, y: 0.008, z: 0.07 }, outline: false }); d.enabled = false; this.dots.push(d) }
+    // aim guide: the predicted path as one blue line (straight run, hook curve after the oil, or the gutter drop)
+    this.aimGuide = pivot(root, 'aimGuide', { x: 0, y: 0.012, z: 0 })
+    for (let i = 0; i < 63; i++) { const seg = part(this.aimGuide, 'seg', 'cylinder', this.lineBlue, { scale: { x: 0.05, y: 0.2, z: 0.05 }, outline: false }); seg.enabled = false; this.segments.push(seg) }
   }
 
   /** Put the ball at a sim position; while rolling it spins with the distance travelled. */
@@ -188,19 +189,16 @@ export class LaneScene {
     this.ball.setLocalEulerAngles(this.spin % 360, 0, 0)
   }
 
-  /** Show the predicted path as dots; locked paths turn green. Hidden when path is null. */
+  /** Show the predicted path as a blue line, thicker once the sweep is locked. Hidden when path is null. */
   setAimPath(path: V2[] | null, locked: boolean): void {
     this.aimGuide.enabled = path !== null
     if (!path) return
-    const mat = locked ? this.dotGreen : this.dotGold
-    this.dots.forEach((d, i) => {
-      const p = path[i]
-      d.enabled = p !== undefined
-      if (!p) return
-      d.setLocalPosition(p.x, 0, WZ(p.z))
-      const sc = locked ? 0.085 : 0.07
-      d.setLocalScale(sc, 0.008, sc)
-      if (d.render && d.render.material !== mat) d.render.material = mat
+    const r = locked ? 0.05 : 0.032
+    this.segments.forEach((seg, i) => {
+      const a = path[i], b = path[i + 1]
+      seg.enabled = a !== undefined && b !== undefined
+      if (!a || !b) return
+      orientSegment(seg, v3(a.x, 0, WZ(a.z)), v3(b.x, 0, WZ(b.z)), r)
     })
   }
   /** Kept for callers that still pass an AimState: draws the path for that aim at medium power. */

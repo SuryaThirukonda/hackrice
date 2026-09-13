@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Rng } from '../../boxing/sim/rng'
 import { TIERS } from './bot'
 import { CLUBS, FULL_CLUBS, carryTable } from './clubs'
-import { ACC_DEG, CUP_R, HZ, ROLL_DECEL, ROLL_START, RESTITUTION, BOUNCE_KEEP } from './flight'
+import { ACC_DEG, BALL_R, CUP_DRAWN_R, CUP_R, HZ, ROLL_DECEL, ROLL_START, RESTITUTION, BOUNCE_KEEP } from './flight'
 import { HOLES, surfaceAt } from './holes'
 import { GolfRound } from './round'
 import { ShotSim, simulateShot } from './shot'
@@ -106,22 +106,24 @@ describe('hazards', () => {
 })
 
 describe('cup', () => {
-  it('a 3 m putt at moderate power holes out; at full power it lips out and rolls past', () => {
+  it('a 3 m putt holes out at moderate power and at full power: touching the hole is enough', () => {
     const r = scripted(0); r.wind = { x: 0, z: 0 }
     placeBall(r, 'a', 0, 147); placeBall(r, 'b', 0, 147)
     const ev = play(r, shot('putter', 0.25))
     expect(ev.find((e) => e.kind === 'holed')).toEqual({ kind: 'holed', player: 'a', strokes: 1 })
     expect(r.balls.a.holed).toBe(true)
     expect(r.current).toBe('b')
+    // There is no lip-out any more: a full-power putt over the hole drops, it does not roll past.
     const ev2 = play(r, shot('putter', 1))
-    expect(kinds(ev2)).not.toContain('holed')
-    expect(r.ball('b').z).toBeGreaterThan(150 + 5)
+    expect(kinds(ev2)).toContain('holed')
+    expect(r.balls.b.holed).toBe(true)
   })
 
-  it('a slow putt that rolls over the edge of the drawn cup drops in', () => {
-    // The cup is drawn at 0.2 m radius. A 2 degree miss over 3 m passes about 0.10 m off centre, which is
-    // visibly inside the hole; at the old 0.054 m capture radius it rolled straight over and missed.
-    expect(CUP_R).toBeGreaterThan(0.1)
+  it('a putt whose edge just grazes the drawn cup drops in', () => {
+    // Capture is the drawn radius plus the ball's own radius, so contact at the rim counts. A 2 degree
+    // miss over 3 m passes about 0.10 m off centre, well inside that.
+    expect(CUP_R).toBeCloseTo(CUP_DRAWN_R + BALL_R, 6)
+    expect(CUP_R).toBeGreaterThan(0.2)
     const r = scripted(0); r.wind = NO_WIND
     placeBall(r, 'a', 0, 147); placeBall(r, 'b', 0, 147)
     expect(kinds(play(r, shot('putter', 0.25, 2)))).toContain('holed')

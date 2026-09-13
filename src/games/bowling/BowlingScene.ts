@@ -7,7 +7,8 @@ import { loadSettings } from '../../agent/sliders'
 import { comicPanel } from '../../ui/widgets'
 import { DISPLAY, HEX, P } from '../../theme'
 import { previewPath } from './sim/preview'
-import { applyAim, BOWLING_HELP, BOWLING_KEYS, bowlingInput, defaultAim, keyLabel, MeterTracker, meterValue, type AimState, type BowlingBindings } from './keymap'
+import { applyAim, BOWLING_HELP, BOWLING_KEYS, bowlingInput, bowlingControllerState, controllerBowlingCommand, defaultAim, keyLabel, MeterTracker, meterValue, type AimState, type BowlingBindings } from './keymap'
+import { controllerInput } from '../../input/controller'
 import { bowlingPractice, type PracticeStep, type PracticeView } from './tutorial'
 import { BowlingHud } from './hud/BowlingHud'
 import { BowlingWorld } from './render/BowlingWorld'
@@ -33,6 +34,7 @@ export class BowlingScene extends Phaser.Scene {
   private curr!: Snapshot
   private aim: AimState = defaultAim()
   private charging = false
+  private pad = bowlingControllerState()
   private chargeStart = 0
   private power: number | null = null
   private paused = false
@@ -66,6 +68,7 @@ export class BowlingScene extends Phaser.Scene {
     this.steps = d.practice ? bowlingPractice(this.bindings) : []
     this.stepIx = 0
     this.aim = defaultAim(); this.charging = false; this.power = null; this.meter.reset()
+    controllerInput.setSport('bowling'); controllerInput.clear('controller_1'); this.pad = bowlingControllerState()
     this.hud = new BowlingHud(this)
     this.hud.names = ['YOU', this.houseName]
     this.hud.layout(this.scale.width, this.scale.height)
@@ -124,7 +127,7 @@ export class BowlingScene extends Phaser.Scene {
 
   private release(power: number): void {
     if (!this.humanTurn) return
-    this.charging = false; this.power = null; this.hud.meter(null)
+    this.charging = false; this.power = null; this.hud.meter(null); this.pad = bowlingControllerState()
     if (this.sim.startRoll({ lanePos: this.aim.lanePos, angleDeg: this.aim.angleDeg, power, hook: this.aim.hook })) sfx.whoosh(power > 0.7)
   }
 
@@ -175,15 +178,24 @@ export class BowlingScene extends Phaser.Scene {
     if (inp.sheet) { sfx.hover(); this.hud.toggleSheet() }
     this.keys.endFrame()
     const dtS = Math.min(deltaMs, 100) / 1000
+    // Drained every frame so nothing thrown during the House's roll fires at the player's next turn.
+    const remote = controllerBowlingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'bowling'), this.pad, controllerInput.connected('controller_1'))
+    this.pad = { hookArmed: remote.hookArmed, armed: remote.armed }
     if (this.paused || this.ended) { this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path()); this.hud.update(this.curr, dtS); return }
     // aim phase: adjust the shot, charge and release
     if (this.humanTurn) {
-      this.aim = applyAim(this.aim, inp, dtS)
+      // the phone's D-pad adds hook one step per flick; the keyboard wins the frame when both are used
+      this.aim = applyAim(this.aim, inp.hook !== 0 ? inp : { ...inp, hook: remote.command.hook }, dtS)
       this.hud.aimReadout(this.aim, this.curr.sway, this.curr.swayLocked)
       if (!this.sim.locked) {
-        // stage 1: the line sweeps; the first tap (or Enter) locks it
-        if (inp.meterPress || inp.confirm) { if (this.sim.lockSway()) { sfx.stamp(); this.hud.burst('LOCKED', P.green, 44) } }
-      } else if (inp.meterPress && !this.charging) {
+        // stage 1: the line sweeps; the first tap (or Enter, or A on the phone) locks it
+        if (inp.meterPress || inp.confirm || remote.command.lock) { if (this.sim.lockSway()) { sfx.stamp(); this.hud.burst('LOCKED', P.green, 44) } }
+        if (remote.command.arm) this.hud.burst('LOCK THE LINE FIRST · A', P.orange, 36)
+      } else if (remote.command.swingPower !== null && !this.charging) {
+        // phone: B armed the throw, and this swing is the release; power comes from the swing speed
+        this.release(remote.command.swingPower)
+      } else if (remote.command.arm && !this.charging) { sfx.select(); this.hud.burst('ARMED · SWING', P.blue, 44) }
+      else if (inp.meterPress && !this.charging) {
         // stage 2: a fresh press starts the charge
         this.charging = true; this.chargeStart = this.time.now
       }
