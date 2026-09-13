@@ -1,5 +1,24 @@
 import { lanOrigin, startQuickTunnel } from './quickTunnel.mjs'
 
+/** How long a starting tunnel may take before phones are offered the same-WiFi address instead. */
+export const TUNNEL_GRACE_MS = 20_000
+
+/**
+ * The body of `GET /join-config.json`, or null to fall through to a static file.
+ *
+ * Phones get the HTTPS tunnel whenever there is one, because only a secure page can read the motion
+ * sensors. While the tunnel is still starting nothing is offered, so a phone scanned in those first
+ * seconds does not land on a LAN page whose sensors cannot work. The same-WiFi address (D-pad and
+ * buttons only) is offered once the tunnel has failed, is disabled, or has been starting for longer than
+ * TUNNEL_GRACE_MS: cloudflared can hang without ever reporting an error, and the connect screen must not
+ * stay empty when no tunnel is coming.
+ */
+export function joinConfig({ origin, lan, port, failure, startingForMs = 0 }) {
+  if (origin) return { origin, lan, port, error: failure || undefined }
+  if (lan && (failure || startingForMs >= TUNNEL_GRACE_MS)) return { origin: '', lan, port, error: failure || undefined }
+  return null
+}
+
 /**
  * Starts a Cloudflare quick tunnel alongside the dev (and preview) server and answers
  * `GET /join-config.json` with the address it was given.
@@ -19,13 +38,15 @@ export function cloudflareTunnel() {
 
   const begin = (server, label, port) => {
     lan = lanOrigin(port)
-    // The config route answers from memory. When no tunnel is up it falls through, so a
+    const startedAt = Date.now()
+    // The config route answers from memory. While it has nothing to offer it falls through, so a
     // `public/join-config.json` written by the standalone script is still served as a static file.
     server.middlewares.use('/join-config.json', (_req, res, next) => {
-      if (!origin) return next()
+      const body = joinConfig({ origin, lan, port, failure, startingForMs: Date.now() - startedAt })
+      if (!body) return next()
       res.setHeader('content-type', 'application/json')
       res.setHeader('cache-control', 'no-store')
-      res.end(JSON.stringify({ origin, lan, port, error: failure || undefined }))
+      res.end(JSON.stringify(body))
     })
     if (process.env.HAP_NO_TUNNEL === '1') {
       failure = 'tunnel disabled by HAP_NO_TUNNEL'
