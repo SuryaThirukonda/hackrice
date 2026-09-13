@@ -5,6 +5,7 @@ import { MainMenuScene } from './scenes/MainMenuScene'
 import { ModeSelectScene } from './scenes/ModeSelectScene'
 import { GameSelectScene } from './scenes/GameSelectScene'
 import { PlaceholderScene } from './scenes/PlaceholderScene'
+import { CreditsScene } from './scenes/CreditsScene'
 import { CursorTrail } from './fx/CursorTrail'
 import { isWiping } from './fx/transitions'
 import { BoxingScene } from './games/boxing/BoxingScene'
@@ -35,7 +36,7 @@ function start(): void {
     // The in-app preview pane may not fire requestAnimationFrame while hidden; a setTimeout ticker keeps the game alive in dev.
     fps: { forceSetTimeOut: import.meta.env.DEV, target: 60 },
     scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH, width: window.innerWidth, height: window.innerHeight },
-    scene: [BootScene, TitleScene, MainMenuScene, ModeSelectScene, GameSelectScene, PlaceholderScene, BoxingScene, TutorialScene, PreFightScene, SettingsScene, FightNightScene, BowlingScene, GolfScene, ControllerScene, HealthScene, CursorTrail],
+    scene: [BootScene, TitleScene, MainMenuScene, ModeSelectScene, GameSelectScene, PlaceholderScene, CreditsScene, BoxingScene, TutorialScene, PreFightScene, SettingsScene, FightNightScene, BowlingScene, GolfScene, ControllerScene, HealthScene, CursorTrail],
   })
 
   // Re-lay out the active screen when the window size changes (menus position everything from scale.width/height).

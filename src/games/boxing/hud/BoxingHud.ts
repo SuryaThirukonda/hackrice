@@ -18,6 +18,10 @@ export class BoxingHud {
   private hint!: Phaser.GameObjects.Text
   private flash!: Phaser.GameObjects.Rectangle
   private card: Phaser.GameObjects.GameObject[] = []
+  private countPanel?: Phaser.GameObjects.Container
+  private countBurst?: Phaser.GameObjects.Graphics
+  private countNum?: Phaser.GameObjects.Text
+  private countSub?: Phaser.GameObjects.Text
   private ghostA = 100; private ghostB = 100
   private timerPanel!: Phaser.GameObjects.Graphics
   private punchWash!: Phaser.GameObjects.Rectangle
@@ -29,6 +33,7 @@ export class BoxingHud {
   constructor(scene: Phaser.Scene) { this.scene = scene; this.layout(scene.scale.width, scene.scale.height) }
 
   layout(W: number, H: number): void {
+    this.clearKnockdownCount()
     this.W = W; this.H = H
     for (const o of this.static) o.destroy()
     this.static = []
@@ -147,6 +152,125 @@ export class BoxingHud {
   }
   clearCard(): void { for (const o of this.card) o.destroy(); this.card = [] }
 
+  /** Big cartoony referee knockdown counter in the center of the ring. */
+  knockdownCount(n: number, who: 'a' | 'b'): void {
+    const W = this.W, H = this.H, s = this.scene
+    this.clearCard()
+
+    if (!this.countPanel) {
+      const panelW = Math.min(480, W * 0.76)
+      const panelH = 280
+      const container = s.add.container(W / 2, H * 0.44).setDepth(122)
+
+      const bg = s.add.graphics()
+      // Comic drop shadow
+      bg.fillStyle(P.ink, 0.95).fillRoundedRect(-panelW / 2 + 8, -panelH / 2 + 10, panelW, panelH, 24)
+      // Comic paper panel
+      bg.fillStyle(P.paper, 1).fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 24)
+      bg.lineStyle(6, P.ink, 1).strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 24)
+
+      const burst = s.add.graphics()
+      this.countBurst = burst
+
+      const heading = s.add.text(0, -panelH / 2 + 34, '★ REFEREE COUNT ★', {
+        fontFamily: DISPLAY,
+        fontSize: '32px',
+        color: HEX(P.red),
+        stroke: HEX(P.ink),
+        strokeThickness: 6,
+      }).setOrigin(0.5)
+
+      const num = s.add.text(0, 4, String(n), {
+        fontFamily: DISPLAY,
+        fontSize: '130px',
+        color: HEX(P.gold),
+        stroke: HEX(P.ink),
+        strokeThickness: 16,
+      }).setOrigin(0.5)
+
+      const sub = s.add.text(0, panelH / 2 - 28, who === 'a' ? 'GET UP! TAP KEYS OR SHAKE!' : 'STAY DOWN!', {
+        fontFamily: FONT,
+        fontSize: '18px',
+        color: HEX(who === 'a' ? P.red : P.ink),
+        fontStyle: '900',
+      }).setOrigin(0.5)
+
+      container.add([bg, burst, heading, num, sub])
+      container.setAngle(-1.5)
+      this.countPanel = container
+      this.countNum = num
+      this.countSub = sub
+    }
+
+    const numColor = n >= 9 ? P.magenta : n >= 7 ? P.red : n >= 4 ? P.orange : P.gold
+    if (this.countNum) {
+      this.countNum.setText(String(n))
+      this.countNum.setColor(HEX(numColor))
+      s.tweens.killTweensOf(this.countNum)
+      this.countNum.setScale(1.7).setAngle(Phaser.Math.Between(-8, 8))
+      s.tweens.add({
+        targets: this.countNum,
+        scale: 1,
+        angle: 0,
+        duration: 220,
+        ease: 'Back.Out',
+      })
+    }
+
+    if (this.countSub) {
+      this.countSub.setText(who === 'a' ? (n >= 8 ? 'LAST CHANCE! GET UP NOW!' : 'GET UP! TAP KEYS / SHAKE!') : (n >= 8 ? 'ALMOST OUT!' : 'STAY DOWN!'))
+      this.countSub.setColor(HEX(who === 'a' ? P.red : P.ink))
+    }
+
+    if (this.countBurst) {
+      const g = this.countBurst
+      g.clear()
+      g.lineStyle(4, P.ink, 1)
+      g.fillStyle(numColor, 0.3)
+      const points = 12
+      const rOuter = 78
+      const rInner = 48
+      const pts: { x: number; y: number }[] = []
+      for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? rOuter : rInner
+        const angle = (i * Math.PI) / points
+        pts.push({ x: Math.cos(angle) * r, y: 4 + Math.sin(angle) * r })
+      }
+      g.fillPoints(pts, true)
+      g.strokePoints(pts, true)
+      g.setScale(0.8)
+      s.tweens.killTweensOf(g)
+      s.tweens.add({
+        targets: g,
+        scale: 1.15,
+        duration: 200,
+        yoyo: true,
+        ease: 'Quad.Out',
+      })
+    }
+
+    if (this.countPanel) {
+      s.tweens.killTweensOf(this.countPanel)
+      this.countPanel.setScale(1.05)
+      s.tweens.add({
+        targets: this.countPanel,
+        scale: 1,
+        duration: 180,
+        ease: 'Quad.Out',
+      })
+    }
+  }
+
+  clearKnockdownCount(): void {
+    if (this.countPanel) {
+      this.countPanel.destroy()
+      this.countPanel = undefined
+      this.countBurst = undefined
+      this.countNum = undefined
+      this.countSub = undefined
+    }
+  }
+
   /** End-of-match panel with rematch and menu buttons. */
   result(title: string, lines: string[], color: number, onRematch: () => void, onMenu: () => void, labels: [string, string] = ['REMATCH', 'BACK TO MENU']): MenuNav {
     this.clearOverlay()
@@ -162,7 +286,7 @@ export class BoxingHud {
   }
   private pause: { destroy: () => void } | null = null
   pauseOverlay(rows: PauseRow[], actions: PauseAction[]): void { this.clearOverlay(); this.pause = pauseOverlay(this.scene, rows, actions) }
-  clearOverlay(): void { for (const o of this.overlay) o.destroy(); this.overlay = []; this.pause?.destroy(); this.pause = null }
+  clearOverlay(): void { this.clearKnockdownCount(); for (const o of this.overlay) o.destroy(); this.overlay = []; this.pause?.destroy(); this.pause = null }
 
   private bubbles: Phaser.GameObjects.GameObject[] = []
   /** Comic speech bubble near a corner's bar. */

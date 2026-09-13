@@ -38,7 +38,7 @@ export class MainMenuScene extends Phaser.Scene {
       ['HEALTH', P.teal, 'active minutes, calories and range of motion', () => wipeTo(this, 'health')],
       ['HOW TO PLAY', P.green, 'controls and a guided practice', () => wipeTo(this, 'tutorial', { game: 'boxing', from: 'menu' })],
       ['SETTINGS', P.cyan, 'sound and key bindings', () => wipeTo(this, 'settings')],
-      ['CREDITS', P.purple, 'HackRice 16', () => wipeTo(this, 'placeholder', { title: 'CREDITS', sub: 'made at HackRice 16 · original art and audio' })],
+      ['CREDITS', P.purple, 'HackRice 16', () => wipeTo(this, 'credits')],
     ]
     const buttons = items.map(([t, c, sub, cb], i) => {
       const b = new ComicButton(this, W * 0.72 + W, H * 0.13 + i * 76, t, cb, { color: c, sub, w: 440, h: 70 })
