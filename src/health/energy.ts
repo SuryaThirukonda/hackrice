@@ -1,120 +1,82 @@
-/**
- * Energy and activity estimates from phone motion.
- *
- * The phone is held in the hand, so it behaves like a wrist-worn research accelerometer: movement
- * intensity per one-second epoch (mean acceleration magnitude with gravity and rest bias removed) maps
- * to a metabolic equivalent, and the standard formula turns that into calories per minute for a body
- * weight. Every number here is an estimate. Active seconds and swing counts are exact; calories are
- * indicative and are labelled that way wherever they are shown.
- */
+import { motionLoad } from '../wellness/motionLoad'
+
 export type HealthSport = 'boxing' | 'bowling' | 'golf'
+export type MetricSource = 'motion-measured' | 'game-derived' | 'energy-estimate' | 'presage' | 'wellness-derived'
+export type EnergyConfidence = 'LOW' | 'MODERATE' | 'HIGH'
 
-/** One second of movement, as the phone summarises it. */
+/** One second of normalized phone motion. The first five fields remain wire-compatible with stored traces. */
 export interface Epoch {
-  /** Milliseconds since the session began. */
-  t: number
-  /** Mean acceleration magnitude over the second, m/s², gravity and rest bias removed. */
-  mean: number
-  /** Peak acceleration magnitude in the second, m/s². */
-  peak: number
-  /** Swings the detector completed in the second. */
-  swings: number
-  /** Degrees of rotation integrated over the second (all axes, magnitude). */
-  rotation: number
+  t: number; mean: number; peak: number; swings: number; rotation: number
+  accelRms?: number; gyroRms?: number; activeFraction?: number; actionPower?: number; motionLoad?: number
 }
 
-/** Metabolic equivalents per sport, low to high intensity. Kept below the compendium's full-body
- *  values for these sports, because a hand swinging a phone is not a whole body sparring. */
-export const MET_BAND: Record<HealthSport, [number, number]> = { boxing: [3, 6], bowling: [2.5, 3.5], golf: [2.5, 3.5] }
+/** Adult Compendium 2024 exergame anchors. Tempo boxing is not assigned competitive-boxing METs. */
+export const MET_BAND: Record<HealthSport, readonly [number, number]> = {
+  boxing: [2.3, 7.5], bowling: [2.3, 4.0], golf: [2.3, 4.0],
+}
 export const REST_MET = 1
-/** A second whose mean acceleration clears this is moving; below it the body is at rest for our purposes. */
-export const ACTIVE_MEAN = 0.8
-/** Mean acceleration that counts as the top of the band: sustained hard boxing lands around here. */
+export const ACTIVE_LOAD = .16
+export const ACTIVE_MEAN = .8 // legacy export used by the motion lab
 export const HARD_MEAN = 6
-/** A minute counts as active when at least this many of its seconds were moving. */
 export const ACTIVE_SECONDS_PER_MINUTE = 20
-export const DEFAULT_WEIGHT_KG = 70
-/** Every completed swing counts for one calorie on top of the time-based estimate, so the number
- *  visibly climbs with each punch, roll or drive. Bag work runs around a calorie a punch, which keeps
- *  this inside the honest range for an estimate. */
-export const SWING_KCAL = 1
-export const DEFAULT_GOAL_KCAL = 100
+export const DEFAULT_WEIGHT_KG = 70 // legacy only; new profiles do not assume it
+export const DEFAULT_GOAL_MINUTES = 30
+export const DEFAULT_GOAL_KCAL = 100 // legacy settings migration
+const c01 = (v: number): number => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0))
 
-const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
-
-/** 0 at rest, 1 at sustained hard effort, linear in between. */
-export const intensityIndex = (mean: number): number => clamp01((mean - ACTIVE_MEAN) / (HARD_MEAN - ACTIVE_MEAN))
-
-/** The MET a second of movement earns in this sport. */
-export function metFor(sport: HealthSport, mean: number): number {
-  if (!(mean >= ACTIVE_MEAN)) return REST_MET
+export const intensityIndex = (mean: number): number => c01((mean - ACTIVE_MEAN) / (HARD_MEAN - ACTIVE_MEAN))
+export function metForLoad(sport: HealthSport, load: number): number {
+  if (load < ACTIVE_LOAD) return REST_MET
   const [lo, hi] = MET_BAND[sport]
-  return lo + (hi - lo) * intensityIndex(mean)
+  return lo + (hi - lo) * c01((load - ACTIVE_LOAD) / (1 - ACTIVE_LOAD))
 }
-
-/** Calories per minute at a MET for a body weight: the standard MET × 3.5 × kg / 200. */
+/** Backwards-compatible helper for old traces. */
+export function metFor(sport: HealthSport, mean: number): number { return metForLoad(sport, motionLoad(sport, { t: 0, mean, peak: mean, swings: 0, rotation: 0 })) }
+/** Standard ACSM/Compendium conversion. Active energy subtracts the 1-MET resting component. */
 export const kcalPerMinute = (met: number, weightKg: number): number => met * 3.5 * Math.max(20, weightKg) / 200
 
 export interface ActivitySummary {
-  durationSeconds: number
-  activeSeconds: number
-  /** Whole minutes that met the active-seconds rule. */
-  activeMinutes: number
-  /** Estimated calories above resting, i.e. what the session added over sitting still. */
-  kcal: number
-  meanIntensity: number
-  peakAcceleration: number
-  swings: number
-  /** Mean and max rotation per swing, degrees. */
-  romMean: number
-  romMax: number
-  /** Last third's moving intensity over the first third's. Below 1 means effort faded; 1 when unknown. */
-  fatigue: number
+  durationSeconds: number; activeSeconds: number; activeMinutes: number; kcal: number | null
+  energyConfidence: EnergyConfidence; motionLoad: number; meanIntensity: number; peakAcceleration: number
+  swings: number; romMean: number; romMax: number; fatigue: number
 }
 
-/** Fold a session's epochs and per-swing rotations into the numbers the tab shows. */
-export function summarize(sport: HealthSport, epochs: readonly Epoch[], swingRoms: readonly number[], weightKg = DEFAULT_WEIGHT_KG): ActivitySummary {
-  let activeSeconds = 0, kcal = 0, peak = 0, swings = 0, intensitySum = 0
-  for (const s of swingRoms) if (Number.isFinite(s)) kcal += SWING_KCAL
-  const perMinute = new Map<number, number>()
+export function energyConfidence(weightKg: number | null, epochs: readonly Epoch[], knownSport = true, calibrated = true): EnergyConfidence {
+  if (weightKg === null || weightKg < 20) return 'LOW'
+  let score = 0
+  score += 2
+  if (knownSport) score++
+  if (epochs.length >= 30) score++
+  if (epochs.length >= 120) score++
+  if (calibrated) score++
+  return score >= 5 ? 'HIGH' : score >= 3 ? 'MODERATE' : 'LOW'
+}
+
+export function summarize(sport: HealthSport, epochs: readonly Epoch[], swingRoms: readonly number[], weightKg: number | null = null): ActivitySummary {
+  let activeSeconds = 0, kcal = 0, peak = 0, swings = 0, intensitySum = 0, loadSum = 0
+  const perMinute = new Map<number, number>(), loads: number[] = []
   for (const e of epochs) {
-    const moving = e.mean >= ACTIVE_MEAN
-    if (moving) { activeSeconds += 1; intensitySum += e.mean; perMinute.set(Math.floor(e.t / 60_000), (perMinute.get(Math.floor(e.t / 60_000)) ?? 0) + 1) }
-    kcal += (kcalPerMinute(metFor(sport, e.mean), weightKg) - kcalPerMinute(REST_MET, weightKg)) / 60
-    peak = Math.max(peak, e.peak)
-    swings += e.swings
+    const load = e.motionLoad ?? motionLoad(sport, e)
+    loads.push(load); loadSum += load
+    const moving = load >= ACTIVE_LOAD || e.swings > 0
+    if (moving) { activeSeconds++; intensitySum += e.mean; const m = Math.floor(e.t / 60_000); perMinute.set(m, (perMinute.get(m) ?? 0) + 1) }
+    if (weightKg !== null) kcal += Math.max(0, metForLoad(sport, load) - REST_MET) * 3.5 * Math.max(20, weightKg) / 200 / 60
+    peak = Math.max(peak, e.peak); swings += e.swings
   }
   let activeMinutes = 0
-  for (const n of perMinute.values()) if (n >= ACTIVE_SECONDS_PER_MINUTE) activeMinutes += 1
-  const moving = epochs.filter((e) => e.mean >= ACTIVE_MEAN)
-  const third = Math.floor(moving.length / 3)
-  const avg = (xs: readonly Epoch[]): number => xs.length ? xs.reduce((s, e) => s + e.mean, 0) / xs.length : 0
-  const fatigue = third >= 5 ? avg(moving.slice(-third)) / Math.max(1e-6, avg(moving.slice(0, third))) : 1
-  return {
-    durationSeconds: epochs.length,
-    activeSeconds,
-    activeMinutes,
-    kcal: Math.max(0, kcal + Math.max(0, swings - swingRoms.length) * SWING_KCAL),
-    meanIntensity: activeSeconds ? intensitySum / activeSeconds : 0,
-    peakAcceleration: peak,
-    swings,
-    romMean: swingRoms.length ? swingRoms.reduce((s, r) => s + r, 0) / swingRoms.length : 0,
-    romMax: swingRoms.length ? Math.max(...swingRoms) : 0,
-    fatigue,
-  }
+  for (const n of perMinute.values()) if (n >= ACTIVE_SECONDS_PER_MINUTE) activeMinutes++
+  const activeLoads = loads.filter((x) => x >= ACTIVE_LOAD), third = Math.floor(activeLoads.length / 3)
+  const avg = (xs: readonly number[]): number => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
+  const fatigue = third >= 5 ? avg(activeLoads.slice(-third)) / Math.max(.001, avg(activeLoads.slice(0, third))) : 1
+  return { durationSeconds: epochs.length, activeSeconds, activeMinutes, kcal: weightKg === null ? null : Math.max(0, kcal), energyConfidence: energyConfidence(weightKg, epochs),
+    motionLoad: epochs.length ? loadSum / epochs.length : 0, meanIntensity: activeSeconds ? intensitySum / activeSeconds : 0, peakAcceleration: peak, swings,
+    romMean: swingRoms.length ? swingRoms.reduce((a, b) => a + b, 0) / swingRoms.length : 0, romMax: swingRoms.length ? Math.max(...swingRoms) : 0, fatigue }
 }
 
-/** Active time as a clock, "m:ss", so a short session reads as twenty seconds rather than zero minutes. */
-export function formatActive(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds))
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
-
-/** What to say about a stretch of play. Honest and specific: it names what was done, then the goal. */
-export function praise(kcal: number, swings: number, activeSeconds: number, goalKcal: number): string {
-  const left = Math.max(0, Math.ceil(goalKcal - kcal))
-  if (swings === 0 && activeSeconds === 0) return `Nothing recorded yet. Today's goal is ${goalKcal} kcal: pick up the phone and swing.`
-  const done = kcal >= goalKcal ? 'Goal hit. Great work today.' : swings >= 60 || activeSeconds >= 600 ? 'Great session.' : swings >= 20 || activeSeconds >= 120 ? 'Good job.' : 'Nice start.'
-  const detail = `${swings} swing${swings === 1 ? '' : 's'}, ${formatActive(activeSeconds)} active, about ${Math.round(kcal)} kcal.`
-  return kcal >= goalKcal ? `${done} ${detail}` : `${done} ${detail} ${left} kcal to today's goal.`
+export function formatActive(seconds: number): string { const s = Math.max(0, Math.round(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+export function praise(_kcal: number | null, swings: number, activeSeconds: number, goalMinutes = DEFAULT_GOAL_MINUTES): string {
+  if (!swings && !activeSeconds) return `No movement recorded yet. Start a Tempo Session to work toward ${goalMinutes} active minutes.`
+  const active = Math.ceil(activeSeconds / 60), left = Math.max(0, goalMinutes - active)
+  const lead = active >= goalMinutes ? 'Active-minute goal hit.' : activeSeconds >= 600 ? 'Strong session.' : activeSeconds >= 120 || swings >= 20 ? 'Good movement.' : 'Nice start.'
+  return left ? `${lead} ${formatActive(activeSeconds)} active · ${swings} actions · ${left} min to today's goal.` : `${lead} ${formatActive(activeSeconds)} active · ${swings} actions.`
 }

@@ -9,7 +9,7 @@ describe('vitals reducer', () => {
     const s = emptyVitals()
     applyMetrics(s, pulse(71, 1_700_000_000_000, false, 90), 1_700_000_000_000)
     expect(s.pulse).toBeNull(); expect(s.rawPulse).toBe(71)
-    applyMetrics(s, pulse(72, 1_700_000_001_000, true, 40), 1_700_000_001_000)
+    applyMetrics(s, pulse(72, 1_700_000_001_000, true, 39), 1_700_000_001_000)
     expect(s.pulse).toBeNull()
     const got = applyMetrics(s, pulse(73, 1_700_000_002_000), 1_700_000_002_000)
     expect(s.pulse?.value).toBe(73); expect(got.pulse?.value).toBe(73); expect(s.pulseHistory).toHaveLength(1)
@@ -18,8 +18,8 @@ describe('vitals reducer', () => {
     const s = emptyVitals(); const samples: number[] = []; const t0 = 1_700_000_000_000
     for (let i = 0; i < 12; i++) applyMetrics(s, pulse(66 + (i % 3), t0 + i * 1000), t0 + i * 1000, samples)
     expect(s.baselinePulse).toBe(67)
-    applyMetrics(s, pulse(117, t0 + 13_000), t0 + 13_000, samples) // 50 over baseline: full load
-    expect(s.exertion).toBeCloseTo(1, 6)
+    applyMetrics(s, pulse(110, t0 + 13_000), t0 + 13_000, samples) // supported range ceiling
+    expect(s.exertion).toBeCloseTo((43 / 50) * .65 + (43 / 50) * .35, 6)
     applyMetrics(s, pulse(92, t0 + 14_000), t0 + 14_000, samples)
     expect(s.exertion).toBeCloseTo(0.5 * 0.65 + 0.5 * 0.35, 6)
     // a minute later, back near rest: recovery is the drop since a minute ago

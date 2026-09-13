@@ -14,6 +14,7 @@
  * camera, and a synthetic source drives the same reducer for demos on machines without one.
  */
 import { readdirSync } from 'node:fs'
+import { BREATHING_RANGE, metricUsable, PULSE_RANGE } from '../src/wellness/physiology'
 
 export interface Reading { value: number; confidence: number; stable: boolean; at: number }
 export interface HrvReading { rmssd: number; sdnn: number; confidence: number; at: number }
@@ -44,9 +45,10 @@ export interface VitalsState {
   /** Pulse a minute ago minus pulse now: positive means coming down. */
   recovery: number | null
   stableReadings: number
+  mode: 'live' | 'mock' | 'off'
 }
 
-export const MIN_CONFIDENCE = 60
+export const MIN_CONFIDENCE = 40
 
 /** Video devices the OS exposes. Only Linux enumerates them as files; elsewhere the SDK is the only way to know. */
 export function listCameras(): { checked: boolean; devices: string[] } {
@@ -58,12 +60,12 @@ const HISTORY_MS = 10 * 60_000
 const TRACE_MS = 15_000
 const BASELINE_READINGS = 12
 
-export function emptyVitals(): VitalsState {
+export function emptyVitals(mode: VitalsState['mode'] = 'live'): VitalsState {
   return {
     status: 'off', source: null, startedAt: null, updatedAt: 0, guidance: 'camera off', validation: '', error: null,
     pulse: null, breathing: null, hrv: null, rawPulse: null, rawBreathing: null,
     pulseHistory: [], breathingHistory: [], breathingTrace: [], baselinePulse: null, baselineBreathing: null,
-    exertion: null, recovery: null, stableReadings: 0,
+    exertion: null, recovery: null, stableReadings: 0, mode,
   }
 }
 
@@ -93,7 +95,7 @@ export function applyMetrics(state: VitalsState, m: DecodedMetrics, now: number,
   if (pr && Number.isFinite(Number(pr.value))) {
     const r: Reading = { value: Number(pr.value), confidence: Number(pr.confidence ?? 0), stable: pr.stable === true, at: toMs(pr.timestamp, now) }
     state.rawPulse = r.value
-    if (r.stable && r.confidence >= MIN_CONFIDENCE) {
+    if (metricUsable(r.value, r.confidence, r.stable, PULSE_RANGE, state.validation, r.at, now)) {
       state.pulse = r; out.pulse = r; state.stableReadings += 1
       if (!state.pulseHistory.length || state.pulseHistory[state.pulseHistory.length - 1].at < r.at) state.pulseHistory.push({ at: r.at, bpm: r.value })
       trim(state.pulseHistory, now, HISTORY_MS)
@@ -104,7 +106,7 @@ export function applyMetrics(state: VitalsState, m: DecodedMetrics, now: number,
   if (br && Number.isFinite(Number(br.value))) {
     const r: Reading = { value: Number(br.value), confidence: Number(br.confidence ?? 0), stable: br.stable === true, at: toMs(br.timestamp, now) }
     state.rawBreathing = r.value
-    if (r.stable && r.confidence >= MIN_CONFIDENCE) {
+    if (metricUsable(r.value, r.confidence, r.stable, BREATHING_RANGE, state.validation, r.at, now) && r.confidence >= 45) {
       state.breathing = r; out.breathing = r
       if (!state.breathingHistory.length || state.breathingHistory[state.breathingHistory.length - 1].at < r.at) state.breathingHistory.push({ at: r.at, brpm: r.value })
       trim(state.breathingHistory, now, HISTORY_MS)
@@ -118,7 +120,7 @@ export function applyMetrics(state: VitalsState, m: DecodedMetrics, now: number,
   }
   trim(state.breathingTrace, now, TRACE_MS)
   const hv = m.cardio?.hrv?.length ? m.cardio.hrv[m.cardio.hrv.length - 1] : null
-  if (hv && Number.isFinite(Number(hv.rmssd)) && hv.stable === true && Number(hv.confidence ?? 0) >= MIN_CONFIDENCE) {
+  if (hv && Number.isFinite(Number(hv.rmssd)) && hv.stable === true && Number(hv.confidence ?? 0) >= 50 && !['ExcessiveMotion', 'NoFaceFound', 'MultipleFacesFound'].includes(state.validation)) {
     state.hrv = { rmssd: Number(hv.rmssd), sdnn: Number(hv.sdnn ?? 0), confidence: Number(hv.confidence ?? 0), at: toMs(hv.timestamp, now) }
     out.hrv = state.hrv
   }
@@ -166,20 +168,23 @@ type SdkModule = {
 }
 
 export class VitalsBridge {
-  state = emptyVitals()
+  state: VitalsState
   /** Called for every reading that passed the stability gate, so the caller can log it. */
   onReading: ((r: { at: number; pulse: number | null; breathing: number | null; hrvRmssd: number | null; confidence: number }) => void) | null = null
   private sdk: Sdk | null = null
   private demo: ReturnType<typeof setInterval> | null = null
   private baselineSamples: number[] = []
   private apiKey: () => string
-  constructor(apiKey: () => string) { this.apiKey = apiKey }
+  private mode: VitalsState['mode']
+  constructor(apiKey: () => string, mode: VitalsState['mode'] = 'live') { this.apiKey = apiKey; this.mode = mode; this.state = emptyVitals(mode) }
 
   async start(opts: { cameraIndex?: number; demo?: boolean } = {}): Promise<VitalsState> {
     await this.stop()
-    this.state = { ...emptyVitals(), status: 'starting', startedAt: Date.now(), source: opts.demo ? 'demo' : 'camera', guidance: opts.demo ? 'demo source' : 'starting camera…' }
+    const demo = opts.demo === true || this.mode === 'mock'
+    this.state = { ...emptyVitals(this.mode), status: 'starting', startedAt: Date.now(), source: demo ? 'demo' : 'camera', guidance: demo ? 'demo source' : 'starting camera…' }
     this.baselineSamples = []
-    if (opts.demo) {
+    if (this.mode === 'off') { this.state.status = 'unavailable'; this.state.guidance = 'camera sensing is off'; return this.state }
+    if (demo) {
       const t0 = Date.now()
       this.demo = setInterval(() => {
         const t = (Date.now() - t0) / 1000

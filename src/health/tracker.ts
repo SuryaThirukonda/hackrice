@@ -8,7 +8,7 @@ import { formatActive, praise, summarize, type ActivitySummary, type Epoch, type
  * away. Everything goes to the local health service over the same origin; when that service is not
  * running every call is a quiet no-op and the game is unaffected.
  */
-export interface SessionSummaryLine { activeMinutes: number; activeSeconds: number; kcal: number; swings: number; romMean: number; source: 'phone' | 'keyboard' }
+export interface SessionSummaryLine { id: number; activeMinutes: number; activeSeconds: number; kcal: number | null; motionLoad: number; energyConfidence: string; swings: number; romMean: number; romMax: number; source: 'phone' | 'keyboard' }
 const FLUSH_MS = 2000
 
 const post = async <T>(url: string, body: unknown): Promise<T | null> => {
@@ -56,9 +56,9 @@ export class HealthTracker {
   }
 
   /** Running totals for this match, for a badge on the HUD. */
-  live(): { kcal: number; swings: number; activeSeconds: number; moving: boolean } {
+  live(): { kcal: number | null; motionLoad: number; swings: number; activeSeconds: number; moving: boolean } {
     const s = summarize(this.sport, this.all.epochs, this.all.roms, loadSettings().weightKg)
-    return { kcal: s.kcal, swings: s.swings, activeSeconds: s.activeSeconds, moving: this.sawMovement }
+    return { kcal: s.kcal, motionLoad: s.motionLoad, swings: s.swings, activeSeconds: s.activeSeconds, moving: this.sawMovement }
   }
 
   /** Close the record. Resolves with the line the results card can show, or null when nothing was stored. */
@@ -69,9 +69,9 @@ export class HealthTracker {
     if (this.id === null) return null
     this.pump(Number.POSITIVE_INFINITY)
     if (this.pending.epochs.length || this.pending.roms.length) await post(`/health/session/${this.id}/add`, this.pending)
-    const row = await post<{ activeSeconds: number; activeMinutes: number; kcal: number; swings: number; romMean: number; source: 'phone' | 'keyboard' }>(
+    const row = await post<{ id: number; activeSeconds: number; activeMinutes: number; kcal: number | null; motionLoad: number; energyConfidence: string; swings: number; romMean: number; romMax: number; source: 'phone' | 'keyboard' }>(
       `/health/session/${this.id}/finish`, { endedAt: Date.now(), source: this.sawMovement ? 'phone' : 'keyboard' })
-    return row ? { activeMinutes: row.activeMinutes, activeSeconds: row.activeSeconds, kcal: row.kcal, swings: row.swings, romMean: row.romMean, source: row.source } : null
+    return row ? { id: row.id, activeMinutes: row.activeMinutes, activeSeconds: row.activeSeconds, kcal: row.kcal, motionLoad: row.motionLoad, energyConfidence: row.energyConfidence, swings: row.swings, romMean: row.romMean, romMax: row.romMax, source: row.source } : null
   }
 }
 
@@ -79,7 +79,7 @@ export class HealthTracker {
 export const summaryLine = (s: SessionSummaryLine | null): string => {
   if (!s) return ''
   if (s.source === 'keyboard') return 'keyboard match · no movement recorded'
-  return praise(s.kcal, s.swings, s.activeSeconds, loadSettings().dailyGoalKcal)
+  return praise(s.kcal, s.swings, s.activeSeconds, loadSettings().dailyGoalMinutes)
 }
 export { formatActive }
 

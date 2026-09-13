@@ -36,11 +36,11 @@ export class SettingsScene extends Phaser.Scene {
     ensureTextures(this)
     this.city = new ComicBackdrop(this, 44)
     const kb = this.input.keyboard!
-    const rows = allRows(this.s.bindings).length + 3 // sound, quality, bindings..., reset
+    const rows = allRows(this.s.bindings).length + 6 // sound, quality, wellness profile, bindings, reset
     kb.on('keydown', (e: KeyboardEvent) => {
       if (this.waiting) {
         if (e.code !== 'Escape') {
-          const r = allRows(this.s.bindings)[this.row - 2]
+          const r = allRows(this.s.bindings)[this.row - 5]
           this.s.bindings[r.game] = { ...(this.s.bindings[r.game] ?? {}), [r.action]: [e.code] }
           saveSettings(this.s); sfx.select()
         }
@@ -56,7 +56,10 @@ export class SettingsScene extends Phaser.Scene {
   private activate(): void {
     if (this.row === 0) { this.s.sound = !this.s.sound; saveSettings(this.s); sfx.select() }
     else if (this.row === 1) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }
-    else if (this.row === allRows(this.s.bindings).length + 2) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
+    else if (this.row === 2) { this.s.weightKg = this.s.weightKg === null ? 70 : this.s.weightKg >= 120 ? null : this.s.weightKg + 5; saveSettings(this.s); sfx.select() }
+    else if (this.row === 3) { this.s.weightUnit = this.s.weightUnit === 'kg' ? 'lb' : 'kg'; saveSettings(this.s); sfx.select() }
+    else if (this.row === 4) { const goals = [20, 30, 45, 60]; this.s.dailyGoalMinutes = goals[(goals.indexOf(this.s.dailyGoalMinutes) + 1) % goals.length] ?? 30; saveSettings(this.s); sfx.select() }
+    else if (this.row === allRows(this.s.bindings).length + 5) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
     else { this.waiting = true }
     this.draw()
   }
@@ -68,7 +71,7 @@ export class SettingsScene extends Phaser.Scene {
     add(comicPanel(this, W / 2 - 440, 24, 880, H - 48, P.paper, -1))
     add(this.add.text(W / 2, 64, 'SETTINGS', { fontFamily: DISPLAY, fontSize: '44px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(-1))
     const rows = allRows(this.s.bindings)
-    const total = rows.length + 3
+    const total = rows.length + 6
     // scroll so the focused row stays visible
     const dy = 30, maxVisible = Math.floor((H - 170) / dy)
     const first = Math.max(0, Math.min(this.row - Math.floor(maxVisible / 2), total - maxVisible))
@@ -82,8 +85,12 @@ export class SettingsScene extends Phaser.Scene {
     }
     line(0, 'SOUND', this.s.sound ? 'ON' : 'OFF')
     line(1, '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
-    rows.forEach((r, i) => line(i + 2, r.label.toUpperCase(), this.waiting && this.row === i + 1 ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
-    line(rows.length + 2, 'RESET KEYS', 'defaults')
+    const shownWeight = this.s.weightKg === null ? 'NOT SET (energy hidden)' : this.s.weightUnit === 'kg' ? `${this.s.weightKg} kg` : `${Math.round(this.s.weightKg * 2.20462)} lb`
+    line(2, 'BODY WEIGHT', shownWeight, 'WELLNESS')
+    line(3, 'WEIGHT UNIT', this.s.weightUnit.toUpperCase(), 'WELLNESS')
+    line(4, 'ACTIVE MINUTE GOAL', `${this.s.dailyGoalMinutes} min`, 'WELLNESS')
+    rows.forEach((r, i) => line(i + 5, r.label.toUpperCase(), this.waiting && this.row === i + 5 ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
+    line(rows.length + 5, 'RESET KEYS', 'defaults')
     add(this.add.text(W / 2, H - 46, '↑↓ rows · Enter change · Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
   }
   update(_t: number, dt: number): void { this.city.update(dt) }

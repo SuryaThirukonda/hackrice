@@ -1,6 +1,6 @@
 export type ControllerSport = 'boxing' | 'bowling' | 'golf'
 /** One second of phone movement, as the phone summarises it (see src/health/energy.ts). */
-export interface ActivityEpoch { t: number; mean: number; peak: number; swings: number; rotation: number }
+export interface ActivityEpoch { t: number; mean: number; peak: number; swings: number; rotation: number; accelRms?: number; gyroRms?: number; activeFraction?: number; actionPower?: number }
 export type ControllerId = 'controller_1' | 'controller_2'
 
 export interface ControllerStick {
@@ -159,7 +159,9 @@ export class ControllerInput {
       const bucket = this.activity.get(id) ?? { epochs: [], roms: [] }
       for (const raw of Array.isArray(packet.epochs) ? packet.epochs : []) {
         const e = raw as Record<string, unknown>
-        bucket.epochs.push({ t: Math.max(0, finite(e.t)), mean: Math.max(0, finite(e.mean)), peak: Math.max(0, finite(e.peak)), swings: Math.max(0, Math.round(finite(e.swings))), rotation: Math.max(0, finite(e.rotation)) })
+        bucket.epochs.push({ t: Math.max(0, finite(e.t)), mean: Math.max(0, finite(e.mean)), peak: Math.max(0, finite(e.peak)), swings: Math.max(0, Math.round(finite(e.swings))), rotation: Math.max(0, finite(e.rotation)),
+          ...(typeof e.accelRms === 'number' ? { accelRms: Math.max(0, finite(e.accelRms)) } : {}), ...(typeof e.gyroRms === 'number' ? { gyroRms: Math.max(0, finite(e.gyroRms)) } : {}),
+          ...(typeof e.activeFraction === 'number' ? { activeFraction: clamp(finite(e.activeFraction), 0, 1) } : {}), ...(typeof e.actionPower === 'number' ? { actionPower: clamp(finite(e.actionPower), 0, 1) } : {}) })
       }
       for (const r of Array.isArray(packet.roms) ? packet.roms : []) bucket.roms.push(Math.max(0, finite(r)))
       // a phone that reports for an hour while no match is running must not grow without bound
