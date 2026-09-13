@@ -59,17 +59,28 @@ def ensure_model():
 
 
 class RelayClient:
-    """Async WebSocket client connecting to the Tempo relay."""
+    """WebSocket client for the Tempo relay, running its own asyncio loop on a daemon thread.
+
+    A closed socket is detected by send/recv raising, never by a `closed` attribute: websockets 14 and
+    later removed that attribute, and reading it threw inside the loop, so the client reconnected every
+    second and never delivered a packet. Packets are only accepted while connected, so a dodge made while
+    the relay was unreachable is dropped instead of firing seconds late.
+    """
+
+    MAX_QUEUED = 64
 
     def __init__(self, url: str):
         self.url = url
-        self.ws = None
         self.connected = False
         self.seq = 0
-        self.queue = deque()
+        self.queue = deque(maxlen=self.MAX_QUEUED)
         self.loop = None
         self.thread = None
         self.running = True
+        self.last_error = None
+        # Event ids must not repeat across tracker restarts: the relay and the game both drop ids they have seen.
+        self.session = os.urandom(4).hex()
+        self._seq_lock = threading.Lock()
 
     def start(self):
         self.loop = asyncio.new_event_loop()
@@ -80,63 +91,80 @@ class RelayClient:
         asyncio.set_event_loop(self.loop)
         self.loop.run_until_complete(self._connect_and_serve())
 
+    def _next_seq(self):
+        # The camera loop and the socket thread both number packets, and the relay drops any that go backwards.
+        with self._seq_lock:
+            self.seq += 1
+            return self.seq
+
     async def _connect_and_serve(self):
         import websockets
 
         while self.running:
             try:
                 async with websockets.connect(self.url) as ws:
-                    self.ws = ws
+                    self.queue.clear()  # anything left from a previous connection is stale
+                    # Claim the head_tracker slot; every later packet is numbered after this one.
+                    await ws.send(json.dumps({"type": "hello", "controllerId": "head_tracker", "seq": self._next_seq()}))
                     self.connected = True
-                    self.seq += 1
-                    # Send hello to claim head_tracker slot
-                    hello = {
-                        "type": "hello",
-                        "controllerId": "head_tracker",
-                        "seq": self.seq,
-                    }
-                    await ws.send(json.dumps(hello))
-
-                    # Process send queue & listen
-                    while self.running and not ws.closed:
-                        # Flush outgoing queue
+                    while self.running:
                         while self.queue:
-                            pkt = self.queue.popleft()
-                            await ws.send(json.dumps(pkt))
-
-                        # Yield to receive / avoid blocking
+                            await ws.send(json.dumps(self.queue.popleft()))
                         try:
-                            msg = await asyncio.wait_for(ws.recv(), timeout=0.04)
+                            # Reads acks and game_state. Raises once the socket closes, which ends this
+                            # connection and schedules a reconnect.
+                            raw = await asyncio.wait_for(ws.recv(), timeout=0.02)
                         except asyncio.TimeoutError:
-                            pass
+                            continue
+                        self._note(raw)
             except Exception:
+                pass
+            finally:
                 self.connected = False
-                self.ws = None
+            if self.running:
                 await asyncio.sleep(1.0)
 
+    def _note(self, raw):
+        """Say once why the relay refused the tracker, e.g. an agent service started before head_tracker existed."""
+        try:
+            packet = json.loads(raw)
+        except (TypeError, ValueError):
+            return
+        if not isinstance(packet, dict):
+            return
+        if packet.get("type") == "hello" and packet.get("ok"):
+            self.last_error = None
+        elif packet.get("type") == "error" and packet.get("code") != self.last_error:
+            self.last_error = packet.get("code")
+            print(f"Relay refused the head tracker: {self.last_error}. "
+                  "An agent service started before this feature says invalid_controller_id: restart `npm run agent`.",
+                  file=sys.stderr)
+
     def send_action(self, action: str):
-        self.seq += 1
-        pkt = {
+        if not self.connected:
+            return
+        seq = self._next_seq()
+        self.queue.append({
             "type": "action",
             "controllerId": "head_tracker",
             "sport": "boxing",
             "action": action,
-            "eventId": f"head-{self.seq}",
-            "seq": self.seq,
-        }
-        self.queue.append(pkt)
+            "eventId": f"head-{self.session}-{seq}",
+            "seq": seq,
+        })
 
     def send_stick(self, x: float, y: float):
-        self.seq += 1
-        pkt = {
+        if not self.connected:
+            return
+        seq = self._next_seq()
+        self.queue.append({
             "type": "stick",
             "controllerId": "head_tracker",
             "sport": "boxing",
             "stick": [round(x, 2), round(y, 2)],
             "calibrated": True,
-            "seq": self.seq,
-        }
-        self.queue.append(pkt)
+            "seq": seq,
+        })
 
     def stop(self):
         self.running = False
@@ -352,29 +380,37 @@ class HeadTracker:
         cv2.putText(frame, "Press 'C' to Recalibrate  ·  'Q' to Exit", (w - 310, h - 25),
                     cv2.FONT_HERSHEY_DUPLEX, 0.46, (160, 160, 160), 1, cv2.LINE_AA)
 
+    def _open_camera(self):
+        # AVFoundation is the macOS backend; elsewhere OpenCV picks its own (V4L2 on Linux, MSMF on Windows).
+        if sys.platform == "darwin":
+            cap = cv2.VideoCapture(self.camera_id, cv2.CAP_AVFOUNDATION)
+            if cap.isOpened():
+                return cap
+        return cv2.VideoCapture(self.camera_id)
+
     def run(self):
         print(f"Opening webcam camera {self.camera_id}...")
-        cap = cv2.VideoCapture(self.camera_id, cv2.CAP_AVFOUNDATION)
-        if not cap.isOpened():
-            cap = cv2.VideoCapture(self.camera_id)
+        cap = self._open_camera()
 
-        # On macOS, camera permission request may take a second on first prompt
-        if not cap.isOpened():
+        # On macOS the first run waits for the camera permission prompt.
+        if not cap.isOpened() and sys.platform == "darwin":
             print("Waiting for camera authorization...")
             for _ in range(6):
                 time.sleep(0.6)
-                cap = cv2.VideoCapture(self.camera_id, cv2.CAP_AVFOUNDATION)
-                if not cap.isOpened():
-                    cap = cv2.VideoCapture(self.camera_id)
+                cap = self._open_camera()
                 if cap.isOpened():
                     break
 
         if not cap.isOpened():
             print(f"\n[Error] Could not open camera {self.camera_id}.", file=sys.stderr)
-            print("macOS camera permission required:", file=sys.stderr)
-            print("  1. Open System Settings -> Privacy & Security -> Camera", file=sys.stderr)
-            print("  2. Turn the toggle ON for Terminal (or your code editor)", file=sys.stderr)
-            print("  3. Re-run: npm run head-tracker\n", file=sys.stderr)
+            if sys.platform == "darwin":
+                print("macOS camera permission required:", file=sys.stderr)
+                print("  1. Open System Settings -> Privacy & Security -> Camera", file=sys.stderr)
+                print("  2. Turn the toggle ON for Terminal (or your code editor)", file=sys.stderr)
+                print("  3. Re-run: npm run head-tracker\n", file=sys.stderr)
+            else:
+                print("Check that a webcam is connected and not in use by another app", file=sys.stderr)
+                print("(on Linux, `ls /dev/video*` lists them), or choose one with --camera N.\n", file=sys.stderr)
             sys.exit(1)
 
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -396,7 +432,7 @@ class HeadTracker:
                 if self.show_window:
                     cv2.imshow("Tempo Head Tracker (Boxing)", processed)
                     key = cv2.waitKey(1) & 0xFF
-                    if key == ord("q"):
+                    if key in (ord("q"), 27):  # q or Esc
                         break
                     elif key == ord("c"):
                         self.calibrate()
