@@ -90,6 +90,13 @@ under 15 stamina and may script 60 percent of what it has (`server/tools.ts`). M
 simulated pairings, average stamina sat between 88 and 97, no fighter dropped under 20, nobody backed
 up, no punch was refused, and every fight ended by knockout in round one.
 
+Punch wind-ups are 18 ticks for a jab (150 ms) and 32 for a cross (about 267 ms), lengthened from 12 and 24
+at the owner's request so punches are easier to block. A punch resolves on its first active tick, so the
+wind-up is the whole blocking window; a guard raised 140 ms into a jab or 250 ms into a cross still blocks
+(`sim/boxing.test.ts`). The guard-break stagger grew from 60 to 66 ticks with it, so a guard broken by a cross
+can still be punished: the attacker's quickest jab lands in the same five-tick window as before. The pace
+measurements above were taken before that change.
+
 ### Bowling (`src/games/bowling/`)
 Ten frames against a bot. Aim phase: the release line sweeps; a tap locks it, hold and release for
 power; hook taps curve the ball after the oil line. Keyboard: `A`/`D` lane, `Q`/`E` aim, arrows hook,

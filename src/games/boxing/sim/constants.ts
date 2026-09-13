@@ -20,9 +20,13 @@ export const FRICTION = 6
 export const KNOCK_EPS = 0.01
 
 export interface FrameData { windup: number; active: number; recover: number; reach: number; dmg: number; stamina: number; blockCost: number; knock: number; hitstun: number }
+/** Ticks at 120 Hz. A punch resolves on its first active tick against the guard as it stands then, so the
+ *  wind-up is the defender's whole window to block. 18 ticks (150 ms) for the jab and 32 (about 267 ms) for the
+ *  cross: slow enough that a quick guard catches a jab and a guard raised on reaction catches a cross. They were
+ *  12 and 24, which left a jab blockable only by guessing. Recovery, damage and costs are unchanged. */
 export const FRAME: Record<PunchKind, FrameData> = {
-  jab: { windup: 12, active: 6, recover: 24, reach: 1.2, dmg: 6, stamina: 9, blockCost: 4, knock: 0.9, hitstun: 10 },
-  cross: { windup: 24, active: 8, recover: 40, reach: 1.3, dmg: 12, stamina: 16, blockCost: 8, knock: 1.8, hitstun: 18 },
+  jab: { windup: 18, active: 6, recover: 24, reach: 1.2, dmg: 6, stamina: 9, blockCost: 4, knock: 0.9, hitstun: 10 },
+  cross: { windup: 32, active: 8, recover: 40, reach: 1.3, dmg: 12, stamina: 16, blockCost: 8, knock: 1.8, hitstun: 18 },
 }
 export const CANCEL_WINDOW = 6 // recover ticks left in which a new punch may start
 
@@ -35,7 +39,9 @@ export const BLOCK_KNOCK_MUL = 0.35
 /** A held guard still refills, at this fraction of the resting rate. Blocking a punch is what costs
  *  stamina (each absorbed punch's blockCost), holding the guard up is not. */
 export const REGEN_GUARD_MUL = 0.5
-export const GUARD_BREAK_STAGGER = 60
+/** Long enough that a guard broken by a cross can still be punished: the attacker's quickest jab lands 44 to 48
+ *  ticks after the break. It grew from 60 by the 6 ticks the jab wind-up gained, which keeps that window intact. */
+export const GUARD_BREAK_STAGGER = 66
 export const GUARD_RECOVER_STAMINA = 15
 export const STAGGER_DMG = 11
 export const STAGGER_TICKS = 42

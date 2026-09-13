@@ -292,8 +292,8 @@ and stat counters, `moving`); `SimEvent` union (`windup`, `punch` with result `h
 | Time | `HZ 120`, `DT`, `ticks(s)` |
 | Ring | `RING_HALF 3.0`, `BODY_GAP 0.9`, `EYE_H 1.65`, `START_DIST 1.9` |
 | Movement | `MOVE_FWD 1.6`, `MOVE_BACK 1.2`, `MOVE_STRAFE 1.3`, `GUARD_MOVE_MUL 0.6`, `PUNCH_CARRY 0.6`, `FRICTION 6` |
-| Frames | jab `{ windup 12, active 6, recover 24, reach 1.2, dmg 6, stamina 9, blockCost 4, knock 0.9, hitstun 10 }`; cross `{ 24, 8, 40, 1.3, 12, 16, 8, 1.8, 18 }`; `CANCEL_WINDOW 6` |
-| Damage | `MOMENTUM_DMG 0.5`, `MOMENTUM_KNOCK 0.6`, `STAGGER_BONUS 1.25`, `BLOCK_DMG_MUL 0.15`, `BLOCK_KNOCK_MUL 0.35`, `GUARD_BREAK_STAGGER 60`, `GUARD_RECOVER_STAMINA 15`, `STAGGER_DMG 11`, `STAGGER_TICKS 42` |
+| Frames | jab `{ windup 18, active 6, recover 24, reach 1.2, dmg 6, stamina 9, blockCost 4, knock 0.9, hitstun 10 }`; cross `{ 32, 8, 40, 1.3, 12, 16, 8, 1.8, 18 }`; `CANCEL_WINDOW 6`. The wind-up is the defender's whole blocking window: 150 ms for a jab, about 267 ms for a cross. |
+| Damage | `MOMENTUM_DMG 0.5`, `MOMENTUM_KNOCK 0.6`, `STAGGER_BONUS 1.25`, `BLOCK_DMG_MUL 0.15`, `BLOCK_KNOCK_MUL 0.35`, `GUARD_BREAK_STAGGER 66`, `GUARD_RECOVER_STAMINA 15`, `STAGGER_DMG 11`, `STAGGER_TICKS 42` |
 | Dodge | `DODGE_TICKS 30`, `DODGE_IFRAMES 22`, `DODGE_COOLDOWN 54`, `DODGE_STAMINA 4`, `DODGE_REWARD 12`, `SWAY_SLIDE 1.0`, `HEAD_SWAY 0.35`, `HEAD_DUCK 0.35`, `HEAD_LERP 0.25` |
 | Stamina | `STAMINA_MAX 100`, `REGEN_IDLE 40` per second, `REGEN_GUARD_MUL 0.5`, `FATIGUE_KNEE 30`, `GETUP_STAMINA 40`, `REST_STAMINA 45` |
 | Rounds | `ROUNDS 3`, `ROUND_S 90`, `REST_S 8`, `COUNTDOWN_STEP 1 s`, `COUNT_TICKS 1 s`, `GETUP_COUNT 8`, `KD_MARKS [60, 30]`, `KD_LIMIT_ROUND 3`, `GETUP_TICKS 30`, `HP_MAX 100` |

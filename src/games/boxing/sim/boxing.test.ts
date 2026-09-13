@@ -145,6 +145,19 @@ describe('block and guard', () => {
     expect(idle.b.stamina - m.b.stamina).toBeCloseTo(FRAME.cross.blockCost, 0)
     expect(m.a.stamina).toBeLessThanOrEqual(STAMINA_MAX - FRAME.cross.stamina + 5)
   })
+  it('punches can be blocked on reaction: a guard raised 140 ms into a jab or 250 ms into a cross still blocks', () => {
+    // A punch resolves against the guard as it stands on its first active tick, so the wind-up is the
+    // defender's whole window. These margins are what the frame data is tuned for; a shorter wind-up fails here.
+    const guardAfter = (ticks: number) => { let t = 0; return () => cmd({ block: t++ >= ticks }) }
+    for (const [kind, reactMs] of [['jab', 140], ['cross', 250]] as const) {
+      const react = Math.round((reactMs / 1000) * HZ)
+      const inTime = fighting(); place(inTime, 1.0)
+      expect(punches(run(inTime, 90, once(cmd({ punch: kind })), guardAfter(react)))[0].result).toBe('blocked')
+      // one tick after the wind-up ends is too late: the window is exactly the wind-up
+      const late = fighting(); place(late, 1.0)
+      expect(punches(run(late, 90, once(cmd({ punch: kind })), guardAfter(FRAME[kind].windup + 1)))[0].result).toBe('hit')
+    }
+  })
   it('the guard breaks at zero stamina, the next punch lands even with block held, and recovers at 15 stamina', () => {
     const m = fighting(); place(m, 0.9)
     m.b.stamina = 1 // a held guard refills, so it has to be nearly empty to break
