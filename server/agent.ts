@@ -124,6 +124,15 @@ wss.on('connection', (ws) => {
     } catch (e) { ws.send(JSON.stringify({ error: String((e as Error).message) })) }
   })
 })
+// A second copy of this service is the usual reason the port is taken (one left running in another
+// terminal or in the background). Say so instead of dying with a stack trace.
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`[agent] port ${port} is already in use: another agent service is running. Stop it, or start this one with AGENT_PORT=<other port>.`)
+    process.exit(1)
+  }
+  throw error
+})
 server.listen(port, () => {
   console.log(`[agent] listening on :${port} model=${model} key=${key ? 'present' : 'missing (fallback scripts only)'}`)
   console.log('[controller] relay on /controller-ws (phones) and /controller-game-ws (game)')
