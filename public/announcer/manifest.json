@@ -1,1358 +1,993 @@
 {
   "version": 1,
   "voiceId": "JBFqnCBsd6RMkjVDRZzb",
-  "modelId": "eleven_v3",
-  "outputFormat": "mp3_44100_96",
-  "generatedAt": "2026-09-13T09:39:15.966Z",
+  "modelId": "eleven_turbo_v2_5",
+  "outputFormat": "mp3_44100_128",
+  "generatedAt": "2026-09-13T09:30:56.155Z",
   "takes": {
-    "boxing.rounds": {
-      "file": "boxing.rounds.mp3",
-      "hash": "8152829480b51e13e1f3eca65dd73298a4699ddc",
-      "seed": 2989480287,
-      "stability": 0.5,
-      "chars": 211,
-      "bytes": 239849,
-      "requestId": "KQ3DhOyxnLwHzId3jCCW"
-    },
-    "golf.holes": {
-      "file": "golf.holes.mp3",
-      "hash": "0ea5803ec1718aabf16f13ec1e3b68943b219907",
-      "seed": 3135573605,
-      "stability": 0.5,
-      "chars": 194,
-      "bytes": 264926,
-      "requestId": "sqQQlYiouL74WKYtOxtb"
-    },
     "shared.results": {
-      "file": "shared.results.mp3",
-      "hash": "60a032e8e12fab7c34cf427658aebeee0938a911",
-      "seed": 488921530,
+      "file": "shared_results_win_you.mp3",
+      "hash": "026c0276dc429c32ea3e7279fd1e011e8d521639",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 400,
-      "bytes": 375267,
-      "requestId": "l6ZovE3cBNfI2GALEVju"
-    },
-    "boxing.knockdowns": {
-      "file": "boxing.knockdowns.mp3",
-      "hash": "274d49b0d9351a19ff533288bdd77f142636948c",
-      "seed": 1522913528,
-      "stability": 0.5,
-      "chars": 354,
-      "bytes": 387806,
-      "requestId": "U0xsB4o0d7rTbfZl1DEs"
-    },
-    "boxing.finish": {
-      "file": "boxing.finish.mp3",
-      "hash": "46440dfba2ff4937f86cd9b6358d27734f78434d",
-      "seed": 3811520908,
-      "stability": 0.5,
-      "chars": 162,
-      "bytes": 154271,
-      "requestId": "iGdvXdAiVZVlZCx9ei1C"
-    },
-    "golf.scores": {
-      "file": "golf.scores.mp3",
-      "hash": "7391d2ef430a0e89a15cf84dccee0b1701815592",
-      "seed": 1193226362,
-      "stability": 0.5,
-      "chars": 377,
-      "bytes": 415391,
-      "requestId": "LTiopErEoVNHbfuROmIB"
-    },
-    "bowling.calls": {
-      "file": "bowling.calls.mp3",
-      "hash": "5fde0c833b6f48e38b91198cefd61c7df9c30066",
-      "seed": 3356067212,
-      "stability": 0.5,
-      "chars": 609,
-      "bytes": 634507,
-      "requestId": "cqCicOyiZxY89DMEtZEU"
-    },
-    "card.corners": {
-      "file": "card.corners.mp3",
-      "hash": "4fa8bf0159d303f11ac8951438b5a9b48bc2264b",
-      "seed": 116837462,
-      "stability": 0.5,
-      "chars": 306,
-      "bytes": 310066,
-      "requestId": "T8dYGZCAhiaUuX7FXWnI"
-    },
-    "golf.shots": {
-      "file": "golf.shots.mp3",
-      "hash": "37b09e08c9a37bb7c18e52f609b41ac45ee32d84",
-      "seed": 724353061,
-      "stability": 0.5,
-      "chars": 328,
-      "bytes": 321351,
-      "requestId": "nyx45UUpsapT5LpBVaoZ"
+      "chars": 382,
+      "bytes": 496971,
+      "requestId": "EkZ7sf3Hq76QznoExeMt",
+      "perLine": true
     },
     "shared.menu": {
-      "file": "shared.menu.mp3",
-      "hash": "e1fa3eca38b7a44520e1617fdac344021f0cb747",
-      "seed": 3936713191,
+      "file": "shared_menu_menu_welcome_1.mp3",
+      "hash": "435ce7ba3930d7cb9dbe016579c5c556c14c7349",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 156,
-      "bytes": 135150,
-      "requestId": "f80KqyMt7aBwstDPDRBI"
+      "chars": 152,
+      "bytes": 158955,
+      "requestId": "SxS96Hn01NiLs3DwaxeC",
+      "perLine": true
+    },
+    "card.corners": {
+      "file": "card_corners_corner_blue_knuckles.mp3",
+      "hash": "290c3f2f864be44a15646db9d6ac03ad1c38381d",
+      "seed": 42,
+      "stability": 0.5,
+      "chars": 292,
+      "bytes": 315909,
+      "requestId": "5XtilAQh1v39iNFIIVVA",
+      "perLine": true
     },
     "card.betting": {
-      "file": "card.betting.mp3",
-      "hash": "60fe9a965ae7c4ede6ba89778e059dad3d7bfb0e",
-      "seed": 3844026781,
+      "file": "card_betting_card_bets_open.mp3",
+      "hash": "d19b57d6ebd6fd2411ae63b06fada147e8822524",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 166,
-      "bytes": 148629,
-      "requestId": "NEcSjbt6zzARi3VRqlcQ"
+      "chars": 158,
+      "bytes": 182865,
+      "requestId": "0pjoOQOSL64AHgrFOf1G",
+      "perLine": true
+    },
+    "boxing.rounds": {
+      "file": "boxing_rounds_boxing_round_1.mp3",
+      "hash": "306e7a7336325db68c120547a81586717e6cca77",
+      "seed": 42,
+      "stability": 0.5,
+      "chars": 197,
+      "bytes": 237332,
+      "requestId": "n9wBrnrHTeLtU8M58zIa",
+      "perLine": true
     },
     "boxing.verdicts": {
-      "file": "boxing.verdicts.mp3",
-      "hash": "847eaab4f01a8e728e56363ff1b5be910b12631b",
-      "seed": 1907838152,
+      "file": "boxing_verdicts_round_won_you.mp3",
+      "hash": "db6d71fa8d15aca14b68683ec26bd8f69ebdb036",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 381,
-      "bytes": 350190,
-      "requestId": "fwxdYsStjFWdZCAB6Ja4"
+      "chars": 357,
+      "bytes": 407244,
+      "requestId": "UTHYuwOuOcEJLKEIRaWd",
+      "perLine": true
+    },
+    "boxing.knockdowns": {
+      "file": "boxing_knockdowns_down_you.mp3",
+      "hash": "6d61cf8e12899507f4325827d7fedd7ce21b5cdd",
+      "seed": 42,
+      "stability": 0.5,
+      "chars": 318,
+      "bytes": 486076,
+      "requestId": "rbEeVQWIXG0Jh6IjyjXy",
+      "perLine": true
+    },
+    "boxing.finish": {
+      "file": "boxing_finish_boxing_getup_1.mp3",
+      "hash": "c9e57ab3c051388758a892576dc3141f291e1b5c",
+      "seed": 42,
+      "stability": 0.5,
+      "chars": 154,
+      "bytes": 168656,
+      "requestId": "auOjn4LSCaT0nsABVt1U",
+      "perLine": true
     },
     "boxing.action": {
-      "file": "boxing.action.mp3",
-      "hash": "7edaf84faf204c9d049e2bd753425efcc7bc21d9",
-      "seed": 1786110629,
+      "file": "boxing_action_boxing_guardbreak_1.mp3",
+      "hash": "072e579cdb7ae755dd97921e1b229df25bf69c1e",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 269,
-      "bytes": 267747,
-      "requestId": "4VWZEretyNlhaYcskH96"
+      "chars": 249,
+      "bytes": 293470,
+      "requestId": "dTJMj6CI9b2dXTS7mHza",
+      "perLine": true
     },
-    "shared.more": {
-      "file": "shared.more.mp3",
-      "hash": "4fcb115478ca29aacc2eb571bd4fc3ebd214a55d",
-      "seed": 3369075708,
+    "bowling.calls": {
+      "file": "bowling_calls_bowling_intro_1.mp3",
+      "hash": "94389b5bfb3d453711214d695f26e1d06f752c11",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 468,
-      "bytes": 378089,
-      "requestId": "4raqyItmkVrW7Jebxatl"
+      "chars": 567,
+      "bytes": 709818,
+      "requestId": "aHOEesoiTbOa0ZXNhCJs",
+      "perLine": true
     },
-    "boxing.more": {
-      "file": "boxing.more.mp3",
-      "hash": "8728c96b3b0e07e868c331cb2108c57391de9bee",
-      "seed": 428689637,
+    "golf.holes": {
+      "file": "golf_holes_golf_hole_1.mp3",
+      "hash": "aed9b43b9127d550f43a9b54bd7428c44eb799d9",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 805,
-      "bytes": 709426,
-      "requestId": "FhSmZt7Cj5zelEPxKDMj"
+      "chars": 174,
+      "bytes": 244567,
+      "requestId": "U5YLKBVXaFT8SFS6kjUA",
+      "perLine": true
     },
-    "card.more": {
-      "file": "card.more.mp3",
-      "hash": "3abb2d5683098c77b2e6851939aea626dab9061c",
-      "seed": 144749850,
+    "golf.shots": {
+      "file": "golf_shots_golf_water_1.mp3",
+      "hash": "621abdc9cd5d2077f4dc1ab9f1e4808b38e6ccb4",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 489,
-      "bytes": 414451,
-      "requestId": "USILIweBrXlBtf6GRDLw"
+      "chars": 308,
+      "bytes": 350313,
+      "requestId": "Nq3BcGdhkpTMsFe1W8ex",
+      "perLine": true
     },
-    "bowling.more": {
-      "file": "bowling.more.mp3",
-      "hash": "de6ecc196eda6f84f8f863c9bfa1a53d4b99a643",
-      "seed": 1946298543,
+    "golf.scores": {
+      "file": "golf_scores_golf_ace.mp3",
+      "hash": "c98cc898424608347cb43c638e7eb7e2b9e8a1d2",
+      "seed": 42,
       "stability": 0.5,
-      "chars": 610,
-      "bytes": 637328,
-      "requestId": "UjciSufoVIFfnbKy0gu5"
-    },
-    "golf.more": {
-      "file": "golf.more.mp3",
-      "hash": "d979cb9d74b99b5047f98b7f3a24d86b7fe54a86",
-      "seed": 3563317363,
-      "stability": 0.5,
-      "chars": 755,
-      "bytes": 719770,
-      "requestId": "uypQOXY9ODLofK13lsWu"
+      "chars": 347,
+      "bytes": 445824,
+      "requestId": "LHdvDPC4CgNwHc6Cdjqv",
+      "perLine": true
     }
   },
   "lines": {
-    "boxing.round.1": {
-      "take": "boxing.rounds",
-      "start": 0,
-      "end": 0.95
-    },
-    "boxing.round.2": {
-      "take": "boxing.rounds",
-      "start": 1.897,
-      "end": 3.59
-    },
-    "boxing.round.3": {
-      "take": "boxing.rounds",
-      "start": 3.803,
-      "end": 7.27
-    },
-    "boxing.fight#1": {
-      "take": "boxing.rounds",
-      "start": 7.37,
-      "end": 8.947
-    },
-    "boxing.fight#2": {
-      "take": "boxing.rounds",
-      "start": 9.043,
-      "end": 12.07
-    },
-    "boxing.last10": {
-      "take": "boxing.rounds",
-      "start": 12.31,
-      "end": 14.71
-    },
-    "boxing.round.end#1": {
-      "take": "boxing.rounds",
-      "start": 14.817,
-      "end": 17.51
-    },
-    "boxing.round.end#2": {
-      "take": "boxing.rounds",
-      "start": 17.646,
-      "end": 19.99
-    },
-    "golf.hole.1": {
-      "take": "golf.holes",
-      "start": 0,
-      "end": 0.87
-    },
-    "golf.hole.2": {
-      "take": "golf.holes",
-      "start": 1.902,
-      "end": 3.03
-    },
-    "golf.hole.3": {
-      "take": "golf.holes",
-      "start": 3.214,
-      "end": 5.11
-    },
-    "golf.hole.last": {
-      "take": "golf.holes",
-      "start": 5.74,
-      "end": 7.43
-    },
-    "golf.par.3": {
-      "take": "golf.holes",
-      "start": 7.55,
-      "end": 8.95
-    },
-    "golf.par.4": {
-      "take": "golf.holes",
-      "start": 9.68,
-      "end": 10.87
-    },
-    "golf.par.5": {
-      "take": "golf.holes",
-      "start": 11.55,
-      "end": 12.79
-    },
-    "golf.wind": {
-      "take": "golf.holes",
-      "start": 12.93,
-      "end": 14.71
-    },
-    "golf.final": {
-      "take": "golf.holes",
-      "start": 14.85,
-      "end": 16.688
-    },
-    "golf.colour#1": {
-      "take": "golf.holes",
-      "start": 16.766,
-      "end": 19.312
-    },
-    "golf.colour#2": {
-      "take": "golf.holes",
-      "start": 19.374,
-      "end": 21.99
-    },
     "win.you": {
       "take": "shared.results",
-      "start": 0.036,
-      "end": 2.67
+      "file": "shared_results_win_you.mp3",
+      "start": null,
+      "end": null
     },
     "win.house": {
       "take": "shared.results",
-      "start": 2.76,
-      "end": 6.03
+      "file": "shared_results_win_house.mp3",
+      "start": null,
+      "end": null
     },
     "win.p1": {
       "take": "shared.results",
-      "start": 6.835,
-      "end": 9.315
+      "file": "shared_results_win_p1.mp3",
+      "start": null,
+      "end": null
     },
     "win.p2": {
       "take": "shared.results",
-      "start": 10.126,
-      "end": 12.356
+      "file": "shared_results_win_p2.mp3",
+      "start": null,
+      "end": null
     },
     "win.knuckles": {
       "take": "shared.results",
-      "start": 13.236,
-      "end": 15.876
+      "file": "shared_results_win_knuckles.mp3",
+      "start": null,
+      "end": null
     },
     "win.professor": {
       "take": "shared.results",
-      "start": 16.771,
-      "end": 19.316
+      "file": "shared_results_win_professor.mp3",
+      "start": null,
+      "end": null
     },
     "win.lou": {
       "take": "shared.results",
-      "start": 20.291,
-      "end": 22.916
+      "file": "shared_results_win_lou.mp3",
+      "start": null,
+      "end": null
     },
     "win.maggie": {
       "take": "shared.results",
-      "start": 23.731,
-      "end": 26.276
+      "file": "shared_results_win_maggie.mp3",
+      "start": null,
+      "end": null
     },
     "win.generic": {
       "take": "shared.results",
-      "start": 26.636,
-      "end": 28.193
+      "file": "shared_results_win_generic.mp3",
+      "start": null,
+      "end": null
     },
     "draw": {
       "take": "shared.results",
-      "start": 28.279,
-      "end": 31.396
-    },
-    "down.you": {
-      "take": "boxing.knockdowns",
-      "start": 0.045,
-      "end": 1.31
-    },
-    "down.house": {
-      "take": "boxing.knockdowns",
-      "start": 1.724,
-      "end": 3.39
-    },
-    "down.p1": {
-      "take": "boxing.knockdowns",
-      "start": 3.849,
-      "end": 5.31
-    },
-    "down.p2": {
-      "take": "boxing.knockdowns",
-      "start": 5.769,
-      "end": 7.229
-    },
-    "down.knuckles": {
-      "take": "boxing.knockdowns",
-      "start": 7.714,
-      "end": 9.791
-    },
-    "down.professor": {
-      "take": "boxing.knockdowns",
-      "start": 10.126,
-      "end": 11.871
-    },
-    "down.lou": {
-      "take": "boxing.knockdowns",
-      "start": 12.36,
-      "end": 14.277
-    },
-    "down.maggie": {
-      "take": "boxing.knockdowns",
-      "start": 15.123,
-      "end": 16.917
-    },
-    "down.generic": {
-      "take": "boxing.knockdowns",
-      "start": 17.494,
-      "end": 19.397
-    },
-    "count.1": {
-      "take": "boxing.knockdowns",
-      "start": 20.147,
-      "end": 20.927
-    },
-    "count.2": {
-      "take": "boxing.knockdowns",
-      "start": 21.107,
-      "end": 22.021
-    },
-    "count.3": {
-      "take": "boxing.knockdowns",
-      "start": 22.254,
-      "end": 23.207
-    },
-    "count.4": {
-      "take": "boxing.knockdowns",
-      "start": 23.427,
-      "end": 24.487
-    },
-    "count.5": {
-      "take": "boxing.knockdowns",
-      "start": 24.707,
-      "end": 25.767
-    },
-    "count.6": {
-      "take": "boxing.knockdowns",
-      "start": 25.987,
-      "end": 26.907
-    },
-    "count.7": {
-      "take": "boxing.knockdowns",
-      "start": 27.147,
-      "end": 28.197
-    },
-    "count.8": {
-      "take": "boxing.knockdowns",
-      "start": 28.467,
-      "end": 29.079
-    },
-    "count.9": {
-      "take": "boxing.knockdowns",
-      "start": 29.091,
-      "end": 30.057
-    },
-    "count.10": {
-      "take": "boxing.knockdowns",
-      "start": 30.247,
-      "end": 31.237
-    },
-    "boxing.getup#1": {
-      "take": "boxing.finish",
-      "start": 0,
-      "end": 2.848
-    },
-    "boxing.getup#2": {
-      "take": "boxing.finish",
-      "start": 2.876,
-      "end": 4.56
-    },
-    "boxing.ko#1": {
-      "take": "boxing.finish",
-      "start": 4.62,
-      "end": 7.04
-    },
-    "boxing.ko#2": {
-      "take": "boxing.finish",
-      "start": 7.1,
-      "end": 9.448
-    },
-    "boxing.decision": {
-      "take": "boxing.finish",
-      "start": 9.448,
-      "end": 13.07
-    },
-    "golf.ace": {
-      "take": "golf.scores",
-      "start": 0,
-      "end": 2.91
-    },
-    "golf.eagle": {
-      "take": "golf.scores",
-      "start": 3.2,
-      "end": 5.472
-    },
-    "golf.birdie#1": {
-      "take": "golf.scores",
-      "start": 5.484,
-      "end": 6.968
-    },
-    "golf.birdie#2": {
-      "take": "golf.scores",
-      "start": 7.036,
-      "end": 9.96
-    },
-    "golf.par#1": {
-      "take": "golf.scores",
-      "start": 10.06,
-      "end": 12.734
-    },
-    "golf.par#2": {
-      "take": "golf.scores",
-      "start": 12.887,
-      "end": 14.19
-    },
-    "golf.bogey": {
-      "take": "golf.scores",
-      "start": 14.76,
-      "end": 16.566
-    },
-    "golf.double": {
-      "take": "golf.scores",
-      "start": 16.631,
-      "end": 19.095
-    },
-    "golf.worse": {
-      "take": "golf.scores",
-      "start": 19.21,
-      "end": 20.99
-    },
-    "golf.won.you": {
-      "take": "golf.scores",
-      "start": 21.27,
-      "end": 22.77
-    },
-    "golf.won.house": {
-      "take": "golf.scores",
-      "start": 22.96,
-      "end": 24.817
-    },
-    "golf.won.p1": {
-      "take": "golf.scores",
-      "start": 25.054,
-      "end": 26.863
-    },
-    "golf.won.p2": {
-      "take": "golf.scores",
-      "start": 26.906,
-      "end": 29.03
-    },
-    "golf.halved": {
-      "take": "golf.scores",
-      "start": 29.08,
-      "end": 30.903
-    },
-    "golf.away.p1": {
-      "take": "golf.scores",
-      "start": 30.906,
-      "end": 32.697
-    },
-    "golf.away.p2": {
-      "take": "golf.scores",
-      "start": 32.734,
-      "end": 34.75
-    },
-    "bowling.intro#1": {
-      "take": "bowling.calls",
-      "start": 0,
-      "end": 2.37
-    },
-    "bowling.intro#2": {
-      "take": "bowling.calls",
-      "start": 2.4,
-      "end": 5.08
-    },
-    "bowling.tenth": {
-      "take": "bowling.calls",
-      "start": 5.26,
-      "end": 7.909
-    },
-    "bowling.up.p1": {
-      "take": "bowling.calls",
-      "start": 7.957,
-      "end": 10.177
-    },
-    "bowling.up.p2": {
-      "take": "bowling.calls",
-      "start": 10.414,
-      "end": 12.35
-    },
-    "bowling.strike#1": {
-      "take": "bowling.calls",
-      "start": 12.78,
-      "end": 15.04
-    },
-    "bowling.strike#2": {
-      "take": "bowling.calls",
-      "start": 15.1,
-      "end": 17.44
-    },
-    "bowling.strike#3": {
-      "take": "bowling.calls",
-      "start": 17.58,
-      "end": 19.008
-    },
-    "bowling.double": {
-      "take": "bowling.calls",
-      "start": 19.036,
-      "end": 21.26
-    },
-    "bowling.turkey": {
-      "take": "bowling.calls",
-      "start": 21.3,
-      "end": 24.467
-    },
-    "bowling.hot": {
-      "take": "bowling.calls",
-      "start": 24.593,
-      "end": 27.8
-    },
-    "bowling.spare#1": {
-      "take": "bowling.calls",
-      "start": 27.98,
-      "end": 29.567
-    },
-    "bowling.spare#2": {
-      "take": "bowling.calls",
-      "start": 29.593,
-      "end": 31.84
-    },
-    "bowling.split#1": {
-      "take": "bowling.calls",
-      "start": 32.06,
-      "end": 34.02
-    },
-    "bowling.split#2": {
-      "take": "bowling.calls",
-      "start": 34.18,
-      "end": 36.704
-    },
-    "bowling.split.made": {
-      "take": "bowling.calls",
-      "start": 36.908,
-      "end": 39.66
-    },
-    "bowling.gutter#1": {
-      "take": "bowling.calls",
-      "start": 39.86,
-      "end": 41.322
-    },
-    "bowling.gutter#2": {
-      "take": "bowling.calls",
-      "start": 41.503,
-      "end": 42.92
-    },
-    "bowling.onepin": {
-      "take": "bowling.calls",
-      "start": 43.1,
-      "end": 44.896
-    },
-    "bowling.final": {
-      "take": "bowling.calls",
-      "start": 44.972,
-      "end": 47.008
-    },
-    "bowling.colour#1": {
-      "take": "bowling.calls",
-      "start": 47.036,
-      "end": 49.536
-    },
-    "bowling.colour#2": {
-      "take": "bowling.calls",
-      "start": 49.612,
-      "end": 52.19
-    },
-    "corner.blue.knuckles": {
-      "take": "card.corners",
-      "start": 0,
-      "end": 2.707
-    },
-    "corner.blue.professor": {
-      "take": "card.corners",
-      "start": 2.833,
-      "end": 5.813
-    },
-    "corner.blue.lou": {
-      "take": "card.corners",
-      "start": 5.927,
-      "end": 9.087
-    },
-    "corner.blue.maggie": {
-      "take": "card.corners",
-      "start": 9.233,
-      "end": 12.3
-    },
-    "corner.red.knuckles": {
-      "take": "card.corners",
-      "start": 12.42,
-      "end": 16.02
-    },
-    "corner.red.professor": {
-      "take": "card.corners",
-      "start": 16.1,
-      "end": 19.18
-    },
-    "corner.red.lou": {
-      "take": "card.corners",
-      "start": 19.3,
-      "end": 22.67
-    },
-    "corner.red.maggie": {
-      "take": "card.corners",
-      "start": 23,
-      "end": 25.95
-    },
-    "golf.water#1": {
-      "take": "golf.shots",
-      "start": 0,
-      "end": 2.6
-    },
-    "golf.water#2": {
-      "take": "golf.shots",
-      "start": 2.7,
-      "end": 5.8
-    },
-    "golf.ob#1": {
-      "take": "golf.shots",
-      "start": 5.82,
-      "end": 8.48
-    },
-    "golf.ob#2": {
-      "take": "golf.shots",
-      "start": 8.54,
-      "end": 11.454
-    },
-    "golf.bunker#1": {
-      "take": "golf.shots",
-      "start": 11.607,
-      "end": 13.253
-    },
-    "golf.bunker#2": {
-      "take": "golf.shots",
-      "start": 13.287,
-      "end": 14.814
-    },
-    "golf.green#1": {
-      "take": "golf.shots",
-      "start": 14.967,
-      "end": 16.18
-    },
-    "golf.green#2": {
-      "take": "golf.shots",
-      "start": 16.42,
-      "end": 18.294
-    },
-    "golf.putt.eagle": {
-      "take": "golf.shots",
-      "start": 18.407,
-      "end": 21.31
-    },
-    "golf.putt.birdie": {
-      "take": "golf.shots",
-      "start": 21.58,
-      "end": 23.92
-    },
-    "golf.pickup": {
-      "take": "golf.shots",
-      "start": 23.98,
-      "end": 26.91
+      "file": "shared_results_draw.mp3",
+      "start": null,
+      "end": null
     },
     "menu.welcome#1": {
       "take": "shared.menu",
-      "start": 0,
-      "end": 3.469
+      "file": "shared_menu_menu_welcome_1.mp3",
+      "start": null,
+      "end": null
     },
     "menu.welcome#2": {
       "take": "shared.menu",
-      "start": 3.973,
-      "end": 6.815
+      "file": "shared_menu_menu_welcome_2.mp3",
+      "start": null,
+      "end": null
     },
     "card.lobby": {
       "take": "shared.menu",
-      "start": 6.968,
-      "end": 11.391
+      "file": "shared_menu_card_lobby.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.blue.knuckles": {
+      "take": "card.corners",
+      "file": "card_corners_corner_blue_knuckles.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.blue.professor": {
+      "take": "card.corners",
+      "file": "card_corners_corner_blue_professor.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.blue.lou": {
+      "take": "card.corners",
+      "file": "card_corners_corner_blue_lou.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.blue.maggie": {
+      "take": "card.corners",
+      "file": "card_corners_corner_blue_maggie.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.red.knuckles": {
+      "take": "card.corners",
+      "file": "card_corners_corner_red_knuckles.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.red.professor": {
+      "take": "card.corners",
+      "file": "card_corners_corner_red_professor.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.red.lou": {
+      "take": "card.corners",
+      "file": "card_corners_corner_red_lou.mp3",
+      "start": null,
+      "end": null
+    },
+    "corner.red.maggie": {
+      "take": "card.corners",
+      "file": "card_corners_corner_red_maggie.mp3",
+      "start": null,
+      "end": null
     },
     "card.bets.open": {
       "take": "card.betting",
-      "start": 0,
-      "end": 2.76
+      "file": "card_betting_card_bets_open.mp3",
+      "start": null,
+      "end": null
     },
     "card.bets.next": {
       "take": "card.betting",
-      "start": 2.86,
-      "end": 4.944
+      "file": "card_betting_card_bets_next.mp3",
+      "start": null,
+      "end": null
     },
     "card.bets.closing": {
       "take": "card.betting",
-      "start": 4.988,
-      "end": 7.54
+      "file": "card_betting_card_bets_closing.mp3",
+      "start": null,
+      "end": null
     },
     "card.payout.won": {
       "take": "card.betting",
-      "start": 7.62,
-      "end": 10.32
+      "file": "card_betting_card_payout_won.mp3",
+      "start": null,
+      "end": null
     },
     "card.payout.lost": {
       "take": "card.betting",
-      "start": 10.46,
-      "end": 12.51
+      "file": "card_betting_card_payout_lost.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.round.1": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_round_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.round.2": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_round_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.round.3": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_round_3.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.fight#1": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_fight_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.fight#2": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_fight_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.last10": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_last10.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.round.end#1": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_round_end_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.round.end#2": {
+      "take": "boxing.rounds",
+      "file": "boxing_rounds_boxing_round_end_2.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.you": {
       "take": "boxing.verdicts",
-      "start": 0,
-      "end": 1.17
+      "file": "boxing_verdicts_round_won_you.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.house": {
       "take": "boxing.verdicts",
-      "start": 1.2,
-      "end": 3.343
+      "file": "boxing_verdicts_round_won_house.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.p1": {
       "take": "boxing.verdicts",
-      "start": 3.386,
-      "end": 5.606
+      "file": "boxing_verdicts_round_won_p1.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.p2": {
       "take": "boxing.verdicts",
-      "start": 5.671,
-      "end": 8.253
+      "file": "boxing_verdicts_round_won_p2.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.knuckles": {
       "take": "boxing.verdicts",
-      "start": 8.487,
-      "end": 10.72
+      "file": "boxing_verdicts_round_won_knuckles.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.professor": {
       "take": "boxing.verdicts",
-      "start": 10.78,
-      "end": 13.16
+      "file": "boxing_verdicts_round_won_professor.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.lou": {
       "take": "boxing.verdicts",
-      "start": 13.18,
-      "end": 15.432
+      "file": "boxing_verdicts_round_won_lou.mp3",
+      "start": null,
+      "end": null
     },
     "round.won.maggie": {
       "take": "boxing.verdicts",
-      "start": 15.484,
-      "end": 17.86
+      "file": "boxing_verdicts_round_won_maggie.mp3",
+      "start": null,
+      "end": null
     },
     "round.even": {
       "take": "boxing.verdicts",
-      "start": 17.94,
-      "end": 19.667
+      "file": "boxing_verdicts_round_even.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.colour#1": {
       "take": "boxing.verdicts",
-      "start": 19.793,
-      "end": 21.34
+      "file": "boxing_verdicts_boxing_colour_1.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.colour#2": {
       "take": "boxing.verdicts",
-      "start": 21.38,
-      "end": 23.886
+      "file": "boxing_verdicts_boxing_colour_2.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.colour#3": {
       "take": "boxing.verdicts",
-      "start": 23.911,
-      "end": 26.207
+      "file": "boxing_verdicts_boxing_colour_3.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.colour#4": {
       "take": "boxing.verdicts",
-      "start": 26.233,
-      "end": 29.39
+      "file": "boxing_verdicts_boxing_colour_4.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.you": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_you.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.house": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_house.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.p1": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_p1.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.p2": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_p2.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.knuckles": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_knuckles.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.professor": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_professor.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.lou": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_lou.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.maggie": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_maggie.mp3",
+      "start": null,
+      "end": null
+    },
+    "down.generic": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_down_generic.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.1": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.2": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.3": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_3.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.4": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_4.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.5": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_5.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.6": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_6.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.7": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_7.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.8": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_8.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.9": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_9.mp3",
+      "start": null,
+      "end": null
+    },
+    "count.10": {
+      "take": "boxing.knockdowns",
+      "file": "boxing_knockdowns_count_10.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.getup#1": {
+      "take": "boxing.finish",
+      "file": "boxing_finish_boxing_getup_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.getup#2": {
+      "take": "boxing.finish",
+      "file": "boxing_finish_boxing_getup_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.ko#1": {
+      "take": "boxing.finish",
+      "file": "boxing_finish_boxing_ko_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.ko#2": {
+      "take": "boxing.finish",
+      "file": "boxing_finish_boxing_ko_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "boxing.decision": {
+      "take": "boxing.finish",
+      "file": "boxing_finish_boxing_decision.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.guardbreak#1": {
       "take": "boxing.action",
-      "start": 0,
-      "end": 1.65
+      "file": "boxing_action_boxing_guardbreak_1.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.guardbreak#2": {
       "take": "boxing.action",
-      "start": 1.68,
-      "end": 3.55
+      "file": "boxing_action_boxing_guardbreak_2.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.stagger#1": {
       "take": "boxing.action",
-      "start": 3.86,
-      "end": 5.824
+      "file": "boxing_action_boxing_stagger_1.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.stagger#2": {
       "take": "boxing.action",
-      "start": 5.868,
-      "end": 7.856
+      "file": "boxing_action_boxing_stagger_2.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.cross#1": {
       "take": "boxing.action",
-      "start": 7.856,
-      "end": 9.32
+      "file": "boxing_action_boxing_cross_1.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.cross#2": {
       "take": "boxing.action",
-      "start": 9.34,
-      "end": 10.84
+      "file": "boxing_action_boxing_cross_2.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.combo#1": {
       "take": "boxing.action",
-      "start": 10.86,
-      "end": 12.88
+      "file": "boxing_action_boxing_combo_1.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.combo#2": {
       "take": "boxing.action",
-      "start": 12.94,
-      "end": 15.354
+      "file": "boxing_action_boxing_combo_2.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.defense": {
       "take": "boxing.action",
-      "start": 15.407,
-      "end": 18.45
+      "file": "boxing_action_boxing_defense.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.gassed#1": {
       "take": "boxing.action",
-      "start": 18.48,
-      "end": 20.2
+      "file": "boxing_action_boxing_gassed_1.mp3",
+      "start": null,
+      "end": null
     },
     "boxing.gassed#2": {
       "take": "boxing.action",
-      "start": 20.22,
-      "end": 22.11
-    },
-    "win.you#2": {
-      "take": "shared.more",
-      "start": 0.175,
-      "end": 2.67
-    },
-    "win.you#3": {
-      "take": "shared.more",
-      "start": 3.395,
-      "end": 4.935
-    },
-    "win.house#2": {
-      "take": "shared.more",
-      "start": 5.05,
-      "end": 8.2
-    },
-    "win.house#3": {
-      "take": "shared.more",
-      "start": 8.3,
-      "end": 12.67
-    },
-    "win.p1#2": {
-      "take": "shared.more",
-      "start": 13.449,
-      "end": 15.15
-    },
-    "win.p2#2": {
-      "take": "shared.more",
-      "start": 15.769,
-      "end": 17.55
-    },
-    "win.knuckles#2": {
-      "take": "shared.more",
-      "start": 18.207,
-      "end": 20.27
-    },
-    "win.professor#2": {
-      "take": "shared.more",
-      "start": 20.972,
-      "end": 23.555
-    },
-    "win.lou#2": {
-      "take": "shared.more",
-      "start": 24.238,
-      "end": 25.875
-    },
-    "win.maggie#2": {
-      "take": "shared.more",
-      "start": 26.641,
-      "end": 28.952
-    },
-    "draw#2": {
-      "take": "shared.more",
-      "start": 29.158,
-      "end": 31.715
-    },
-    "boxing.fight#3": {
-      "take": "boxing.more",
-      "start": 0,
-      "end": 0.84
-    },
-    "boxing.fight#4": {
-      "take": "boxing.more",
-      "start": 0.86,
-      "end": 3.288
-    },
-    "boxing.round.end#3": {
-      "take": "boxing.more",
-      "start": 3.356,
-      "end": 5.87
-    },
-    "boxing.round.end#4": {
-      "take": "boxing.more",
-      "start": 6.04,
-      "end": 8.33
-    },
-    "boxing.last10#2": {
-      "take": "boxing.more",
-      "start": 8.4,
-      "end": 10.912
-    },
-    "round.won.you#2": {
-      "take": "boxing.more",
-      "start": 10.924,
-      "end": 13.08
-    },
-    "round.won.house#2": {
-      "take": "boxing.more",
-      "start": 13.1,
-      "end": 15.023
-    },
-    "round.won.p1#2": {
-      "take": "boxing.more",
-      "start": 15.066,
-      "end": 17.468
-    },
-    "round.won.p2#2": {
-      "take": "boxing.more",
-      "start": 17.477,
-      "end": 19.864
-    },
-    "round.even#2": {
-      "take": "boxing.more",
-      "start": 19.868,
-      "end": 22.03
-    },
-    "down.you#2": {
-      "take": "boxing.more",
-      "start": 22.64,
-      "end": 24.19
-    },
-    "down.house#2": {
-      "take": "boxing.more",
-      "start": 24.486,
-      "end": 26.276
-    },
-    "down.p1#2": {
-      "take": "boxing.more",
-      "start": 26.769,
-      "end": 28.602
-    },
-    "down.p2#2": {
-      "take": "boxing.more",
-      "start": 29.263,
-      "end": 31.045
-    },
-    "boxing.getup#3": {
-      "take": "boxing.more",
-      "start": 31.256,
-      "end": 33.564
-    },
-    "boxing.ko#3": {
-      "take": "boxing.more",
-      "start": 34.282,
-      "end": 36.774
-    },
-    "boxing.decision#2": {
-      "take": "boxing.more",
-      "start": 36.954,
-      "end": 40.281
-    },
-    "boxing.guardbreak#3": {
-      "take": "boxing.more",
-      "start": 40.367,
-      "end": 42.67
-    },
-    "boxing.stagger#3": {
-      "take": "boxing.more",
-      "start": 42.826,
-      "end": 44.414
-    },
-    "boxing.cross#3": {
-      "take": "boxing.more",
-      "start": 44.634,
-      "end": 46.001
-    },
-    "boxing.cross#4": {
-      "take": "boxing.more",
-      "start": 46.207,
-      "end": 48.398
-    },
-    "boxing.combo#3": {
-      "take": "boxing.more",
-      "start": 48.442,
-      "end": 50.124
-    },
-    "boxing.defense#2": {
-      "take": "boxing.more",
-      "start": 50.467,
-      "end": 52.734
-    },
-    "boxing.gassed#3": {
-      "take": "boxing.more",
-      "start": 52.954,
-      "end": 54.868
-    },
-    "boxing.colour#5": {
-      "take": "boxing.more",
-      "start": 55.061,
-      "end": 56.646
-    },
-    "boxing.colour#6": {
-      "take": "boxing.more",
-      "start": 56.778,
-      "end": 58.524
-    },
-    "down.knuckles#2": {
-      "take": "card.more",
-      "start": 0,
-      "end": 2.11
-    },
-    "down.professor#2": {
-      "take": "card.more",
-      "start": 2.605,
-      "end": 4.51
-    },
-    "down.lou#2": {
-      "take": "card.more",
-      "start": 5.273,
-      "end": 6.99
-    },
-    "down.maggie#2": {
-      "take": "card.more",
-      "start": 7.916,
-      "end": 9.79
-    },
-    "round.won.knuckles#2": {
-      "take": "card.more",
-      "start": 10.211,
-      "end": 12.55
-    },
-    "round.won.professor#2": {
-      "take": "card.more",
-      "start": 12.6,
-      "end": 14.96
-    },
-    "round.won.lou#2": {
-      "take": "card.more",
-      "start": 15.02,
-      "end": 17.55
-    },
-    "round.won.maggie#2": {
-      "take": "card.more",
-      "start": 17.948,
-      "end": 20.08
-    },
-    "card.bets.open#2": {
-      "take": "card.more",
-      "start": 20.14,
-      "end": 22.97
-    },
-    "card.bets.next#2": {
-      "take": "card.more",
-      "start": 23.04,
-      "end": 26.464
-    },
-    "card.bets.closing#2": {
-      "take": "card.more",
-      "start": 26.508,
-      "end": 29.63
-    },
-    "card.payout.won#2": {
-      "take": "card.more",
-      "start": 30.347,
-      "end": 32.421
-    },
-    "card.payout.lost#2": {
-      "take": "card.more",
-      "start": 32.421,
-      "end": 34.671
-    },
-    "bowling.intro#3": {
-      "take": "bowling.more",
-      "start": 0,
-      "end": 1.888
-    },
-    "bowling.tenth#2": {
-      "take": "bowling.more",
-      "start": 1.996,
-      "end": 4.657
-    },
-    "bowling.up.p1#2": {
-      "take": "bowling.more",
-      "start": 4.734,
-      "end": 7.772
-    },
-    "bowling.up.p2#2": {
-      "take": "bowling.more",
-      "start": 7.843,
-      "end": 10.99
-    },
-    "bowling.strike#4": {
-      "take": "bowling.more",
-      "start": 11.9,
-      "end": 14.947
-    },
-    "bowling.strike#5": {
-      "take": "bowling.more",
-      "start": 15.073,
-      "end": 17.568
-    },
-    "bowling.strike#6": {
-      "take": "bowling.more",
-      "start": 17.596,
-      "end": 20.33
-    },
-    "bowling.double#2": {
-      "take": "bowling.more",
-      "start": 20.33,
-      "end": 23.23
-    },
-    "bowling.turkey#2": {
-      "take": "bowling.more",
-      "start": 23.946,
-      "end": 26.158
-    },
-    "bowling.hot#2": {
-      "take": "bowling.more",
-      "start": 26.37,
-      "end": 28.893
-    },
-    "bowling.spare#3": {
-      "take": "bowling.more",
-      "start": 28.959,
-      "end": 31.48
-    },
-    "bowling.spare#4": {
-      "take": "bowling.more",
-      "start": 31.573,
-      "end": 34.406
-    },
-    "bowling.split#3": {
-      "take": "bowling.more",
-      "start": 34.546,
-      "end": 37.406
-    },
-    "bowling.gutter#3": {
-      "take": "bowling.more",
-      "start": 37.586,
-      "end": 39.54
-    },
-    "bowling.onepin#2": {
-      "take": "bowling.more",
-      "start": 39.693,
-      "end": 42.734
-    },
-    "bowling.onepin#3": {
-      "take": "bowling.more",
-      "start": 42.802,
-      "end": 45.366
-    },
-    "bowling.final#2": {
-      "take": "bowling.more",
-      "start": 45.426,
-      "end": 47.934
-    },
-    "bowling.colour#3": {
-      "take": "bowling.more",
-      "start": 48.002,
-      "end": 50.414
-    },
-    "bowling.colour#4": {
-      "take": "bowling.more",
-      "start": 50.482,
-      "end": 53.236
-    },
-    "golf.wind#2": {
-      "take": "golf.more",
-      "start": 0,
-      "end": 1.272
-    },
-    "golf.final#2": {
-      "take": "golf.more",
-      "start": 1.404,
-      "end": 3.016
-    },
-    "golf.water#3": {
-      "take": "golf.more",
-      "start": 3.052,
-      "end": 5.936
-    },
-    "golf.ob#3": {
-      "take": "golf.more",
-      "start": 5.936,
-      "end": 8.912
-    },
-    "golf.bunker#3": {
-      "take": "golf.more",
-      "start": 8.924,
-      "end": 11.827
-    },
-    "golf.green#3": {
-      "take": "golf.more",
-      "start": 11.953,
-      "end": 13.408
-    },
-    "golf.green#4": {
-      "take": "golf.more",
-      "start": 13.596,
-      "end": 16.224
-    },
-    "golf.putt.birdie#2": {
-      "take": "golf.more",
-      "start": 16.268,
-      "end": 18.27
-    },
-    "golf.ace#2": {
-      "take": "golf.more",
-      "start": 18.803,
-      "end": 21.554
-    },
-    "golf.eagle#2": {
-      "take": "golf.more",
-      "start": 21.813,
-      "end": 24.116
-    },
-    "golf.birdie#3": {
-      "take": "golf.more",
-      "start": 24.706,
-      "end": 26.649
-    },
-    "golf.par#3": {
-      "take": "golf.more",
-      "start": 26.871,
-      "end": 29.166
-    },
-    "golf.bogey#2": {
-      "take": "golf.more",
-      "start": 29.186,
-      "end": 31.686
-    },
-    "golf.bogey#3": {
-      "take": "golf.more",
-      "start": 31.746,
-      "end": 33.476
-    },
-    "golf.double#2": {
-      "take": "golf.more",
-      "start": 33.746,
-      "end": 35.958
-    },
-    "golf.worse#2": {
-      "take": "golf.more",
-      "start": 35.97,
-      "end": 37.862
-    },
-    "golf.pickup#2": {
-      "take": "golf.more",
-      "start": 37.862,
-      "end": 40.196
-    },
-    "golf.halved#2": {
-      "take": "golf.more",
-      "start": 40.286,
-      "end": 42.436
-    },
-    "golf.won.you#2": {
-      "take": "golf.more",
-      "start": 42.69,
-      "end": 44.136
-    },
-    "golf.won.house#2": {
-      "take": "golf.more",
-      "start": 44.166,
-      "end": 46.115
-    },
-    "golf.won.p1#2": {
-      "take": "golf.more",
-      "start": 46.123,
-      "end": 48.303
-    },
-    "golf.won.p2#2": {
-      "take": "golf.more",
-      "start": 48.34,
-      "end": 50.401
-    },
-    "golf.away.p1#2": {
-      "take": "golf.more",
-      "start": 50.455,
-      "end": 52.743
-    },
-    "golf.away.p2#2": {
-      "take": "golf.more",
-      "start": 52.743,
-      "end": 54.87
-    },
-    "golf.colour#3": {
-      "take": "golf.more",
-      "start": 54.914,
-      "end": 57.51
-    },
-    "golf.colour#4": {
-      "take": "golf.more",
-      "start": 57.554,
-      "end": 60.036
+      "file": "boxing_action_boxing_gassed_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.intro#1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_intro_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.intro#2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_intro_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.tenth": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_tenth.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.up.p1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_up_p1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.up.p2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_up_p2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.strike#1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_strike_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.strike#2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_strike_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.strike#3": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_strike_3.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.double": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_double.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.turkey": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_turkey.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.hot": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_hot.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.spare#1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_spare_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.spare#2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_spare_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.split#1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_split_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.split#2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_split_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.split.made": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_split_made.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.gutter#1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_gutter_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.gutter#2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_gutter_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.onepin": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_onepin.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.final": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_final.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.colour#1": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_colour_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "bowling.colour#2": {
+      "take": "bowling.calls",
+      "file": "bowling_calls_bowling_colour_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.hole.1": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_hole_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.hole.2": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_hole_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.hole.3": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_hole_3.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.hole.last": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_hole_last.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.par.3": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_par_3.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.par.4": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_par_4.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.par.5": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_par_5.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.wind": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_wind.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.final": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_final.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.colour#1": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_colour_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.colour#2": {
+      "take": "golf.holes",
+      "file": "golf_holes_golf_colour_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.water#1": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_water_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.water#2": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_water_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.ob#1": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_ob_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.ob#2": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_ob_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.bunker#1": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_bunker_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.bunker#2": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_bunker_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.green#1": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_green_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.green#2": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_green_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.putt.eagle": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_putt_eagle.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.putt.birdie": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_putt_birdie.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.pickup": {
+      "take": "golf.shots",
+      "file": "golf_shots_golf_pickup.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.ace": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_ace.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.eagle": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_eagle.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.birdie#1": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_birdie_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.birdie#2": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_birdie_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.par#1": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_par_1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.par#2": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_par_2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.bogey": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_bogey.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.double": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_double.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.worse": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_worse.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.won.you": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_won_you.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.won.house": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_won_house.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.won.p1": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_won_p1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.won.p2": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_won_p2.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.halved": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_halved.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.away.p1": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_away_p1.mp3",
+      "start": null,
+      "end": null
+    },
+    "golf.away.p2": {
+      "take": "golf.scores",
+      "file": "golf_scores_golf_away_p2.mp3",
+      "start": null,
+      "end": null
     }
   }
 }

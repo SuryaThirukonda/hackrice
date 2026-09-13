@@ -8,7 +8,6 @@ import { Engine3D } from '../engine3d/Engine3D'
 import { BOXING_HELP, BOXING_KEYS, keyLabel } from '../games/boxing/keymap'
 import { BOWLING_HELP, BOWLING_KEYS } from '../games/bowling/keymap'
 import { GOLF_HELP, GOLF_KEYS } from '../games/golf/keymap'
-import { Announcer } from '../announcer'
 
 /** Every rebindable action across games, in display order. */
 interface Row { game: string; action: string; label: string; keys: string[] }
@@ -40,8 +39,6 @@ export class SettingsScene extends Phaser.Scene {
   private row = 0
   private waiting = false
   private content: Phaser.GameObjects.GameObject[] = []
-  /** The line the volume row plays, so a quick second press cuts the first. */
-  private sample: Announcer<'menu'> | null = null
   constructor() { super('settings') }
   init(): void { this.s = loadSettings(); this.row = 0; this.waiting = false }
   create(): void {
@@ -72,9 +69,6 @@ export class SettingsScene extends Phaser.Scene {
     else if (this.row === fixedRow('announcerVolume')) {
       const i = VOLUMES.findIndex((v) => Math.abs(v - this.s.announcerVolume) < 0.01)
       this.s.announcerVolume = VOLUMES[(i + 1) % VOLUMES.length]; saveSettings(this.s); sfx.select()
-      // Let the player hear the new level; a quick second press cuts the first sample.
-      this.sample?.destroy()
-      this.sample = this.s.announcer ? Announcer.sample(this, 'menu.welcome') : null
     }
     else if (this.row === fixedRow('captions')) { this.s.captions = !this.s.captions; saveSettings(this.s); sfx.select() }
     else if (this.row === fixedRow('quality')) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }

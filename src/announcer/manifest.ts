@@ -21,10 +21,7 @@ export interface ManifestLine {
   take: string
   /** Set for per-line takes: the line's own file. */
   file?: string
-  /**
-   * Segment in seconds, from the generation timestamps; null means the start or end of the file. The timestamps are
-   * estimates, so the player moves each cut between two lines into the real pause nearby (`segments.ts`).
-   */
+  /** Segment in seconds; null means the start or end of the file. */
   start: number | null
   end: number | null
 }

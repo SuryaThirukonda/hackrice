@@ -30,6 +30,7 @@ export class BowlingScene extends Phaser.Scene {
   private data3!: BowlingSceneData
   private sim!: BowlingGame
   private hud!: BowlingHud
+  private announcer!: Announcer<'bowling'>
   private world: BowlingWorld | null = null
   private keys = new KeyState()
   private meter = new MeterTracker()
@@ -54,8 +55,6 @@ export class BowlingScene extends Phaser.Scene {
   private steps: PracticeStep[] = []
   private stepIx = 0
   private guide: Phaser.GameObjects.GameObject[] = []
-  /** The spoken announcer for this game; silent in practice. */
-  private announcer: Announcer<'bowling'> | null = null
 
   constructor() { super('bowling') }
 
@@ -86,8 +85,12 @@ export class BowlingScene extends Phaser.Scene {
     this.hud = new BowlingHud(this)
     this.hud.names = is2p ? ['PLAYER 1', 'PLAYER 2'] : ['YOU', this.houseName]
     this.hud.layout(this.scale.width, this.scale.height)
+    this.announcer = new Announcer(this, {
+      sport: 'bowling',
+      practice: !!d.practice,
+      perspective: { mode: is2p ? '2p' : '1p' },
+    })
     this.hud.showCard('LOADING LANE', P.gold, `seed ${seed}`, 0)
-    this.announcer = new Announcer(this, { sport: 'bowling', practice: !!d.practice, perspective: is2p ? { mode: '2p' } : { mode: '1p' } })
     this.acc = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []; this.lastPinSfx = 0
     this.detach = this.keys.attach(window)
     this.input.keyboard!.on('keydown-ESC', () => this.togglePause())
@@ -104,16 +107,16 @@ export class BowlingScene extends Phaser.Scene {
       this.hud.clearCard()
       this.ready = true
       this.startedAt = this.time.now
+      this.announcer.start()
       this.world.apply(this.curr, this.aim, 0)
       this.updateTurn()
-      this.announcer?.start()
     })
   }
 
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
-    this.world?.resize(this.scale.width, this.scale.height)
     this.announcer?.layout(this.scale.width, this.scale.height)
+    this.world?.resize(this.scale.width, this.scale.height)
   }
 
   private togglePause(): void {
@@ -158,7 +161,12 @@ export class BowlingScene extends Phaser.Scene {
 
   private onEvent(e: BowlingEvent, batch: BowlingEvent[]): void {
     this.eventLog.push(JSON.stringify(e))
-    this.announcer?.event(e, () => ({ batch, standing: this.sim.standingPins().map((p) => p.index), player: this.sim.current, frame: this.sim.frame }))
+    this.announcer?.event(e, () => ({
+      batch,
+      standing: this.sim.standingPins().map((p) => p.index),
+      player: this.sim.current,
+      frame: this.sim.frame,
+    }))
     const w = this.world
     switch (e.kind) {
       case 'roll_start': sfx.whoosh(e.shot.power > 0.7); this.hud.aimReadout(null); this.updateTurn(); break
@@ -234,6 +242,7 @@ export class BowlingScene extends Phaser.Scene {
   update(_t: number, deltaMs: number): void {
     this.health.pump(); this.badge?.update()
     if (!this.ready || !this.world) return
+    this.announcer?.frame(this.curr)
     const inp = bowlingInput(this.keys, this.bindings, this.meter)
     if (inp.sheet) { sfx.hover(); this.hud.toggleSheet() }
     this.keys.endFrame()
@@ -289,7 +298,6 @@ export class BowlingScene extends Phaser.Scene {
     }
     this.curr = this.sim.snapshot()
     if (this.sim.phase !== wasPhase || this.sim.current !== wasCurrent || this.sim.ball !== wasBall) this.updateTurn()
-    this.announcer?.frame(this.curr)
     if (this.steps.length && !this.sim.events.length) this.practice([])
     this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path())
     this.hud.update(this.curr, dtS)

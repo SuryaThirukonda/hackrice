@@ -47,8 +47,8 @@ export class MainMenuScene extends Phaser.Scene {
       return b
     })
     new MenuNav(this, buttons, (i) => items[i][3]())
-    void this.goalCard(W, H)
     Announcer.once(this, 'menu.welcome', MENU_CAPTIONS)
+    void this.goalCard(W, H)
   }
   /** Today's activity goal, read from the local health service. Silent when that service is off. */
   private async goalCard(W: number, H: number): Promise<void> {

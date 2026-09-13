@@ -63,8 +63,6 @@ export class SpeechRules {
     }
     if (!cur) return req.priority <= 2 && now - this.lastEnded < MINOR_GAP_MS ? this.hold(s) : this.start(s, now, null)
     if (req.priority > cur.priority) return this.start(s, now, INTERRUPT_FADE_MS)
-    // A count digit is over in half a second: an equal call (the knockout on count ten) takes its place on the beat.
-    if (cur.beat && req.priority === cur.priority) return this.start(s, now, BEAT_FADE_MS)
     return this.hold(s)
   }
 
@@ -132,26 +130,16 @@ export function requestFor(cues: readonly string[], catalogue: Readonly<Record<s
   return { cues: known, priority, beat: !!single?.beat, staleMs: staleS * 1000, cooldownMs: cooldownS * 1000 }
 }
 
-/**
- * Picks a variant line for a cue: every variant plays once, in shuffled order, before any plays again, and a new
- * round never opens with the line that just played.
- */
+/** Picks a variant line for a cue, never the same line twice in a row when the cue has more than one. */
 export class VariantPicker {
-  private readonly bags = new Map<string, string[]>()
   private readonly last = new Map<string, string>()
   private readonly random: () => number
   constructor(random: () => number = Math.random) { this.random = random }
   pick(cue: string, lines: readonly string[]): string | null {
     if (lines.length === 0) return null
-    let bag = (this.bags.get(cue) ?? []).filter((l) => lines.includes(l))
-    if (bag.length === 0) {
-      bag = [...lines]
-      for (let i = bag.length - 1; i > 0; i--) { const j = Math.min(i, Math.floor(this.random() * (i + 1))); [bag[i], bag[j]] = [bag[j], bag[i]] }
-      // Lines are taken from the end, so keep the one that just played away from it.
-      if (bag.length > 1 && bag[bag.length - 1] === this.last.get(cue)) [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]]
-    }
-    const line = bag.pop()!
-    this.bags.set(cue, bag)
+    const prev = this.last.get(cue)
+    const options = lines.length > 1 && prev !== undefined ? lines.filter((l) => l !== prev) : lines
+    const line = options[Math.min(options.length - 1, Math.floor(this.random() * options.length))]
     this.last.set(cue, line)
     return line
   }

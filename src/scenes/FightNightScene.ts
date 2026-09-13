@@ -41,8 +41,8 @@ export class FightNightScene extends Phaser.Scene {
     kb.on('keydown-ENTER', () => (this.row === 2 ? this.start() : this.cycle(1)))
     kb.on('keydown-ESC', () => wipeTo(this, 'menu'))
     void fetch('/agent/health').then((r) => r.json()).then((h: { model: string; source: string; detail: string }) => { this.health = `agents: ${h.source === 'llm' ? `live (${h.model})` : 'offline, scripted fallback'}`; this.draw() }).catch(() => { this.health = 'agent service not running: scripted fallback (npm run agent)'; this.draw() })
-    this.draw()
     Announcer.once(this, 'card.lobby', LOBBY_CAPTIONS)
+    this.draw()
   }
   private cycle(d: number): void {
     if (this.row > 1) return

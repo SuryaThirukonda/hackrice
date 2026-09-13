@@ -42,7 +42,7 @@ function log(entry: AnnouncerLogEntry): void {
 }
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   // Dev hook for verification: the call log, a way to trigger a cue, and each line's audio status.
-  (window as unknown as { __announcer?: unknown }).__announcer = { log: devLog, say: (cue: string) => active?.say(cue), status: (line: string) => voice.status(line), duration: (line: string) => voice.duration(line) }
+  (window as unknown as { __announcer?: unknown }).__announcer = { log: devLog, say: (cue: string) => active?.say(cue), status: (line: string) => voice.status(line) }
 }
 
 function groupsFor(sport: Sport | 'menu', p: Perspective | undefined): Group[] {
@@ -62,9 +62,7 @@ export class Announcer<S extends Sport | 'menu'> {
   private readonly enabled: boolean
   private readonly map: SportMap<unknown, unknown, unknown> | null
   private readonly rules: SpeechRules
-  /** Shared by every announcer in the session, so a new match carries on through the variants instead of starting over. */
-  private static readonly sharedPicker = new VariantPicker()
-  private readonly picker = Announcer.sharedPicker
+  private readonly picker = new VariantPicker()
   private readonly captions: Captions | null
   private current: Playing | null = null
   private gamePaused = false
@@ -100,11 +98,9 @@ export class Announcer<S extends Sport | 'menu'> {
     new Announcer(scene, { sport: 'menu', place }).say(cue)
   }
 
-  /** Play one cue with no caption, at the saved volume (the settings volume row). Destroy it to cut it short. */
-  static sample(scene: Phaser.Scene, cue: string): Announcer<'menu'> {
-    const a = new Announcer(scene, { sport: 'menu', captions: false })
-    a.say(cue)
-    return a
+  /** Play one cue with no caption, at the saved volume (the settings volume row). */
+  static sample(scene: Phaser.Scene, cue: string): void {
+    new Announcer(scene, { sport: 'menu', captions: false }).say(cue)
   }
 
   /** The match is on screen. */
@@ -167,18 +163,15 @@ export class Announcer<S extends Sport | 'menu'> {
     if (status === 'loading' && !cur.speech.beat && t - cur.speech.at < cur.speech.staleMs) { cur.waiting = true; return }
     cur.waiting = false
     const text = captionText(lineText(line) ?? '')
-    const index = cur.index
-    const handle = status === 'ready' ? voice.play(line, () => this.lineDone(cur, index)) : null
+    const handle = status === 'ready' ? voice.play(line, () => this.lineDone(cur)) : null
     cur.handle = handle
-    // Audio ends through its callback; for audio the timer is only a backstop in case the audio clock stalls.
-    cur.endsAt = t + (handle ? (voice.duration(line) ?? 3) * 1000 + 1000 : Math.max(CAPTION_MIN_MS, text.length * CAPTION_MS_PER_CHAR))
+    cur.endsAt = handle ? null : t + Math.max(CAPTION_MIN_MS, text.length * CAPTION_MS_PER_CHAR)
     this.captions?.show(text)
     log({ at: t, cue: cueOf(line), line, kind: handle ? 'play' : 'caption' })
   }
 
-  private lineDone(cur: Playing, index: number): void {
-    if (this.current !== cur || cur.index !== index || this.destroyed) return
-    cur.handle?.stop(40)
+  private lineDone(cur: Playing): void {
+    if (this.current !== cur || this.destroyed) return
     cur.handle = null; cur.endsAt = null; cur.index++
     const t = now()
     if (cur.index < cur.lines.length) cur.gapUntil = t + LINE_GAP_MS
@@ -201,7 +194,7 @@ export class Announcer<S extends Sport | 'menu'> {
     if (cur) {
       if (cur.gapUntil !== null) { if (t >= cur.gapUntil) { cur.gapUntil = null; this.playLine(t) } }
       else if (cur.waiting) this.playLine(t)
-      else if (cur.endsAt !== null && t >= cur.endsAt) this.lineDone(cur, cur.index)
+      else if (cur.endsAt !== null && t >= cur.endsAt) this.lineDone(cur)
       return
     }
     const next = this.rules.tick(t)

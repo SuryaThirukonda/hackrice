@@ -13,10 +13,10 @@ import { controllerInput } from '../../input/controller'
 import { golfPractice, type GolfPracticeStep, type GolfPracticeUi } from './tutorial'
 import { GolfHud, CLUB_NAMES, toParText } from './hud/GolfHud'
 import { playVictoryAnimation } from '../../fx/victoryAnimation'
-import { Announcer } from '../../announcer'
 import { GolfWorld, type AimState } from './render/GolfWorld'
 import { CLUBS, CLUB_LIST, FULL_CLUBS, GolfRound, HZ, LIE_MUL, Rng, TIERS, courseById, simulateShot, surfaceAt, type CourseId } from './sim'
 import type { BotParams, Club, GolfEvent, GolfSnapshot, Player, Surface } from './sim/types'
+import { Announcer } from '../../announcer'
 
 export interface GolfSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId }
 
@@ -73,10 +73,7 @@ export class GolfScene extends Phaser.Scene {
   private practiceUi: GolfPracticeUi = { clubChanges: 0, aimTurnedDeg: 0, swings: 0 }
   private guide: Phaser.GameObjects.GameObject[] = []
   private nHoles = 3
-  /** The course's strongest wind (m/s), so the announcer can warn about a strong one. */
-  private windMax = 0
-  /** The spoken announcer for this round; silent in practice. */
-  private announcer: Announcer<'golf'> | null = null
+  private announcer!: Announcer<'golf'>
 
   constructor() { super('golf') }
 
@@ -103,11 +100,14 @@ export class GolfScene extends Phaser.Scene {
     this.hud.setCourseName(course.name)
     this.hud.setNames(is2p ? 'PLAYER 1' : 'YOU', is2p ? 'PLAYER 2' : (d.practice ? 'YOU (BALL B)' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`))
     this.hud.layout(this.scale.width, this.scale.height)
+    this.announcer = new Announcer(this, {
+      sport: 'golf',
+      practice: !!d.practice,
+      perspective: { mode: this.is2p ? '2p' : '1p' },
+    })
     const k = (a: keyof GolfBindings) => this.bindings[a].map(keyLabel).join('/')
     this.hud.setHint(`${k('clubUp')}/${k('clubDown')} club · ${k('aimLeft')}/${k('aimRight')} aim · ${k('swing')} swing ×3 · ${k('view')} map · Esc pause · H help`)
     this.hud.showCard('LOADING COURSE', P.gold, `${course.name.toLowerCase()} · seed ${seed}`, 0)
-    this.windMax = course.wind.max
-    this.announcer = new Announcer(this, { sport: 'golf', practice: !!d.practice, perspective: is2p ? { mode: '2p' } : { mode: '1p' } })
     this.acc = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []
     this.meter.reset(); this.topView = false; this.aiming = false; this.previewShown = false; this.previewDirty = true
     this.detach = this.keys.attach(window)
@@ -132,6 +132,7 @@ export class GolfScene extends Phaser.Scene {
         this.world.show(this.scale.width, this.scale.height)
         this.world.apply(this.curr, this.aimState(), 0)
       } catch (err) { console.error('golf world failed', err); this.world = null }
+      this.announcer.start()
       this.hud.clearCard()
       this.ready = true
       this.onEvent({ kind: 'wind', x: this.round.wind.x, z: this.round.wind.z })
@@ -140,8 +141,8 @@ export class GolfScene extends Phaser.Scene {
 
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
-    this.world?.resize(this.scale.width, this.scale.height)
     this.announcer?.layout(this.scale.width, this.scale.height)
+    this.world?.resize(this.scale.width, this.scale.height)
   }
 
   private togglePause(): void {
@@ -243,9 +244,15 @@ export class GolfScene extends Phaser.Scene {
 
   private onEvent(e: GolfEvent): void {
     this.eventLog.push(JSON.stringify(e))
-    this.announcer?.event(e, () => ({ par: this.round.holeData.par, hole: this.round.hole, nHoles: this.nHoles, windMax: this.windMax, strokes: 'player' in e ? this.round.balls[e.player].strokes : 0 }))
-    const mine = 'player' in e && (this.is2p || e.player === 'a' || this.practice)
     const par = this.round.holeData.par
+    this.announcer?.event(e, () => ({
+      par,
+      hole: this.round.hole,
+      nHoles: this.nHoles,
+      windMax: this.round.windRange?.max ?? 0,
+      strokes: 'strokes' in e ? e.strokes : ('player' in e ? this.round.balls[e.player]?.strokes ?? 0 : 0),
+    }))
+    const mine = 'player' in e && (this.is2p || e.player === 'a' || this.practice)
     switch (e.kind) {
       case 'wind': {
         const h = this.round.holeData, d = Math.round(Math.hypot(h.cup.x - h.tee.x, h.cup.z - h.tee.z))
@@ -336,6 +343,7 @@ export class GolfScene extends Phaser.Scene {
   update(t: number, deltaMs: number): void {
     this.health.pump(); this.badge?.update()
     if (!this.ready) return
+    this.announcer?.frame(this.curr)
     const dtS = Math.min(deltaMs, 100) / 1000
     const inp = golfInput(this.keys, this.bindings)
     this.keys.endFrame()
@@ -394,7 +402,6 @@ export class GolfScene extends Phaser.Scene {
       this.acc -= STEP_MS
     }
     if (!stepped && this.aiming) this.curr = this.round.snapshot()
-    this.announcer?.frame(this.curr)
     const view = lerpBalls(this.prev, this.curr, Math.min(1, this.acc / STEP_MS))
     this.world?.apply(view, this.aimState(), dtS)
     this.hud.update(view, this.hudState(), dtS)
