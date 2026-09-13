@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { HealthTracker, summaryLine } from '../../health/tracker'
+import { healthBadge } from '../../health/liveBadge'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
@@ -52,6 +53,7 @@ export class GolfScene extends Phaser.Scene {
   private paused = false
   private ended = false
   private health!: HealthTracker
+  private badge: { update: () => void; destroy: () => void } | null = null
   private ready = false
   private eventLog: string[] = []
   private bindings: GolfBindings = GOLF_KEYS
@@ -102,7 +104,8 @@ export class GolfScene extends Phaser.Scene {
     controllerInput.setSport('golf')
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('golf')
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end() })
+    this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
     this.pad = golfControllerState()
     this.input.keyboard!.on('keydown-ESC', () => this.togglePause())
@@ -271,7 +274,7 @@ export class GolfScene extends Phaser.Scene {
   }
 
   update(t: number, deltaMs: number): void {
-    this.health.pump()
+    this.health.pump(); this.badge?.update()
     if (!this.ready) return
     const dtS = Math.min(deltaMs, 100) / 1000
     const inp = golfInput(this.keys, this.bindings)

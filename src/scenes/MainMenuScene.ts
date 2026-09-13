@@ -3,6 +3,8 @@ import { ComicBackdrop, ComicButton, MenuNav, comicPanel, doodles, ensureTexture
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { openControllerConnect } from './ControllerScene'
+import { loadSettings } from '../agent/sliders'
+import { formatActive } from '../health/energy'
 
 /** Home menu: big playful logo on a tilted comic panel, a mascot chip bouncing, stacked comic buttons that slide in. */
 export class MainMenuScene extends Phaser.Scene {
@@ -44,7 +46,26 @@ export class MainMenuScene extends Phaser.Scene {
       return b
     })
     new MenuNav(this, buttons, (i) => items[i][3]())
+    void this.goalCard(W, H)
     this.add.text(W / 2, H - 28, '↑↓ choose  ·  Enter select  ·  mouse works too', { fontFamily: FONT, fontSize: '16px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5)
   }
+  /** Today's activity goal, read from the local health service. Silent when that service is off. */
+  private async goalCard(W: number, H: number): Promise<void> {
+    let today: { kcal: number; swings: number; activeSeconds: number } | null = null
+    try { const r = await fetch('/health/summary?days=1', { cache: 'no-store' }); if (r.ok) today = (await r.json() as { today: { kcal: number; swings: number; activeSeconds: number } }).today } catch { /* service off */ }
+    if (!today || !this.scene.isActive()) return
+    const goal = loadSettings().dailyGoalKcal, done = Math.min(1, today.kcal / goal)
+    const x = W * 0.08, y = H * 0.47, w = W * 0.42, h = 92
+    comicPanel(this, x, y, w, h, P.paper, 1).setDepth(5)
+    this.add.text(x + 22, y + 22, done >= 1 ? 'GOAL HIT TODAY' : "TODAY'S GOAL", { fontFamily: DISPLAY, fontSize: '22px', color: HEX(done >= 1 ? P.green : P.teal), stroke: HEX(P.ink), strokeThickness: 5 }).setDepth(6)
+    this.add.text(x + w - 22, y + 24, `${Math.round(today.kcal)} / ${goal} kcal`, { fontFamily: DISPLAY, fontSize: '20px', color: HEX(P.ink) }).setOrigin(1, 0).setDepth(6)
+    const g = this.add.graphics().setDepth(6)
+    g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 26, y + 58, w - 44, 16, 8).fillStyle(P.paper).fillRoundedRect(x + 22, y + 54, w - 44, 16, 8)
+    if (done > 0) g.fillStyle(done >= 1 ? P.green : P.teal).fillRoundedRect(x + 22, y + 54, Math.max(16, (w - 44) * done), 16, 8)
+    g.lineStyle(3, P.ink).strokeRoundedRect(x + 22, y + 54, w - 44, 16, 8)
+    const hint = done >= 1 ? `${today.swings} swings and ${formatActive(today.activeSeconds)} active. Great work.` : `${Math.ceil(goal - today.kcal)} kcal to go · every swing counts one`
+    this.add.text(x + 22, y + 76, hint, { fontFamily: FONT, fontSize: '12px', color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0, 0.5).setDepth(6)
+  }
+
   update(_t: number, dt: number): void { this.city.update(dt) }
 }

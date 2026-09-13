@@ -34,6 +34,11 @@ export const HARD_MEAN = 6
 /** A minute counts as active when at least this many of its seconds were moving. */
 export const ACTIVE_SECONDS_PER_MINUTE = 20
 export const DEFAULT_WEIGHT_KG = 70
+/** Every completed swing counts for one calorie on top of the time-based estimate, so the number
+ *  visibly climbs with each punch, roll or drive. Bag work runs around a calorie a punch, which keeps
+ *  this inside the honest range for an estimate. */
+export const SWING_KCAL = 1
+export const DEFAULT_GOAL_KCAL = 100
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
 
@@ -70,6 +75,7 @@ export interface ActivitySummary {
 /** Fold a session's epochs and per-swing rotations into the numbers the tab shows. */
 export function summarize(sport: HealthSport, epochs: readonly Epoch[], swingRoms: readonly number[], weightKg = DEFAULT_WEIGHT_KG): ActivitySummary {
   let activeSeconds = 0, kcal = 0, peak = 0, swings = 0, intensitySum = 0
+  for (const s of swingRoms) if (Number.isFinite(s)) kcal += SWING_KCAL
   const perMinute = new Map<number, number>()
   for (const e of epochs) {
     const moving = e.mean >= ACTIVE_MEAN
@@ -88,7 +94,7 @@ export function summarize(sport: HealthSport, epochs: readonly Epoch[], swingRom
     durationSeconds: epochs.length,
     activeSeconds,
     activeMinutes,
-    kcal: Math.max(0, kcal),
+    kcal: Math.max(0, kcal + Math.max(0, swings - swingRoms.length) * SWING_KCAL),
     meanIntensity: activeSeconds ? intensitySum / activeSeconds : 0,
     peakAcceleration: peak,
     swings,
@@ -96,4 +102,19 @@ export function summarize(sport: HealthSport, epochs: readonly Epoch[], swingRom
     romMax: swingRoms.length ? Math.max(...swingRoms) : 0,
     fatigue,
   }
+}
+
+/** Active time as a clock, "m:ss", so a short session reads as twenty seconds rather than zero minutes. */
+export function formatActive(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** What to say about a stretch of play. Honest and specific: it names what was done, then the goal. */
+export function praise(kcal: number, swings: number, activeSeconds: number, goalKcal: number): string {
+  const left = Math.max(0, Math.ceil(goalKcal - kcal))
+  if (swings === 0 && activeSeconds === 0) return `Nothing recorded yet. Today's goal is ${goalKcal} kcal: pick up the phone and swing.`
+  const done = kcal >= goalKcal ? 'Goal hit. Great work today.' : swings >= 60 || activeSeconds >= 600 ? 'Great session.' : swings >= 20 || activeSeconds >= 120 ? 'Good job.' : 'Nice start.'
+  const detail = `${swings} swing${swings === 1 ? '' : 's'}, ${formatActive(activeSeconds)} active, about ${Math.round(kcal)} kcal.`
+  return kcal >= goalKcal ? `${done} ${detail}` : `${done} ${detail} ${left} kcal to today's goal.`
 }
