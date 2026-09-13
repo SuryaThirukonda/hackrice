@@ -50,8 +50,10 @@ will not scan, and a chip beside each slot that turns green the moment a phone c
 is re-read every few seconds, so a restarted tunnel redraws the codes on its own. Scan, tap Connect,
 then Calibrate. There is also a standalone join page at <http://localhost:5174/join.html>.
 
-If the tunnel cannot start, the connect screen falls back to this machine's same-WiFi address and
-says so: a phone on that address gets the D-pad and the buttons, but not the swings.
+While the tunnel is starting the connect screen offers no address, so nobody scans a link whose
+sensors cannot work. If the tunnel fails, is turned off, or has not come up within 20 seconds, it
+falls back to this machine's same-WiFi address and says so: a phone on that address gets the D-pad
+and the buttons but not the swings, and the controller page itself explains that motion needs HTTPS.
 
 `npm run tunnel` starts a tunnel on its own, for a production server or a host that is not Vite.
 
@@ -101,25 +103,29 @@ npm run fake-phone -- --slot 2 --sport golf --peak 22 --every 2500
 `/controller.html?player=1&fake=1&debug=1` opens the controller page itself with synthetic motion
 buttons, for checking the phone UI in a desktop browser.
 
-## MediaPipe Head Tracker (Boxing)
+## Head tracker (boxing, webcam)
 
-A Python-based MediaPipe Face Detector tracks webcam head position in real time and sends duck and slip commands to the Boxing match via the WebSocket relay:
+`scripts/head_tracker.py` watches the player through a webcam with MediaPipe's face detector and turns a
+quick, deliberate head snap into defence: down is a duck, left and right are slips. It joins the relay as a
+third controller, `head_tracker`, beside the two phone slots, so the keyboard, a phone and the camera all
+work in the same match.
 
 ```bash
-# Install dependencies if needed:
-pip install mediapipe opencv-python websockets
-
-# Run the tracker:
-npm run head-tracker
-# or: python3 scripts/head_tracker.py
+pip install mediapipe opencv-python websockets   # MediaPipe has wheels for Apple Silicon, Linux and Windows
+npm run agent                                     # the relay; restart it if it was started before this feature
+npm run head-tracker                              # or: python3 scripts/head_tracker.py --camera 1
 ```
 
-Controls via head movements:
-- **Duck**: Move head downward
-- **Slip Left**: Sway head to the left
-- **Slip Right**: Sway head to the right
-- Press `c` on the camera HUD to recalibrate center neutral position; `q` or `Esc` to quit.
+Hold still for the first second while it learns the neutral position. A move counts only when it is both
+large (about 40% of the face's size) and fast, and the head has to come back near the centre before the
+next one, so ordinary leaning does nothing. The match shows `HEAD SLIP` or `HEAD DUCK` when one arrives.
+In the camera window `c` recalibrates and `q` or `Esc` quits; `--no-window` runs it headless. It talks to
+`ws://127.0.0.1:8790/controller-ws` unless `--url` says otherwise. If the relay refuses it, the tracker
+prints why once instead of retrying silently.
 
+`npm run test:head-tracker` feeds synthetic faces through the real detector and checks that drift is
+ignored and each snap produces the right action. Both commands download MediaPipe's face model (about
+230 KB) to `~/.cache/mediapipe` the first time.
 
 ## Controls
 
@@ -129,9 +135,15 @@ Controls via head movements:
 | Bowling | `A`/`D` lane, `Q`/`E` aim, `←`/`→` hook, tap `Space` to lock, then hold/release for power, `Tab` sheet |
 | Golf | `W`/`S` club, `A`/`D` aim, three presses of `Space` for power/accuracy, `Tab` map |
 | Fight Night | `A`/`D` corner, `↑`/`↓` stake, `Enter` place, `Space` skip |
-| Menus | arrows or `W`/`S`, `Enter`, `Esc` |
+| Menus | arrows or `W`/`S`, `Enter`, `Esc`, or the mouse |
 
 All game bindings can be changed in Settings. PlayCanvas quality can be switched between low, medium, and high there.
+
+The mouse works throughout: buttons and game cards take a click where they are drawn, the difficulty
+sliders can be clicked or dragged, every match HUD has a **PAUSE** button (clicking the key hints pauses
+too), and clicking outside a pause or connect overlay closes it. Starting a match with no phone connected
+first asks whether to connect one; `Enter` opens the QR codes and `X` goes straight to the keyboard. A
+knocked-down fighter gets the referee's count on a board in the middle of the screen.
 
 ## Architecture
 

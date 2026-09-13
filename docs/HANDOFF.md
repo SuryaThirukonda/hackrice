@@ -1,7 +1,7 @@
 # Tempo — handoff
 
-Everything the project does as of commit `82bf868`, how it fits together, how to run and verify it, and
-what is still open. Written for someone who has never opened this repo. Read `README.md` for the short
+Everything the project does as of commit `77fc829` (the `treys` merge and its follow-ups), how it fits
+together, how to run and verify it, and what is still open. Written for someone who has never opened this repo. Read `README.md` for the short
 version; this is the long one.
 
 ## 1. What Tempo is
@@ -22,7 +22,7 @@ the opponent is still called "The House".
 | Phone pages and lab pages | React 19, separate Vite entries |
 | Server | Node 24, `tsx`, one process (`server/agent.ts`) on port 8790 |
 | Build | Vite 8, TypeScript strict with `erasableSyntaxOnly`, `noUnusedLocals`, `noUnusedParameters` |
-| Tests | vitest, 28 files, 245 tests, all deterministic |
+| Tests | vitest, 29 files, 251 tests, all deterministic; one Python test for the webcam head tracker |
 | Local data | SQLite through Node's built-in `node:sqlite`, file `data/health.sqlite` (git-ignored) |
 
 Rules that everything else depends on:
@@ -42,7 +42,7 @@ Rules that everything else depends on:
 npm install          # also fetches Presage's native runtime for every platform, a few hundred MB
 npm run agent        # server on :8790: AI corners, phone relay, health and vitals routes
 npm run dev          # game on http://localhost:5174, starts a Cloudflare quick tunnel for phones
-npm test             # 245 tests
+npm test             # 251 tests
 npm run build        # strict typecheck, then the production bundle
 ```
 
@@ -121,7 +121,7 @@ restart to serve these routes after pulling.
 
 ### Protocol and relay (`server/controllerRelay.ts`, `src/input/controller.ts`)
 Phones connect to `/controller-ws`, the game to `/controller-game-ws`, both proxied by Vite to :8790.
-Two slots, `controller_1` and `controller_2`. Packet types: `hello`, `stick`, `motion`, `gesture`,
+Two phone slots, `controller_1` and `controller_2`, plus `head_tracker` for the webcam tracker (below). Packet types: `hello`, `stick`, `motion`, `gesture`,
 `action`, `activity`, `ping`/`pong`; server to phone `game_state` (sport, guard, telemetry request) and
 `error`. One monotonic `seq` per controller; 256-entry event-id dedup; stick state goes stale after
 250 ms. Fatal errors close the socket; a late-joining game gets the current roster replayed. The relay
@@ -150,7 +150,9 @@ reconnecting socket (`ControllerSocket.ts`). In boxing the detector's learned fo
 300 ms of stillness so punches may go in any direction; the immediate recoil of a punch is still rejected.
 Power ceilings are set so a committed swing reads in the 40s to 60s and only an all-out one reads 100.
 The phone also folds its motion into one-second epochs and measures each swing's rotation
-(`src/health/activity.ts`) and reports them every five seconds as `activity` packets.
+(`src/health/activity.ts`) and reports them every five seconds as `activity` packets. Since the `treys` merge
+the page wears the game's comic theme, and without motion sensors (plain HTTP, for one) the power button still
+connects it in D-pad and button mode and says why the swings are missing.
 
 ### Connectivity
 Phones need HTTPS for motion sensors. `npm run dev` starts a Cloudflare quick tunnel through a Vite plugin
@@ -158,8 +160,19 @@ Phones need HTTPS for motion sensors. `npm run dev` starts a Cloudflare quick tu
 quick tunnel is an anonymous outbound connection with a hostname that changes every run and no uptime
 guarantee. `HAP_NO_TUNNEL=1` keeps everything local. The in-game **CONNECT A PHONE** screen
 (`src/scenes/ControllerScene.ts`, also on every pause screen) draws a QR per slot, shows each slot's live
-claim state, re-reads the address every four seconds, and falls back to the same-WiFi address labelled
-"buttons only". Slot security is open: anyone with the QR can claim a slot mid-match (see section 9).
+claim state, and re-reads the address every four seconds. While the tunnel is starting it offers no address, so
+nobody scans a page without sensors; once the tunnel has failed, is disabled or is 20 seconds late it falls back
+to the same-WiFi address labelled "buttons only" (`joinConfig()` in `scripts/tunnelPlugin.mjs`). Slot security is open: anyone with the QR can claim a slot mid-match (see section 9).
+
+### Webcam head tracker (`scripts/head_tracker.py`, merged from `treys`)
+A Python process (MediaPipe face detector, OpenCV, websockets) that joins the relay directly at
+`ws://127.0.0.1:8790/controller-ws` as `head_tracker`. It learns a neutral face position over 25 frames, then
+sends `sway_left`, `sway_right` or `duck` when the face moves at least 0.40 (sideways) or 0.38 (down) of its own
+size and faster than 1.3 or 1.1 face sizes per second, re-arming only back near the centre. `BoxingScene` drains
+those actions after the keyboard and the phone and turns them into slips and a duck, with a HEAD SLIP or HEAD
+DUCK burst. `npm run head-tracker` runs it; `npm run test:head-tracker` checks the gesture logic on synthetic
+faces through the real detector. An agent service started before the merge refuses the slot
+(`invalid_controller_id`, which the tracker prints); restart it.
 
 ## 6. Health
 
@@ -224,9 +237,12 @@ the lab pages (`/vitals.html`) from being captured by the API prefix.
   encoding, the vitals lab in demo mode.
 - Cloudflare tunnel verified from the public edge: pages and both WebSocket paths through
   `*.trycloudflare.com`, phone round trip about 44 ms.
+- Head tracker (at the `treys` merge): synthetic faces through MediaPipe 1.0.1 on Linux, the tracker's
+  `RelayClient`, the real relay and a game socket delivered `sway_left`, `sway_right` and `duck` over one
+  connection. The tracker as first merged never delivered with websockets 17.1 (see section 13).
 
 Things never verified with real hardware: a real phone's swing thresholds (the motion lab exists for this),
-a real camera reading.
+a real camera reading, the head tracker's thresholds on a real webcam (this machine has none).
 
 ## 9. Open work, in priority order
 
@@ -244,7 +260,9 @@ a real camera reading.
    on purpose.
 7. **Stable public URL** (a named tunnel under a Cloudflare account) and replay determinism for phone matches
    (record punch power beside the seed). Both deferred by the owner.
-8. Small: the pause screen's key hints overlap on short windows; the HUD phone-punch ring lingers while the
+8. **Head tracker on a real webcam**: tune the distance and speed thresholds with a person rather than synthetic
+   faces. The connect screen does not show the tracker's slot yet.
+9. Small: the pause screen's key hints overlap on short windows; the HUD phone-punch ring lingers while the
    scene slows its tween clock.
 
 ## 10. Where things are
@@ -253,7 +271,7 @@ a real camera reading.
 index.html, controller.html, join.html, motion.html, vitals.html   Vite entries
 src/main.ts                    Phaser game, scene list, dev hooks
 src/scenes/                    title, menu, mode and game select, settings, tutorial, Fight Night,
-                               ControllerScene (QR), HealthScene
+                               ControllerScene (QR), HealthScene, CreditsScene
 src/games/<sport>/             Scene.ts, keymap.ts (+phone mapping), sim/, render/, hud/, tutorial.ts
 src/engine3d/                  shared PlayCanvas device, camera rig, materials, textures, effects
 src/input/                     keys, controller client (relay), joinLink (tunnel address)
@@ -262,7 +280,9 @@ src/phone/                     React controller and join pages, motion processin
 src/lab/                       motion lab, vitals lab, Trace chart
 src/agent/, src/betting/       AI corner link and executor, settings, betting book, chip ledger client
 server/                        agent.ts, service and tools (AI corners), controllerRelay, health, vitals
-scripts/                       tunnel plugin, standalone tunnel, quickTunnel helper, fake phone
+scripts/                       tunnel plugin (+joinConfig), standalone tunnel, quickTunnel helper, fake phone,
+                               head_tracker.py (webcam dodges)
+test/                          end-to-end phone swing, smoke, joinConfig, head tracker (Python)
 docs/                          this file, SPEC.md (code-level spec sheet, PlayCanvas guide, new-boxer recipe),
                                NEXT_PHASE.md (research and decisions), ENVIRONMENT_LAYER.md
 legacy/2d/                     the archived Phaser-only pixel renderer
@@ -288,5 +308,38 @@ data/                          health.sqlite (git-ignored)
   `retreatStamina` and `retreatTicks` no longer exist; the difficulty sliders build bot parameters without them.
 - **Chips in SQLite** (`a3398d8`, `82bf868`): fights, bets and chip movements recorded through `/chips/*`,
   with the lobby reconciling to the server's balance. Verified live on a temporary port.
-- **Counts**: 28 test files, 245 tests, 25 commits on `main`. The two most recent commits may still be
+- **Counts** at that revision: 28 test files, 245 tests, 25 commits on `main` (now 29 and 251, see section 13). The two most recent commits may still be
   ahead of `origin/main` until the owner pushes; this machine holds no GitHub credentials.
+
+## 13. Merged from `treys` (`eaa604f`, 2026-09-13) and follow-ups
+
+The four `treys` commits merged with no textual conflicts; `main`'s pace, chip and docs work touched other files.
+What they brought:
+
+- **Webcam head tracker** (`23ae326`): described in section 5. The relay and `controllerInput` accept
+  `head_tracker` and the `duck`, `sway_left`, `sway_right` actions.
+- **Mouse** (`23ae326`): `ComicButton` and game-card hit areas fixed (they sat half a button up and to the left, so
+  clicks missed), ◀ BACK on mode and game select, BACK and HELP on the pre-fight screen, clickable and draggable
+  sliders, a ⏸ PAUSE button and clickable key hints on all three HUDs, and a click outside the pause or connect
+  overlay closes it.
+- **Knockdown count board and credits** (`c7e167c`): a centre "REFEREE COUNT" panel driven by the sim's `count`
+  events, and a dedicated `credits` scene.
+- **Phone controller theme** (`1980c0e`): comic retro-arcade CSS, Bangers and Outfit from Google Fonts.
+- **Join prompt and sensor fallback** (`a15fea0`): FIGHT with no phone asks JOIN WITH PHONE? (`X` plays on the
+  keyboard); the phone connects in D-pad and button mode when DeviceMotion is unavailable; connect-screen overlap
+  fixes.
+
+Follow-ups committed on `main` after the merge:
+
+- `112d42b` The tracker read `ws.closed`, which websockets 14 and later removed. It threw inside the send loop, so
+  the tracker reconnected every second and never delivered a dodge. Fixed, together with dropping dodges made while
+  disconnected, locked sequence numbers, per-run event ids, a one-time relay refusal message, AVFoundation only on
+  macOS, and `Esc` to quit.
+- `fb9efbf` `treys` stopped serving the LAN address so a phone scanned during tunnel start-up would not land on an
+  HTTP page, which also removed the fallback when there is no tunnel at all. `joinConfig()` keeps the first and
+  restores the second once the tunnel fails, is disabled or is 20 seconds late (`test/joinConfig.test.ts`).
+- `77fc829` The count board asked a downed player to tap keys or shake; the count ignores input, so the line now
+  matches the sim and names the fighter in Fight Night. Head-tracker input is cleared at match start. The phone
+  page's focus outline and reduced-motion rule, dropped by the restyle, are back.
+
+After pulling: restart `npm run agent` so the relay knows `head_tracker`; Vite restarts itself on the plugin change.

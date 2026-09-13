@@ -1,6 +1,6 @@
 # Tempo — repository spec sheet and PlayCanvas guide
 
-Accurate as of commit `d612677` (2026-09-13). Everything below was read from the code, not from memory.
+Accurate as of commit `77fc829` (2026-09-13): the merge of the `treys` branch (`eaa604f`) and its follow-ups. Everything below was read from the code, not from memory.
 Where a number appears, it is the value in the file named next to it.
 
 This document has three jobs:
@@ -28,9 +28,10 @@ the static venue scenery. `README.md` is the run sheet. This file is the referen
 | 3D | PlayCanvas 2.22.2, engine-only (no editor, no asset pipeline) |
 | Phone pages | React 19 (only `controller.html`, `join.html`, `motion.html`, `vitals.html`) |
 | Server | Node 24, `tsx server/agent.ts` on :8790, `ws`, `node:sqlite` (`DatabaseSync`) |
-| Tests | vitest 5, 26 test files, 245 tests, `npm test` (about 4 s) |
+| Tests | vitest 5, 29 test files, 251 tests, `npm test` (about 4 s); `npm run test:head-tracker` runs the Python tracker test |
 | Source size | 16 071 lines of TS/TSX/MJS across `src`, `server`, `scripts` |
 | Optional services | OpenAI (`OPENAI_KEY`), Presage SmartSpectra (`PRESSAGE_KEY`), ElevenLabs (`ELEVENLABS_KEY`, unused so far) |
+| Webcam tracker | Python 3 with `mediapipe`, `opencv-python`, `websockets` (`scripts/head_tracker.py`), optional |
 
 Line counts per area (TS/TSX/MJS/CSS): `src/phone` 4358, `src/games/boxing` 2602, `src/games/golf` 2324,
 `src/games/bowling` 1920, `server` 1541, `src/scenes` 1053, `src/engine3d` 803, `src/lab` 660, `src/input` 465,
@@ -78,16 +79,18 @@ These hold everywhere. Break one and something already written stops being true.
 | Path | Purpose |
 |---|---|
 | `index.html` | Game entry. `#game` div, PlayCanvas canvas (`canvas.pc`) sits at `z-index:0`, Phaser canvas at `z-index:1`, cursor hidden. Loads `src/main.ts`. |
-| `controller.html`, `join.html`, `motion.html`, `vitals.html` | React phone controller, join page, motion lab, vitals lab (entries in `vite.config.ts` `build.rollupOptions.input`). |
+| `controller.html`, `join.html`, `motion.html`, `vitals.html` | React phone controller, join page, motion lab, vitals lab (entries in `vite.config.ts` `build.rollupOptions.input`). `controller.html` loads the Bangers and Outfit faces from Google Fonts for the comic theme. |
 | `environment-preview.html` | Dev-only static 3D review page (`?sport=boxing|bowling|golf`), loads `src/dev/environmentPreview.ts`. Not part of the production build. |
 | `vite.config.ts` | React plugin + `cloudflareTunnel()` plugin; `PROXY` map to :8790 (`/agent` ws, `^/health(/|$)`, `^/vitals(/|$)`, `^/chips(/|$)`, `/controller-ws`, `/controller-game-ws`); `allowedHosts: true`; same proxy for `preview`. |
 | `vitest.config.ts` | `src/**/*.test.ts`, `server/**/*.test.ts`, `test/**/*.test.ts`, node environment. |
 | `tsconfig.json` | See section 1. Includes `src`, `server`, `test`. |
-| `package.json` | Scripts: `dev`, `build`, `preview`, `test`, `test:watch`, `agent`, `typecheck`, `tunnel`, `fake-phone`. |
+| `package.json` | Scripts: `dev`, `build`, `preview`, `test`, `test:watch`, `agent`, `typecheck`, `tunnel`, `fake-phone`, `head-tracker`, `test:head-tracker` (both `python3`). |
 | `README.md` | Run sheet: phone controller, health, camera vitals, testing the controller, controls, architecture, 3D renderer, verification. |
 | `docs/` | `HANDOFF.md`, `NEXT_PHASE.md`, `ENVIRONMENT_LAYER.md`, this file. |
 | `.env` | `OPENAI_KEY`, `PRESSAGE_KEY` (double S; the loader also accepts `PRESAGE_KEY` and `PRESAGE_API_KEY`), `ELEVENLABS_KEY`. Values may have a space before `=`. |
 | `data/health.sqlite` | Created by the agent service on first run (`mkdirSync('data')`). |
+| `.env.example` | The keys above with empty values, plus `AGENT_MODEL` and `AGENT_PORT`. |
+| `test/` | `phoneSwing.test.ts` (accelerometer samples to opponent damage), `smoke.test.ts`, `joinConfig.test.ts` (vitest), and `test_head_tracker.py` (synthetic faces through the real MediaPipe detector). |
 
 ### `scripts/`
 
@@ -95,15 +98,16 @@ These hold everywhere. Break one and something already written stops being true.
 |---|---|
 | `quickTunnel.mjs` | `startQuickTunnel({ port, onOrigin, onError, quiet })` spawns `cloudflared tunnel --url http://localhost:<port> --no-autoupdate` (binary vendored by the `cloudflared` npm package) and scrapes the `https://*.trycloudflare.com` origin from stderr; `lanOrigin(port)` picks the first non-internal IPv4. |
 | `tunnel.mjs` | `npm run tunnel`: standalone tunnel that writes `public/join-config.json` `{ origin, lan, port }` and deletes it on exit. |
-| `tunnelPlugin.mjs` | `cloudflareTunnel()` Vite plugin: `configureServer` and `configurePreviewServer` start the tunnel and serve `/join-config.json` from middleware. |
+| `tunnelPlugin.mjs` | `cloudflareTunnel()` Vite plugin: `configureServer` and `configurePreviewServer` start the tunnel and serve `/join-config.json` from middleware. `joinConfig({ origin, lan, port, failure, startingForMs })` decides the answer: the tunnel once it is up, nothing while it starts (the request falls through to a static file), and the LAN address once the tunnel has failed, is disabled (`HAP_NO_TUNNEL=1`) or has been starting for `TUNNEL_GRACE_MS` (20 s). |
 | `fakePhone.ts` | `npm run fake-phone -- --slot 2 --sport golf --peak 22 --every 2500`: a Node phone that runs the real `MotionProcessor` and `ActivityTracker`, connects over the relay and sends `motion`, `gesture`, `stick`, `action` (`block_start` then `block_end` 700 ms later) and `activity` packets. |
+| `head_tracker.py` | `npm run head-tracker` (`--camera N`, `--url`, `--no-window`). MediaPipe face detector on a mirrored webcam frame. After 25 calibration frames it measures the face centre's offset in face sizes and its speed; past `DODGE_THRESHOLD_X 0.40` or `DUCK_THRESHOLD_Y 0.38` while moving faster than `JERK_SPEED_X 1.30` or `JERK_SPEED_Y 1.10` per second it sends `sway_left`, `sway_right` or `duck`, re-arms inside 0.18 of centre, waits 0.35 s between moves, and streams a `stick`. `RelayClient` claims the `head_tracker` slot, numbers packets under a lock, queues only while connected, uses per-run event ids `head-<session>-<seq>`, and prints a relay refusal once. `c` recalibrates, `q` or `Esc` quits. |
 
 ### `server/`
 
 | File | Exports | Role |
 |---|---|---|
 | `agent.ts` | (entry) | HTTP + WebSocket service on `AGENT_PORT` (default 8790). Routes in section 12. Friendly `EADDRINUSE` message. Creates `data/`. |
-| `controllerRelay.ts` | `ControllerRelay` (`handles(pathname)`, `upgrade(req, socket, head)`) | Phone ↔ game relay on `/controller-ws` (phones) and `/controller-game-ws` (the game). Two slots `controller_1`, `controller_2`. Stamps the active sport on packets, replays the roster to a game that connects late, forwards `activity` packets (≤120 epochs / roms each), sends `game_state` (sport, blocking, telemetry flag). |
+| `controllerRelay.ts` | `ControllerRelay` (`handles(pathname)`, `upgrade(req, socket, head)`) | Phone ↔ game relay on `/controller-ws` (phones) and `/controller-game-ws` (the game). Two phone slots `controller_1`, `controller_2`, and a `head_tracker` slot for the webcam tracker, whose actions `duck`, `sway_left`, `sway_right` are accepted beside the phone's. Stamps the active sport on packets, replays the roster to a game that connects late, forwards `activity` packets (≤120 epochs / roms each), sends `game_state` (sport, blocking, telemetry flag). |
 | `service.ts` | `AgentService`, `ActRequest`, `ActResponse`, `LlmClient`, `ServiceOptions` | The LLM corner: takes a sport summary + persona, calls OpenAI with a function tool, times out (`low`/`high` effort budgets), falls back to scripts. |
 | `tools.ts` | `Sport`, `BoxAction`, `BOX_ACTIONS`, `BoxStep`, `BoxScript`, `BowlShot`, `GolfShot`, `AgentOutput`, `STRATEGY_TOOL`, `TOOLS`, `INTERVAL_MS = 2500`, `TAUNT_MAX = 60`, `SCRIPT_BUDGET = 0.6`, `RECOVER_BELOW = 15`, `MAX_PUNCHES = 3`, `affordable(steps, stamina)`, `parseOutput(sport, raw, tool, stamina)` | Tool schemas and output validation. `BoxAction` has no `out` (bots never retreat). |
 | `summarize.ts` | `BoxingSummary`, `BowlingSummary`, `GolfSummary`, `Summary`, `instructions(sport, persona)`, `render(sport, summary)` | System prompt and the text rendering of a sim summary. |
@@ -125,23 +129,24 @@ These hold everywhere. Break one and something already written stops being true.
 |---|---|---|
 | `BootScene.ts` | `boot` | Texture generation, jumps to title. |
 | `TitleScene.ts` | `title` | Title card. |
-| `MainMenuScene.ts` | `menu` | PLAY, FIGHT NIGHT, HOST A GAME (placeholder), CONNECT A PHONE, HEALTH, HOW TO PLAY, SETTINGS, CREDITS. `goalCard()` shows today's kcal against the daily goal (`/health/summary`). Rows at `H*0.13 + i*76`, button height 70. |
-| `ModeSelectScene.ts` | `mode` | 1P vs Fight Night (`card` goes straight to `fightnight`). |
-| `GameSelectScene.ts` | `games` | Picks from `GAMES`; boxing/bowling/golf go to `prefight`. |
-| `PreFightScene.ts` | `prefight` | Difficulty preset (`rookie`/`pro`/`champ`/`custom` sliders) and seed; golf also picks a course. Starts the sport with `{ mode, tier, bot: boxingParams(diff) | bowlingParams | golfParams, seed, course? }`. |
+| `MainMenuScene.ts` | `menu` | PLAY, FIGHT NIGHT, HOST A GAME (placeholder), CONNECT A PHONE, HEALTH, HOW TO PLAY, SETTINGS, CREDITS (the `credits` scene). `goalCard()` shows today's kcal against the daily goal (`/health/summary`). Rows at `H*0.13 + i*76`, button height 70. |
+| `ModeSelectScene.ts` | `mode` | 1P vs Fight Night (`card` goes straight to `fightnight`). ◀ BACK returns to the menu. |
+| `GameSelectScene.ts` | `games` | Picks from `GAMES`; boxing/bowling/golf go to `prefight`. Cards take clicks where they are drawn; ◀ BACK returns to `mode`. |
+| `PreFightScene.ts` | `prefight` | Difficulty preset (`rookie`/`pro`/`champ`/`custom` sliders) and seed; golf also picks a course. Starts the sport with `{ mode, tier, bot: boxingParams(diff) | bowlingParams | golfParams, seed, course? }`. Sliders can be clicked or dragged (that sets the preset to `custom`); ◀ BACK and HELP buttons. FIGHT with no phone on `controller_1` opens a JOIN WITH PHONE? prompt: `Enter` or `Space` open the connect screen, `X` starts on the keyboard, `Esc` or a click outside closes it. `X` also starts straight away from the screen itself. |
 | `TutorialScene.ts` | `tutorial` | Pages from each sport's `tutorial.ts`; boxing has a guided practice. |
 | `SettingsScene.ts` | `settings` | SOUND, 3D QUALITY (`low`/`medium`/`high`, applied live with `Engine3D.peek()?.setQuality`), key bindings per sport, reset. |
-| `ControllerScene.ts` | `controller` | Phone connect screen: resolves the join link, draws a QR (dynamic `import('qrcode')`), shows FREE/CONNECTED per slot, LAN fallback warning. `openControllerConnect(scene)` pauses the caller and launches it (used by the pause overlay). |
+| `ControllerScene.ts` | `controller` | Phone connect screen: resolves the join link, draws a QR (dynamic `import('qrcode')`), shows FREE/CONNECTED per slot, LAN fallback warning. `openControllerConnect(scene)` pauses the caller and launches it (used by the pause overlay and the pre-fight join prompt). A click on the dimmed backdrop, `Esc` or `Enter` closes it. |
 | `HealthScene.ts` | `health` | Today, 7-day strip, per-sport totals, ROM trend, last-session effort curve, goal bar; weight and goal editing; `C` twice clears (`DELETE /health`), `R` refreshes, auto-refresh every 5 s. |
 | `FightNightScene.ts` | `fightnight` | `PERSONAS` (Knuckles McGraw / red, The Professor / blue, Lucky Lou / gold, Iron Maggie / green), chips and record in `localStorage` (`hap.v2.chips`, `hap.v2.record`) reconciled with `/chips/summary`. Starts `boxing` with `{ mode: 'card', personas, seed }`. |
-| `PlaceholderScene.ts` | `placeholder` | Title + subtitle card. |
+| `PlaceholderScene.ts` | `placeholder` | Title + subtitle card with a COMING SOON stamp (`hideStamp` hides it). |
+| `CreditsScene.ts` | `credits` | Comic credits card naming Atreya Jariwala, Surya Thirukonda and Gaurav Yadav, HackRice 16 · Rice University, BACK TO MENU. |
 
 ### `src/ui/`, `src/fx/`
 
 | File | Exports |
 |---|---|
-| `ui/widgets.ts` | `ensureTextures`, `ComicBackdrop`, `actionBurst`, `doodles`, `ComicButton` (+`ComicButtonOpts`), `comicPanel(scene, x, y, w, h, color, tilt, alpha)`, `MenuNav` |
-| `ui/pauseOverlay.ts` | `pauseOverlay(scene, rows, actions, title)`, `PauseRow`, `PauseAction` (includes the CONNECT PHONE action) |
+| `ui/widgets.ts` | `ensureTextures`, `ComicBackdrop`, `actionBurst`, `doodles`, `ComicButton` (+`ComicButtonOpts`; hit area `Rectangle(0, 0, w, h)`, because a Phaser container measures input from its top-left corner, so a click lands where the button is drawn), `comicPanel(scene, x, y, w, h, color, tilt, alpha)`, `MenuNav` |
+| `ui/pauseOverlay.ts` | `pauseOverlay(scene, rows, actions, title)`, `PauseRow`, `PauseAction` (includes the CONNECT PHONE action). A click on the dimmed backdrop runs the first action, RESUME in every sport. |
 | `fx/transitions.ts` | `wipeTo(scene, key, data)`, `isWiping()` |
 | `fx/sfx.ts` | `sfx` singleton (WebAudio, `enabled`, `unlock()`, cues: `hover`, `select`, `back`, `stamp`, `wipe`, `sparkle`, `whoosh`, `thud`, `block`, `dodge`, `parry`, `stagger`, `gassed`, `bell`, `countdown`, `knockdown`, `count`, `ko`, `win`, `crowd`) |
 | `fx/CursorTrail.ts` | `CursorTrail` scene (`cursor`), always on top |
@@ -151,14 +156,14 @@ These hold everywhere. Break one and something already written stops being true.
 | File | Exports |
 |---|---|
 | `keys.ts` | `KeyState` (`attach(window)`, edge and held queries, `endFrame()`) |
-| `controller.ts` | `controllerInput` singleton of `ControllerInput`: `setSport()`, `getSport()`, `stick(id)`, `drain(id, sport)`, `drainActivity(id)`, `clear(id?)`, `connect()`, `disconnect()`, `ingest(packet)`, `connected(id)`, `linked()`; types `ControllerSport`, `ControllerId`, `ControllerStick`, `ControllerGesture`, `ControllerButton`, `ControllerEvent`, `ActivityEpoch`; `phonePunchKind(gesture)` → `'jab' | 'cross'` |
+| `controller.ts` | `controllerInput` singleton of `ControllerInput`: `setSport()`, `getSport()`, `stick(id)`, `drain(id, sport)`, `drainActivity(id)`, `clear(id?)`, `connect()`, `disconnect()`, `ingest(packet)`, `connected(id)`, `linked()`; types `ControllerSport`, `ControllerId` (`controller_1 | controller_2 | head_tracker`), `ControllerStick`, `ControllerGesture`, `ControllerButton`, `ControllerEvent`, `ActivityEpoch`; `phonePunchKind(gesture)` → `'jab' | 'cross'` |
 | `joinLink.ts` | `JoinSource`, `JoinLink`, `NO_LINK`, `supportsMotion(link)`, `controllerUrl(link, player)`, `resolveJoinLink(fetch)` (page origin → `/join-config.json` tunnel → LAN → none) |
 
 ### `src/phone/` (React, phone side)
 
 | File | Role |
 |---|---|
-| `controller-main.tsx`, `Controller.tsx`, `controller.css`, `play.css` | The controller page. D-pad (`Arrow` glyphs), power button (`Power`/`Busy`), face A (boxing: hold to block, `Shield`; other sports: start motion, `Play`), face B (boxing: duck `Duck`; bowling: arm the throw; golf: cancel / toggle aim, `Cancel`). Touch hardening in `play.css` (`user-select: none`, transparent tap highlight). Green `punch-ring` flash on a registered swing. |
+| `controller-main.tsx`, `Controller.tsx`, `controller.css`, `play.css` | The controller page. D-pad (`Arrow` glyphs), power button (`Power`/`Busy`), face A (boxing: hold to block, `Shield`; other sports: start motion, `Play`), face B (boxing: duck `Duck`; bowling: arm the throw; golf: cancel / toggle aim, `Cancel`). Touch hardening in `play.css` (`user-select: none`, transparent tap highlight). Green `punch-ring` flash on a registered swing. Comic retro-arcade theme since the `treys` merge: ink borders, paper cards, a halftone blue page, per-sport console colours through `play-remote sport-<sport>`, a visible focus outline. Without DeviceMotion (for example on plain HTTP) the power button still connects the page in D-pad and button mode and says motion needs HTTPS. |
 | `Glyphs.tsx` | `Arrow`, `Pip`, `Shield`, `Play`, `Duck`, `Cancel`, `Power`, `Busy` (SVG, no text on buttons). |
 | `ControllerSocket.ts` | `ControllerSocket` with `connect()`, `disconnect()`, `setSensorHz(hz)`, `getMetrics()`, `sendActivity(epochs, roms)`, `sendMotion(motion)`, `sendStick(stick)`, `sendGesture(gesture)`, `sendAction(action, sport)`; `hello` and `ping` are sent internally; `onTelemetry` option; types `ControllerAction`, `ControllerConnectionState`, `RttMetrics`, `ControllerSocketOptions`. |
 | `motionProcessor.ts` | `MotionProcessor` (filtering, calibration, swing/punch detection, direction, power), `classifyDirection`, `orientVectorToScreen`; `FORWARD_RESET_MS = 300` clears the opponent direction after stillness so punches count in any direction. |
@@ -223,6 +228,9 @@ cloudflared quick tunnel ──► Vite dev server :5174 ──proxy──► ag
 - `vite preview` serves `dist/` with the same proxy, so a production build still reaches the relay.
 - The relay refuses a second phone on a taken slot (`controller_in_use`). `npm run fake-phone -- --slot 2` is the
   way to test while a real phone holds slot 1.
+- The webcam head tracker is a local Python process that connects straight to `ws://127.0.0.1:8790/controller-ws` as
+  `head_tracker`; it does not go through Vite or the tunnel. An agent service started before the merge refuses it
+  with `invalid_controller_id` until restarted.
 - For route checks while the owner's service is running, start a second one with `AGENT_PORT=8791`.
 
 ---
@@ -230,11 +238,11 @@ cloudflared quick tunnel ──► Vite dev server :5174 ──proxy──► ag
 ## 5. Boot and scene flow
 
 `main.ts` waits for a settled window size (`whenSized`), then builds the Phaser game with these scenes in order:
-`boot, title, menu, mode, games, placeholder, boxing, tutorial, prefight, settings, fightnight, bowling, golf,
+`boot, title, menu, mode, games, placeholder, credits, boxing, tutorial, prefight, settings, fightnight, bowling, golf,
 controller, health, cursor`. Transitions go through `wipeTo(scene, key, data)`; a scene's `init(data)` receives the
 object. Resize: scenes that implement `onResize()` re-lay out, others restart with their data.
 
-Flow: `menu → mode → games → prefight → boxing|bowling|golf` (1P) and `menu → fightnight → boxing (card)`.
+Flow: `menu → mode → games → prefight → boxing|bowling|golf` (1P), `menu → fightnight → boxing (card)`, and `menu → credits`.
 `tutorial` is reachable from the menu, the pre-fight screen and every pause overlay. `controller` (phone connect)
 opens from the menu or from the pause overlay through `openControllerConnect(scene)`.
 
@@ -348,6 +356,9 @@ slipArmed }`: stick x/y → strafe/forward; `gesture` → `phonePunchKind()` jab
 `HealthTracker('boxing')` and badge, then `Engine3D.get()` → `new BoxingWorld(engine, P.red, card)`. Card mode
 also creates `AgentLink`, `Book`, `ChipLedger`, and runs the betting panel (A/D corner, ↑↓ stake, Enter, Space).
 `onEvent()` maps every `SimEvent` to sound, HUD and world fx. Practice mode drives `boxingPractice()` steps.
+Head tracker: each frame the scene drains `head_tracker` actions (`duck` or `emergency_power` → duck, `sway_left` →
+`swayL`, `sway_right` → `swayR`) and uses one only when neither the keyboard nor the phone dodged, with a HEAD DUCK /
+HEAD SLIP burst; the queue is cleared at match start. Count events drive `hud.knockdownCount(n, who, card)`.
 Dev hook: `window.__boxing` (the scene; `getSnapshot()`, `getEventLog()`, `match`).
 
 Note for part 15: the persona colours from Fight Night reach the HUD names only. `BoxingWorld` is always built
@@ -358,7 +369,11 @@ with `P.red` gloves for the opponent and the spectator rig A is hard-coded `P.bl
 `names`, `layout(W, H)`, `update(view, dt)`, `phonePunch()` (pooled green ring), `burst(word, color, size)`,
 `showCard(title, color, sub, ms)`, `clearCard()`, `countdownNumber(n)`, `hitFlash(a)`, `gassed()`, `result(...)`,
 `taunt(side, text)`, `cornerStatus(a, b)`, `betPanel(o)`, `clearBet()`, `pauseOverlay(...)`, `clearOverlay()`,
-`setHint(text)`, `destroy()`.
+`setHint(text)`, `knockdownCount(n, who, spectator)`, `clearKnockdownCount()`, `destroy()`. The key hint is clickable and a
+⏸ PAUSE button sits bottom-right; both call the scene's `togglePause` (bowling and golf HUDs have the same pair). The
+count board is a paper panel with a starburst whose number pops each second, gold, then orange from 4, red from 7,
+magenta from 9; its line never asks for input because the sim ignores input during the count, and in Fight Night it
+names the fighter.
 
 ### 7.5 Renderer (`render/`)
 
@@ -435,7 +450,10 @@ dt)`; `CourseScene` (`triangulate`, `PREVIEW_N 24`, `BALL_DRAW_R 0.12`, `setHole
 **Phone → relay** (`ControllerSocket`): `hello` (slot, player, capabilities), `stick` (tilt vector),
 `motion` (filtered acceleration/rotation sample), `gesture` (detected swing/punch: power 0..1, direction,
 duration), `action` (`ControllerAction`: `block_start`, `block_end`, `emergency_power`, `placeholder_primary`,
-`placeholder_secondary`), `activity` (`epochs[]`, `roms[]`, ≤120 each), `ping`.
+`placeholder_secondary`; from the head tracker also `duck`, `sway_left`, `sway_right`), `activity` (`epochs[]`, `roms[]`, ≤120 each), `ping`.
+
+**Head tracker → relay** (`scripts/head_tracker.py`): `hello` claiming `head_tracker`, `action` with event id
+`head-<session>-<seq>`, and `stick` with the normalised head offset. The relay treats it as a third slot.
 
 **Relay → phone**: `hello` ack (with `telemetry`), `controller_status`, `game_state` `{ sport, blocking,
 telemetry }`, `pong`, `error` (for example `controller_in_use`).
@@ -860,12 +878,13 @@ states would map to clips, and `poses.ts` would be bypassed for that rig.
 |---|---|---|
 | `window.__game` | `main.ts` (dev) | Phaser game; `game.loop.actualFps` for frame-time checks |
 | `window.__advance(ms)` | `main.ts` (dev) | Step the game clock synchronously (tweens follow it in dev) |
-| `window.__pad` | `main.ts` (dev) | `controllerInput`; `ingest(packet)` to inject phone packets without a phone |
+| `window.__pad` | `main.ts` (dev) | `controllerInput`; `ingest(packet)` injects phone or head-tracker packets without hardware |
 | `window.__errs` | `main.ts` (dev) | Uncaught error stacks |
 | `window.__boxing` | `BoxingScene` | Live scene: `match`, `getSnapshot()`, `getEventLog()` |
 | `environment-preview.html?sport=` | `src/dev/environmentPreview.ts` | Static 3D review, no match |
 | `motion.html`, `vitals.html` | labs | Motion and vitals diagnostics |
 | `npm run fake-phone` | `scripts/fakePhone.ts` | Synthetic phone over the relay |
+| `npm run head-tracker`, `npm run test:head-tracker` | `scripts/head_tracker.py`, `test/test_head_tracker.py` | Webcam dodges; the detector test on synthetic faces |
 | `AGENT_PORT=8791 npm run agent` | `server/agent.ts` | Second service for route checks |
 
 Standard checks before a commit: `npm test`, `npm run build`, one screenshot per changed scene at 1280×800 with
