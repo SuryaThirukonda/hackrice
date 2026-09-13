@@ -36,7 +36,8 @@ export function cloudflareTunnel() {
   let failure = ''
   let stop = null
 
-  const begin = (server, label, port) => {
+  const begin = (server, label, configuredPort) => {
+    let port = configuredPort
     lan = lanOrigin(port)
     const startedAt = Date.now()
     // The config route answers from memory. While it has nothing to offer it falls through, so a
@@ -48,22 +49,32 @@ export function cloudflareTunnel() {
       res.setHeader('cache-control', 'no-store')
       res.end(JSON.stringify(body))
     })
-    if (process.env.HAP_NO_TUNNEL === '1') {
-      failure = 'tunnel disabled by HAP_NO_TUNNEL'
-      return
+    const launch = () => {
+      // Vite may bind the next available port when the configured one is occupied. Resolve the
+      // actual listening port before starting cloudflared; otherwise the tunnel forwards to a
+      // stale server and the QR controller appears connected but never reaches this game.
+      const address = server.httpServer?.address()
+      if (typeof address === 'object' && address) port = address.port
+      lan = lanOrigin(port)
+      if (process.env.HAP_NO_TUNNEL === '1') {
+        failure = 'tunnel disabled by HAP_NO_TUNNEL'
+        return
+      }
+      stop = startQuickTunnel({
+        port,
+        quiet: true,
+        onOrigin: (value) => {
+          origin = value
+          server.config.logger.info(`\n  ➜  Phones:   ${value}/join.html   (${label} tunnel, scan it in-game)\n`)
+        },
+        onError: (error) => {
+          failure = error.message
+          server.config.logger.warn(`\n  ➜  Phones:   no HTTPS tunnel (${error.message}). Phones can still use ${lan} for buttons only.\n`)
+        },
+      })
     }
-    stop = startQuickTunnel({
-      port,
-      quiet: true,
-      onOrigin: (value) => {
-        origin = value
-        server.config.logger.info(`\n  ➜  Phones:   ${value}/join.html   (${label} tunnel, scan it in-game)\n`)
-      },
-      onError: (error) => {
-        failure = error.message
-        server.config.logger.warn(`\n  ➜  Phones:   no HTTPS tunnel (${error.message}). Phones can still use ${lan} for buttons only.\n`)
-      },
-    })
+    if (server.httpServer?.listening) launch()
+    else server.httpServer?.once('listening', launch)
     server.httpServer?.on('close', () => { stop?.(); stop = null })
   }
 

@@ -45,7 +45,7 @@ export function golfParams(d: Difficulty): GolfParams {
 
 export type Quality = 'low' | 'medium' | 'high'
 export interface GameSettings {
-  preset: Preset; difficulty: Difficulty; seed: number | null; sound: boolean; quality: Quality; bindings: Record<string, Record<string, string[]>>; weightKg: number; dailyGoalKcal: number
+  preset: Preset; difficulty: Difficulty; seed: number | null; sound: boolean; quality: Quality; bindings: Record<string, Record<string, string[]>>; weightKg: number | null; weightUnit: 'kg' | 'lb'; dailyGoalMinutes: number; dailyGoalKcal: number
   /** Spoken announcer lines; off also hides their captions. */
   announcer: boolean
   /** Announcer volume, 0..1. */
@@ -55,7 +55,7 @@ export interface GameSettings {
 }
 const KEY = 'hap.v2.settings'
 const defaultQuality = (): Quality => 'medium'
-export const DEFAULT_SETTINGS: GameSettings = { preset: 'rookie', difficulty: { ...PRESETS.rookie }, seed: null, sound: true, quality: defaultQuality(), bindings: {}, weightKg: 70, dailyGoalKcal: 100, announcer: true, announcerVolume: 0.9, captions: true }
+export const DEFAULT_SETTINGS: GameSettings = { preset: 'rookie', difficulty: { ...PRESETS.rookie }, seed: null, sound: true, quality: defaultQuality(), bindings: {}, weightKg: null, weightUnit: 'kg', dailyGoalMinutes: 30, dailyGoalKcal: 100, announcer: true, announcerVolume: 0.9, captions: true }
 export function loadSettings(): GameSettings {
   try { const raw = localStorage.getItem(KEY); if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<GameSettings>) } } catch { /* fall through */ }
   return { ...DEFAULT_SETTINGS, difficulty: { ...PRESETS.rookie }, quality: defaultQuality() }

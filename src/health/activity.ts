@@ -11,7 +11,7 @@ const RING_MS = 1500
 export class ActivityTracker {
   private epochMs: number
   private origin: number | null = null
-  private current: { index: number; sum: number; n: number; peak: number; swings: number; rotation: number } | null = null
+  private current: { index: number; sum: number; accelSq: number; rotSq: number; active: number; n: number; peak: number; swings: number; rotation: number; power: number } | null = null
   private ready: Epoch[] = []
   private roms: number[] = []
   private ring: { t: number; rot: number; dt: number }[] = []
@@ -27,25 +27,25 @@ export class ActivityTracker {
     const index = Math.floor((t - this.origin) / this.epochMs)
     if (!this.current || this.current.index !== index) {
       this.roll()
-      this.current = { index, sum: 0, n: 0, peak: 0, swings: 0, rotation: 0 }
+      this.current = { index, sum: 0, accelSq: 0, rotSq: 0, active: 0, n: 0, peak: 0, swings: 0, rotation: 0, power: 0 }
     }
     const c = this.current
     const a = Number.isFinite(accelMag) ? Math.max(0, accelMag) : 0
     const r = Number.isFinite(rotMag) ? Math.max(0, rotMag) : 0
     const dt = Math.max(1, Math.min(100, intervalMs)) / 1000
-    c.sum += a; c.n += 1; c.peak = Math.max(c.peak, a); c.rotation += r * dt
+    c.sum += a; c.accelSq += a * a; c.rotSq += r * r; c.active += a >= .8 ? 1 : 0; c.n += 1; c.peak = Math.max(c.peak, a); c.rotation += r * dt
     this.ring.push({ t, rot: r, dt })
     while (this.ring.length && this.ring[0].t < t - RING_MS) this.ring.shift()
   }
 
   /** A swing the detector just completed, ending now and lasting `durationMs`: its rotation is the
    *  gyro integrated over that window, which is the arm's range of motion for the swing in degrees. */
-  noteSwing(t: number, durationMs: number): number {
+  noteSwing(t: number, durationMs: number, power = 0): number {
     const from = t - Math.max(50, durationMs)
     let deg = 0
     for (const s of this.ring) if (s.t >= from && s.t <= t) deg += s.rot * s.dt
     this.roms.push(deg)
-    if (this.current) this.current.swings += 1
+    if (this.current) { this.current.swings += 1; this.current.power = Math.max(this.current.power, Math.max(0, Math.min(1, power / 100))) }
     return deg
   }
 
@@ -64,6 +64,7 @@ export class ActivityTracker {
   private roll(): void {
     const c = this.current
     if (!c || c.n === 0) return
-    this.ready.push({ t: c.index * this.epochMs, mean: c.sum / c.n, peak: c.peak, swings: c.swings, rotation: c.rotation })
+    this.ready.push({ t: c.index * this.epochMs, mean: c.sum / c.n, peak: c.peak, swings: c.swings, rotation: c.rotation,
+      accelRms: Math.sqrt(c.accelSq / c.n), gyroRms: Math.sqrt(c.rotSq / c.n), activeFraction: c.active / c.n, actionPower: c.power })
   }
 }

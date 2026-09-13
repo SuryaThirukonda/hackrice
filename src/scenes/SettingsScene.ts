@@ -4,6 +4,8 @@ import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
 import { loadSettings, saveSettings, type GameSettings, type Quality } from '../agent/sliders'
+import { formatWeightLabel } from '../health/weightInput'
+import { openWeightEditor } from '../ui/weightEditor'
 import { Engine3D } from '../engine3d/Engine3D'
 import { BOXING_HELP, BOXING_KEYS, keyLabel } from '../games/boxing/keymap'
 import { BOWLING_HELP, BOWLING_KEYS } from '../games/bowling/keymap'
@@ -24,7 +26,7 @@ function allRows(bindings: Record<string, Record<string, string[]>>): Row[] {
 }
 
 /** The fixed rows at the top of the list, in display order. The key bindings follow them, then RESET KEYS. */
-const FIXED_ROWS = ['sound', 'announcer', 'announcerVolume', 'captions', 'quality'] as const
+const FIXED_ROWS = ['sound', 'announcer', 'announcerVolume', 'captions', 'quality', 'weight', 'weightUnit', 'goalMinutes'] as const
 type FixedRow = typeof FIXED_ROWS[number]
 /** Row index of the first key binding. */
 const BIND0 = FIXED_ROWS.length
@@ -32,13 +34,14 @@ const fixedRow = (name: FixedRow): number => FIXED_ROWS.indexOf(name)
 /** The announcer volume steps the row cycles through. */
 const VOLUMES = [0.3, 0.6, 0.9, 1]
 
-/** Sound, announcer and caption toggles, 3D quality, key rebinding (Enter on a row, then press the new key), reset. */
+/** Sound, announcer and caption toggles, 3D quality, the wellness profile (weight, unit, active-minute goal), key rebinding (Enter on a row, then press the new key), reset. */
 export class SettingsScene extends Phaser.Scene {
   private city!: ComicBackdrop
   private s!: GameSettings
   private row = 0
   private waiting = false
   private content: Phaser.GameObjects.GameObject[] = []
+  private closeWeight: (() => void) | null = null
   constructor() { super('settings') }
   init(): void { this.s = loadSettings(); this.row = 0; this.waiting = false }
   create(): void {
@@ -47,6 +50,7 @@ export class SettingsScene extends Phaser.Scene {
     const kb = this.input.keyboard!
     const rows = allRows(this.s.bindings).length + BIND0 + 1 // fixed rows, bindings, reset
     kb.on('keydown', (e: KeyboardEvent) => {
+      if (this.closeWeight) return // DOM editor owns keys
       if (this.waiting) {
         if (e.code !== 'Escape') {
           const r = allRows(this.s.bindings)[this.row - BIND0]
@@ -60,6 +64,7 @@ export class SettingsScene extends Phaser.Scene {
       else if (e.code === 'Enter' || e.code === 'Space') this.activate()
       else if (e.code === 'Escape') wipeTo(this, 'menu')
     })
+    this.events.once('shutdown', () => { this.closeWeight?.(); this.closeWeight = null })
     this.draw()
   }
   private activate(): void {
@@ -72,9 +77,23 @@ export class SettingsScene extends Phaser.Scene {
     }
     else if (this.row === fixedRow('captions')) { this.s.captions = !this.s.captions; saveSettings(this.s); sfx.select() }
     else if (this.row === fixedRow('quality')) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }
+    else if (this.row === fixedRow('weight')) { this.editWeight(); return }
+    else if (this.row === fixedRow('weightUnit')) { this.s.weightUnit = this.s.weightUnit === 'kg' ? 'lb' : 'kg'; saveSettings(this.s); sfx.select() }
+    else if (this.row === fixedRow('goalMinutes')) { const goals = [20, 30, 45, 60]; this.s.dailyGoalMinutes = goals[(goals.indexOf(this.s.dailyGoalMinutes) + 1) % goals.length] ?? 30; saveSettings(this.s); sfx.select() }
     else if (this.row === resetRow) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
     else { this.waiting = true }
     this.draw()
+  }
+  private editWeight(): void {
+    if (this.closeWeight) return
+    const host = this.game.canvas.parentElement ?? document.body
+    this.closeWeight = openWeightEditor(host, this.s, (next) => {
+      this.s = next
+      saveSettings(this.s)
+      sfx.select()
+      this.closeWeight = null
+      this.draw()
+    }, () => { this.closeWeight = null; this.draw() })
   }
   private draw(): void {
     for (const o of this.content) o.destroy()
@@ -102,6 +121,10 @@ export class SettingsScene extends Phaser.Scene {
     line(fixedRow('announcerVolume'), 'ANNOUNCER VOLUME', `${Math.round(this.s.announcerVolume * 100)}%`)
     line(fixedRow('captions'), 'CAPTIONS', this.s.captions ? 'ON' : 'OFF')
     line(fixedRow('quality'), '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
+    const shownWeight = this.s.weightKg === null ? 'TAP TO SET' : formatWeightLabel(this.s.weightKg, this.s.weightUnit)
+    line(fixedRow('weight'), 'BODY WEIGHT', shownWeight, 'WELLNESS')
+    line(fixedRow('weightUnit'), 'WEIGHT UNIT', this.s.weightUnit.toUpperCase(), 'WELLNESS')
+    line(fixedRow('goalMinutes'), 'ACTIVE MINUTE GOAL', `${this.s.dailyGoalMinutes} min`, 'WELLNESS')
     rows.forEach((r, i) => line(BIND0 + i, r.label.toUpperCase(), this.waiting && this.row === BIND0 + i ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
     line(rows.length + BIND0, 'RESET KEYS', 'defaults')
     add(this.add.text(W / 2, H - 46, '↑↓ rows · Enter change · Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))

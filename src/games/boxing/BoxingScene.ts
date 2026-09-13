@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { HealthTracker, summaryLine } from '../../health/tracker'
-import { healthBadge } from '../../health/liveBadge'
+import { tempoSenseHud } from '../../ui/TempoSenseHud'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { controllerInput } from '../../input/controller'
@@ -25,9 +25,10 @@ import { Announcer, personaKey } from '../../announcer'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
+import { tempoFlow } from '../../wellness/tempoFlow'
 
 export interface Persona { model?: import('./render/OpponentRig').BoxerModel; name: string; style: string; color: number }
-export interface BoxingSceneData { model?: import('./render/OpponentRig').BoxerModel; mode?: '1p' | '2p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
+export interface BoxingSceneData { model?: import('./render/OpponentRig').BoxerModel; mode?: '1p' | '2p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona]; tempo?: boolean }
 
 const STEP_MS = 1000 / HZ
 /** Both fighters in a two-player match wear the same build, so the fight reads as even; glove and trunk colours tell them apart. */
@@ -51,7 +52,7 @@ export class BoxingScene extends Phaser.Scene {
   private paused = false
   private ended = false
   private health!: HealthTracker
-  private badge: { update: () => void; destroy: () => void } | null = null
+  private badge: { update: () => void; destroy: () => void; layout: (W: number, H: number) => void } | null = null
   private ready = false
   private startedAt = 0
   private eventLog: string[] = []
@@ -137,7 +138,7 @@ export class BoxingScene extends Phaser.Scene {
     controllerInput.setSport('boxing')
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('boxing')
-    this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
+    this.badge?.destroy(); this.badge = tempoSenseHud(this, 'boxing', this.health)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
     controllerInput.clear('head_tracker') // a head snap made while the ring was loading must not dodge at the bell
@@ -161,6 +162,7 @@ export class BoxingScene extends Phaser.Scene {
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.announcer?.layout(this.scale.width, this.scale.height)
+    this.badge?.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
@@ -269,7 +271,8 @@ export class BoxingScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
+    const healthDone = this.health.end()
+    void healthDone.then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard()
     this.hud.clearKnockdownCount()
     const r = this.match.getResult()
@@ -314,6 +317,18 @@ export class BoxingScene extends Phaser.Scene {
       `${n2}: ${m.b.landed}/${m.b.thrown} landed · ${Math.round(m.b.dealtTotal)} damage`,
       `seed ${m.seedValue}`,
     ]
+    const accuracy = m.a.thrown ? m.a.landed / m.a.thrown : 0
+    const performance = Math.max(0, Math.min(1, accuracy * .65 + (m.a.dealtTotal / Math.max(1, m.a.dealtTotal + m.b.dealtTotal)) * .35))
+    const sportResult = {
+      title: 'BOXING RESULT',
+      lines: [
+        r?.by === 'ko' ? `Result  KO · R${r.round}` : r?.by === 'decision' ? 'Result  Decision' : 'Result  Draw',
+        `Hit accuracy  ${Math.round(accuracy * 100)}%`,
+        `Damage  ${Math.round(m.a.dealtTotal)} dealt`,
+      ],
+    }
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy, sportResult); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy, sportResult); wipeTo(this, 'session-summary') }) }
     let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
     let titleColor = youWin ? P.green : draw ? P.blue : P.red
     if (this.is2p) {
@@ -331,7 +346,7 @@ export class BoxingScene extends Phaser.Scene {
       sport: 'boxing',
       onComplete: () => {
         if (!this.scene.isActive()) return
-        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+        this.hud.result(title, lines, titleColor, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
       },
     })
   }

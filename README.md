@@ -1,6 +1,6 @@
 # Tempo
 
-A Phaser + PlayCanvas arcade sports collection with boxing, bowling, golf, and AI-vs-AI Fight Night betting. Phaser owns the menus, HUD, input, and deterministic 120 Hz simulations; PlayCanvas renders the interactive 3D sports environments behind it.
+A Phaser + PlayCanvas adaptive wellness arcade with boxing, bowling, golf, and AI-vs-AI Fight Night betting. **Tempo Session** combines a goal, a consent-first body check-in, movement-aware play, recovery, and deterministic challenge adaptation. Phaser owns the menus, HUD, input, and deterministic 120 Hz simulations; PlayCanvas renders the interactive 3D sports environments behind it.
 
 ## Run
 
@@ -59,32 +59,42 @@ and the buttons but not the swings, and the controller page itself explains that
 
 `npm run tunnel` starts a tunnel on its own, for a production server or a host that is not Vite.
 
-## Health
+## Tempo wellness
 
-The main menu's **HEALTH** tab shows what the last week of play did: active minutes, an estimated
-calorie figure, swing counts, a per-sport breakdown, a range-of-motion trend across sessions, and the
-last session's effort curve. It all comes from the phone's motion sensors: the phone folds its 60 Hz
-readings into one-second summaries and measures each swing's rotation, and sends a few numbers every
-five seconds. Each match becomes a session in a local SQLite database (`data/health.sqlite`, kept by
-the agent service and never shared). Keyboard-only matches are recorded as such, with no movement.
+**Tempo Session** is the primary loop: choose an intent and duration, optionally consent to a camera
+check-in, play a planned sport segment, recover, see why Tempo adjusted, and continue or review the
+session story. Free Play and Fight Night remain available as separate arcade modes.
 
-Active minutes and swings are measured. Calories use the standard MET-based formula with a body weight
-set on the tab (70 kg by default) and are estimates. Nothing here is a medical measurement.
+The **WELLNESS** dashboard leads with active time, movement actions, activity load, and recovery. It
+also shows the last session, the latest adaptation, and a weekly active-minute trend. Phone data is
+reduced on-device into one-second motion summaries; raw motion samples are not stored. Sessions,
+normalized motion load, usable vitals, and adaptation decisions are stored locally in
+`data/health.sqlite` by the agent service. Keyboard-only matches are labelled honestly as having no
+phone movement record.
+
+Active energy is optional and secondary. When body weight is absent it is shown as **not calculated**;
+when present, Tempo maps sport-specific motion load into conservative Compendium MET bands and uses
+the standard MET conversion with the resting component removed. It never awards calories per swing.
+All physiology and energy values are wellness estimates, not medical measurements.
 
 ## Camera vitals (Presage)
 
-<http://localhost:5174/vitals.html> is a test page for the camera reading: pulse rate, breathing rate
-with a live waveform, heart-rate variability labelled as uncleared, a resting baseline with exertion
-and recovery derived from it, and the phone's movement beside them. It starts nothing until the person
-in front of the camera ticks the consent box; a demo source runs the same pipeline without a camera.
+<http://localhost:5174/vitals.html> is the developer **Wellness Lab**. It shows Presage source,
+validation, stability, confidence, freshness, baseline progress, normalized motion/energy inputs,
+PlayerState, and the resulting adaptation. It starts nothing until the person in front of the camera
+consents; a deterministic demo source exercises the same normalized pipeline without a camera.
 
 The reading runs inside the agent service through Presage's SmartSpectra Node SDK, a native binding
 that opens the laptop camera itself and runs headless. The key is `PRESSAGE_KEY` in `.env` and never
 reaches the browser. Frames are not stored; the SDK sends preprocessed signal data to Presage's service.
 Note that `npm install` fetches the SDK's native runtime for every platform, a few hundred megabytes.
 
-The subject must be still, so this is for the lobby and the breaks between rounds, never mid-swing.
-These are wellness readings by the vendor's own terms, not measurements for diagnosis or treatment.
+Pulse is the MVP signal (about 12 still seconds). Breathing is opportunistic (about 30 seconds), while
+HRV, arterial-pressure, and expression models are not requested and do not influence gameplay. The subject must be
+still, so sensing is used only at check-in and recovery boundaries, never mid-swing. `PRESAGE_MODE`
+selects `live`, `mock`, or `off`; unavailable or low-quality physiology falls back to motion and game
+performance without blocking the session. These are wellness readings by the vendor's own terms, not
+measurements for diagnosis or treatment.
 
 ## Testing the controller
 
@@ -188,7 +198,8 @@ src/engine3d/               shared PlayCanvas device, cameras, lighting and effe
 src/games/*/sim/            deterministic 120 Hz gameplay and bots
 src/games/*/render/         PlayCanvas ring, lane, course and character models
 src/games/*/hud/            score, health, meters, help and results
-src/scenes/                 title, menus, settings, tutorial and Fight Night
+src/scenes/                 title, menus, Tempo loop, wellness, settings, tutorial and Fight Night
+src/wellness/               normalized motion/physiology, PlayerState, planning and adaptation
 src/agent/ + server/        browser agent link, server-side OpenAI service, phone relay
 src/phone/                  React controller and join pages (the only React in the repo)
 src/lab/                    motion lab: what the phone sends, on the big screen

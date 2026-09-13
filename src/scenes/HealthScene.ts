@@ -1,196 +1,167 @@
 import Phaser from 'phaser'
-import { ComicBackdrop, ComicButton, comicPanel, doodles, ensureTextures } from '../ui/widgets'
+import { ComicBackdrop, ComicButton, comicPanel, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
-import { loadSettings, saveSettings } from '../agent/sliders'
+import { loadSettings } from '../agent/sliders'
 import type { HealthSummary } from '../../server/health'
-import { formatActive, praise, type HealthSport } from '../health/energy'
+import { formatActive, formatGoalProgress, type HealthSport } from '../health/energy'
+import { formatEstimatedEnergy, intensityBar, movementIntensity, sessionRomLabel } from '../health/display'
+import { adaptationCopy } from '../wellness/adaptation'
 
-/**
- * The health tab: what the last week of play did, from the phone's motion. Active minutes and swing
- * counts are exact; calories and range of motion are estimates and say so. Everything is read from the
- * local health service on this machine; nothing here leaves it.
- */
-const SPORTS: HealthSport[] = ['boxing', 'bowling', 'golf']
 const SPORT_COLOR: Record<HealthSport, number> = { boxing: P.red, bowling: P.blue, golf: P.green }
-const DAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const weekday = (day: string, fallbackIndex: number): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+  if (!m) return DAYS[fallbackIndex] ?? '·'
+  return DAYS[new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay()] ?? DAYS[fallbackIndex]
+}
 
+/** Wellness history: Today → Last session → Body → ROM → Tempo → Week. */
 export class HealthScene extends Phaser.Scene {
   private city!: ComicBackdrop
-  private summary: HealthSummary | null = null
   private drawn: Phaser.GameObjects.GameObject[] = []
   private status!: Phaser.GameObjects.Text
-  private weightKg = 70
-  private goalKcal = 100
-  private clearArmed = false
   constructor() { super('health') }
 
   create(): void {
-    ensureTextures(this)
+    ensureTextures(this); this.city = new ComicBackdrop(this, 4)
     const { width: W, height: H } = this.scale
-    this.city = new ComicBackdrop(this, 4)
-    doodles(this, 8)
-    this.weightKg = loadSettings().weightKg
-    this.goalKcal = loadSettings().dailyGoalKcal
-    this.time.addEvent({ delay: 5000, loop: true, callback: () => void this.refresh() })
-    comicPanel(this, 30, 18, Math.min(520, W * 0.42), 92, P.paper, -1.5).setDepth(10)
-    this.add.text(60, 40, 'HEALTH', { fontFamily: DISPLAY, fontSize: '54px', color: HEX(P.teal), stroke: HEX(P.ink), strokeThickness: 10 }).setDepth(11).setAngle(-1.5)
-    this.add.text(300, 52, 'from phone motion · estimates,\nnot medical measurements', { fontFamily: FONT, fontSize: '13px', color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0, 0.5).setDepth(11)
-    this.status = this.add.text(W / 2, H / 2, 'reading your movement history…', { fontFamily: FONT, fontSize: '18px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 14, y: 8 } }).setOrigin(0.5).setDepth(20)
-    const back = new ComicButton(this, W - 150, 62, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.gold, w: 200, h: 56, size: 24 }).setDepth(12)
-    back.setFocus(true)
+    this.status = this.add.text(W / 2, H / 2, 'LOADING YOUR TEMPO…', { fontFamily: DISPLAY, fontSize: '22px', color: HEX(P.ink), backgroundColor: HEX(P.paper), padding: { x: 18, y: 10 } }).setOrigin(.5).setDepth(30)
     this.input.keyboard!.on('keydown-ESC', () => wipeTo(this, 'menu'))
-    this.input.keyboard!.on('keydown-BACKSPACE', () => wipeTo(this, 'menu'))
-    this.input.keyboard!.on('keydown-LEFT', () => this.weight(-1))
-    this.input.keyboard!.on('keydown-RIGHT', () => this.weight(1))
-    this.input.keyboard!.on('keydown-UP', () => this.goal(10))
-    this.input.keyboard!.on('keydown-DOWN', () => this.goal(-10))
+    this.input.keyboard!.on('keydown-S', () => wipeTo(this, 'settings'))
     this.input.keyboard!.on('keydown-R', () => void this.refresh())
-    this.input.keyboard!.on('keydown-C', () => void this.clear())
-    this.add.text(W / 2, H - 22, '←→ body weight  ·  ↑↓ daily goal  ·  R refresh  ·  C clear history (press twice)  ·  Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(11)
+    new ComicButton(this, W - Math.min(120, W * .11), 54, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.gold, w: Math.min(170, W * .2), h: 52, size: 22 }).setDepth(20)
     void this.refresh()
   }
-
   update(_t: number, dt: number): void { this.city.update(dt) }
-
-  private weight(d: number): void {
-    this.weightKg = Math.max(30, Math.min(200, this.weightKg + d))
-    saveSettings({ ...loadSettings(), weightKg: this.weightKg })
-    if (this.summary) this.render(this.summary)
-  }
-
-  private goal(d: number): void {
-    this.goalKcal = Math.max(20, Math.min(2000, this.goalKcal + d))
-    saveSettings({ ...loadSettings(), dailyGoalKcal: this.goalKcal })
-    if (this.summary) this.render(this.summary)
-  }
-
-  private async clear(): Promise<void> {
-    if (!this.clearArmed) { this.clearArmed = true; this.status.setText('press C again to erase the whole history').setVisible(true); this.time.delayedCall(2500, () => { this.clearArmed = false; if (this.summary) this.status.setVisible(false) }); return }
-    this.clearArmed = false
-    try { await fetch('/health', { method: 'DELETE' }) } catch { /* offline: nothing to clear */ }
-    await this.refresh()
-  }
-
   private async refresh(): Promise<void> {
     try {
-      const r = await fetch('/health/summary?days=7', { cache: 'no-store' })
-      if (!r.ok) throw new Error(String(r.status))
-      this.summary = await r.json() as HealthSummary
-      this.status.setVisible(false)
-      this.render(this.summary)
-    } catch {
-      this.status.setText('health service offline · start it with  npm run agent').setVisible(true)
-    }
+      const w = loadSettings().weightKg
+      const q = w !== null ? `&weightKg=${encodeURIComponent(String(w))}` : ''
+      const r = await fetch(`/health/summary?days=7${q}`, { cache: 'no-store' }); if (!r.ok) throw new Error()
+      const s = await r.json() as HealthSummary; this.status.setVisible(false); this.render(s)
+    } catch { this.status.setText('WELLNESS HISTORY OFFLINE\nstart  npm run agent').setAlign('center').setVisible(true); this.render(null) }
   }
 
-  private render(s: HealthSummary): void {
-    for (const o of this.drawn) o.destroy()
-    this.drawn = []
+  private render(s: HealthSummary | null): void {
+    for (const o of this.drawn) o.destroy(); this.drawn = []
+    const { width: W, height: H } = this.scale, k = Math.min(W / 1280, H / 720)
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.drawn.push(o); return o }
-    const { width: W, height: H } = this.scale
-    const k = Math.min(1, W / 1280, H / 800)
-    const font = (n: number): string => `${Math.round(n * k)}px`
-    const col = (x: number): number => 30 + x * k, row = (y: number): number => 130 + y * k
-    const text = (x: number, y: number, t: string, size: number, color = P.ink, style = FONT): Phaser.GameObjects.Text =>
-      add(this.add.text(col(x), row(y), t, { fontFamily: style, fontSize: font(size), color: HEX(color), fontStyle: style === FONT ? '900' : undefined }).setDepth(11))
-    const panel = (x: number, y: number, w: number, h: number, tilt = -0.6): void => { add(comicPanel(this, col(x), row(y), w * k, h * k, P.paper, tilt, 0.94).setDepth(10)) }
-    const big = (x: number, y: number, value: string, label: string, color: number): void => {
-      text(x, y, value, 44, color, DISPLAY); text(x, y + 50, label, 12, 0x5a4632)
-    }
+    const txt = (x: number, y: number, value: string, size: number, color = P.ink, display = false, originX = 0) =>
+      add(this.add.text(x, y, value, { fontFamily: display ? DISPLAY : FONT, fontSize: `${Math.max(10, Math.round(size * k))}px`, color: HEX(color), fontStyle: '900', lineSpacing: Math.round(3 * k) }).setOrigin(originX, 0).setDepth(12))
+    const panel = (x: number, y: number, w: number, h: number, tilt = 0, strong = false) => add(comicPanel(this, x, y, w, h, P.paper, tilt, strong ? 1 : .96).setDepth(10))
+    const section = (x: number, y: number, label: string, color: number) => { txt(x, y, label, 17, color, true); add(this.add.rectangle(x, y + 24 * k, 48 * k, 4 * k, color).setOrigin(0).setDepth(12)) }
 
-    // today
-    panel(0, 0, 380, 250)
-    text(20, 16, 'TODAY', 22, P.ink, DISPLAY)
-    const t = s.today
-    big(20, 56, formatActive(t.activeSeconds), 'active time', P.teal)
-    big(200, 56, `~${Math.round(t.kcal)}`, 'kcal, estimated', P.orange)
-    big(20, 140, `${t.swings}`, 'swings', P.blue)
-    big(200, 140, `${t.sessions}`, `session${t.sessions === 1 ? '' : 's'}`, P.purple)
-    text(20, 222, s.streakDays > 1 ? `${s.streakDays}-day streak` : s.streakDays === 1 ? 'first day of a streak' : 'no active day yet', 13, 0x5a4632)
-    // today's goal, and a word on how it is going
-    panel(0, 560, 1250, 74, 0.2)
-    const goalDone = Math.min(1, t.kcal / this.goalKcal)
-    text(20, 574, `TODAY'S GOAL  ${Math.round(t.kcal)} / ${this.goalKcal} kcal`, 18, goalDone >= 1 ? P.green : P.ink, DISPLAY)
-    const gb = add(this.add.graphics().setDepth(11))
-    gb.fillStyle(P.ink, 0.9).fillRoundedRect(col(24), row(606), 500 * k, 16 * k, 8).fillStyle(P.paper).fillRoundedRect(col(20), row(602), 500 * k, 16 * k, 8)
-    if (goalDone > 0) gb.fillStyle(goalDone >= 1 ? P.green : P.teal).fillRoundedRect(col(20), row(602), Math.max(16 * k, 500 * k * goalDone), 16 * k, 8)
-    gb.lineStyle(3, P.ink).strokeRoundedRect(col(20), row(602), 500 * k, 16 * k, 8)
-    add(this.add.text(col(560), row(600), praise(t.kcal, t.swings, t.activeSeconds, this.goalKcal), { fontFamily: FONT, fontSize: font(14), color: HEX(0x5a4632), fontStyle: '900', wordWrap: { width: 660 * k } }).setDepth(11))
+    panel(24 * k, 14 * k, W - 48 * k, 78 * k, -0.4, true)
+    txt(48 * k, 26 * k, 'TEMPO WELLNESS', 36, P.ink, true)
+    txt(50 * k, 64 * k, 'Movement, energy, body response — from your sessions.', 12, 0x5a4632)
 
-    // week strip
-    panel(410, 0, 440, 250)
-    text(430, 16, 'THIS WEEK', 22, P.ink, DISPLAY); text(560, 22, 'active minutes per day', 12, 0x5a4632)
-    const g = add(this.add.graphics().setDepth(11))
-    const maxMin = Math.max(10, ...s.days.map((d) => d.activeSeconds / 60))
-    s.days.forEach((d, i) => {
-      const x = col(440 + i * 58), base = row(210), h = (d.activeSeconds / 60 / maxMin) * 130 * k
-      g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 4, base - h + 4, 38 * k, h, 6)
-      g.fillStyle(d.activeSeconds > 0 ? P.teal : 0xd9cdb5).fillRoundedRect(x, base - h, 38 * k, h, 6)
-      g.lineStyle(3, P.ink).strokeRoundedRect(x, base - h, 38 * k, h, 6)
-      const day = new Date(d.day + 'T12:00:00')
-      add(this.add.text(x + 19 * k, row(222), DAY[day.getDay()], { fontFamily: FONT, fontSize: font(12), color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5, 0).setDepth(11))
-      if (d.activeSeconds > 0) add(this.add.text(x + 19 * k, base - h - 6 * k, `${Math.round(d.activeSeconds / 60)}`, { fontFamily: FONT, fontSize: font(11), color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5, 1).setDepth(11))
-    })
-    const weekly = s.days.reduce((a, d) => a + d.activeSeconds, 0) / 60
-    text(430, 60, `${Math.round(weekly)} of 150 min`, 16, P.teal); text(430, 82, 'the usual weekly guideline for moderate activity', 11, 0x5a4632)
+    const pad = 24 * k, top = 108 * k, settings = loadSettings(), goal = settings.dailyGoalMinutes
+    const todaySec = s?.todayActiveSeconds ?? s?.today?.activeSeconds ?? 0
+    const today = s?.today, last = s?.lastSession
+    const energy = formatEstimatedEnergy(today?.kcal)
+    const intensity = movementIntensity(last?.motionLoad ?? 0)
 
-    // by sport
-    panel(0, 270, 380, 190)
-    text(20, 286, 'BY SPORT', 22, P.ink, DISPLAY)
-    SPORTS.forEach((sp, i) => {
-      const b = s.bySport[sp], y = 326 + i * 44
-      text(20, y, sp.toUpperCase(), 15, SPORT_COLOR[sp], DISPLAY)
-      text(120, y - 2, `${b.sessions} session${b.sessions === 1 ? '' : 's'} · ${formatActive(b.activeSeconds)} active · ~${Math.round(b.kcal)} kcal`, 12, 0x5a4632)
-      text(120, y + 15, `${b.swings} swing${b.swings === 1 ? '' : 's'}${b.romMean ? ` · ${Math.round(b.romMean)}° per swing` : ''}`, 12, 0x5a4632)
+    panel(pad, top, W - pad * 2, 128 * k, .2, true)
+    const primary: readonly (readonly [string, string, string, number])[] = [
+      ['ACTIVE TIME', formatActive(todaySec), `${formatGoalProgress(todaySec, goal)} MIN`, P.teal],
+      ['MOVEMENT', String(today?.swings ?? 0), 'ACTIONS', P.teal],
+      ['EST. ACTIVE ENERGY', energy.value, energy.estimated ? `${energy.unit.toUpperCase()} EST.` : 'ADD WEIGHT', P.orange],
+      ['SESSIONS', String(today?.sessions ?? 0), 'TODAY', P.blue],
+    ]
+    primary.forEach(([label, value, note, color], i) => {
+      const cellW = (W - pad * 2) / 4, x = pad + cellW * i
+      if (i) add(this.add.rectangle(x, top + 18 * k, 2 * k, 92 * k, P.ink, .14).setOrigin(.5, 0).setDepth(11))
+      txt(x + 20 * k, top + 16 * k, label, 11, color, true)
+      txt(x + 20 * k, top + 42 * k, value, 32, color, true)
+      txt(x + 20 * k, top + 92 * k, note, 11, 0x5a4632)
     })
 
-    // range of motion trend
-    panel(410, 270, 440, 190)
-    text(430, 286, 'RANGE OF MOTION', 22, P.ink, DISPLAY); text(430, 312, 'mean degrees per swing, by session', 11, 0x5a4632)
-    if (s.romTrend.length < 2) text(430, 344, s.romTrend.length === 1 ? `${Math.round(s.romTrend[0].romMean)}° per swing so far · play another session to see a trend` : 'play two sessions with the phone to see a trend', 13, 0x5a4632)
-    else {
-      const gr = add(this.add.graphics().setDepth(11))
-      const xs = s.romTrend.map((_, i) => col(440 + i * (400 / Math.max(1, s.romTrend.length - 1))))
-      const maxR = Math.max(30, ...s.romTrend.map((r) => r.romMax))
-      const y = (v: number): number => row(440) - (v / maxR) * 110 * k
-      gr.lineStyle(4, P.ink)
-      s.romTrend.forEach((r, i) => { if (i) gr.lineBetween(xs[i - 1], y(s.romTrend[i - 1].romMean), xs[i], y(r.romMean)) })
-      s.romTrend.forEach((r, i) => { gr.fillStyle(SPORT_COLOR[r.sport]).fillCircle(xs[i], y(r.romMean), 7 * k); gr.lineStyle(3, P.ink).strokeCircle(xs[i], y(r.romMean), 7 * k) })
-      const last = s.romTrend[s.romTrend.length - 1], first = s.romTrend[0]
-      text(430, 444, `${Math.round(first.romMean)}° → ${Math.round(last.romMean)}° over ${s.romTrend.length} sessions`, 13, 0x5a4632)
+    const gap = 14 * k, lowerY = top + 144 * k, lowerH = H - lowerY - 32 * k
+    const leftW = (W - pad * 2 - gap) * .55, rightX = pad + leftW + gap, rightW = W - pad - rightX
+    const half = (lowerH - gap) / 2
+
+    panel(pad, lowerY, leftW, half, -.2)
+    section(pad + 18 * k, lowerY + 14 * k, 'LAST SESSION', last ? SPORT_COLOR[last.sport] : P.blue)
+    if (!last) {
+      txt(pad + 18 * k, lowerY + 52 * k, 'NO SESSION YET', 22, P.ink, true)
+      txt(pad + 18 * k, lowerY + 86 * k, 'Finish a Tempo Session to build your story.', 12, 0x5a4632)
+    } else {
+      const rom = sessionRomLabel(last.sport, last.romMean, last.romMax, last.swings)
+      const lastEnergy = formatEstimatedEnergy(last.kcal)
+      txt(pad + 18 * k, lowerY + 50 * k, last.sport.toUpperCase(), 26, SPORT_COLOR[last.sport], true)
+      txt(pad + leftW - 18 * k, lowerY + 54 * k, new Date(last.endedAt ?? last.startedAt).toLocaleDateString(), 11, 0x5a4632, false, 1)
+      txt(pad + 18 * k, lowerY + 88 * k, `${formatActive(last.activeSeconds)} active  ·  ${last.swings} actions`, 13, P.ink)
+      txt(pad + 18 * k, lowerY + 112 * k, `MOVEMENT INTENSITY  ${intensity}`, 12, 0x5a4632)
+      txt(pad + 18 * k, lowerY + 132 * k, intensityBar(last.motionLoad), 12, P.teal)
+      txt(pad + 18 * k, lowerY + 156 * k, lastEnergy.estimated ? `Est. active energy  ${lastEnergy.value} ${lastEnergy.unit}` : 'Est. active energy  NOT ESTIMATED', 11, 0x5a4632)
+      if (rom) txt(pad + 18 * k, lowerY + 178 * k, `${rom.label}  ${rom.degrees}°`, 11, 0x5a4632)
+      const epochs = last.epochs ?? []
+      if (epochs.length > 4) {
+        const chartX = pad + 18 * k, chartY = lowerY + half - 20 * k, chartW = leftW - 40 * k, chartH = 28 * k
+        const step = Math.max(1, Math.floor(epochs.length / 40))
+        const samples = epochs.filter((_, i) => i % step === 0).slice(0, 40)
+        const maxLoad = Math.max(0.2, ...samples.map((e) => e.motionLoad ?? 0))
+        samples.forEach((e, i) => {
+          const h = Math.max(2 * k, chartH * ((e.motionLoad ?? 0) / maxLoad))
+          const x = chartX + (i / samples.length) * chartW
+          add(this.add.rectangle(x, chartY - h, Math.max(2, chartW / samples.length - 1), h, P.teal).setOrigin(0).setDepth(12))
+        })
+      }
     }
 
-    // last session: effort over time
-    panel(870, 0, 380, 460)
-    text(890, 16, 'LAST SESSION', 22, P.ink, DISPLAY)
-    const L = s.lastSession
-    if (!L) text(890, 60, 'nothing recorded yet.\nplay a match with the phone\nconnected and it appears here.', 13, 0x5a4632)
-    else {
-      text(890, 52, `${L.sport} · ${L.source === 'phone' ? 'phone' : 'keyboard, no movement'}`, 14, SPORT_COLOR[L.sport])
-      text(890, 74, `${new Date(L.endedAt ?? L.startedAt).toLocaleString()}`, 11, 0x5a4632)
-      big(890, 100, formatActive(L.activeSeconds), 'active time', P.teal); big(1060, 100, `~${Math.round(L.kcal)}`, 'kcal est.', P.orange)
-      big(890, 180, `${L.swings}`, 'swings', P.blue); big(1060, 180, L.swings ? `${Math.round(L.romMean)}°` : '—', 'per swing', P.purple)
-      text(890, 262, 'EFFORT OVER TIME', 14, P.ink, DISPLAY)
-      const ge = add(this.add.graphics().setDepth(11))
-      const ep = L.epochs
-      if (ep.length > 5) {
-        const maxI = Math.max(2, ...ep.map((e) => e.mean))
-        const x0 = col(890), w = 340 * k, y0 = row(410), h = 110 * k
-        ge.fillStyle(0xffffff, 0.5).fillRect(x0, y0 - h, w, h)
-        ge.lineStyle(3, P.teal)
-        ep.forEach((e, i) => { const x = x0 + (i / (ep.length - 1)) * w, y = y0 - (e.mean / maxI) * h; if (i) ge.lineTo(x, y); else { ge.beginPath(); ge.moveTo(x, y) } })
-        ge.strokePath()
-        ge.lineStyle(2, P.ink).strokeRect(x0, y0 - h, w, h)
-        const fade = L.fatigue
-        text(890, 418, fade < 0.8 ? `effort faded to ${Math.round(fade * 100)}% of the start` : fade > 1.2 ? `effort grew to ${Math.round(fade * 100)}% of the start` : 'effort held steady', 12, 0x5a4632)
-      } else text(890, 300, 'too short for a curve', 12, 0x5a4632)
+    panel(pad, lowerY + half + gap, leftW, half, .25)
+    section(pad + 18 * k, lowerY + half + gap + 14 * k, 'TEMPO RESPONSE', P.purple)
+    const a = s?.lastAdaptation
+    if (!a) {
+      txt(pad + 18 * k, lowerY + half + gap + 54 * k, 'NO ADAPTATION YET', 20, P.ink, true)
+      txt(pad + 18 * k, lowerY + half + gap + 88 * k, 'Complete recovery after a session to adapt challenge.', 12, 0x5a4632)
+    } else {
+      const delta = Math.round((a.newDifficulty - a.previousDifficulty) * 100)
+      txt(pad + 18 * k, lowerY + half + gap + 52 * k, delta > 0 ? `CHALLENGE +${delta}%` : delta < 0 ? `CHALLENGE ${delta}%` : 'CHALLENGE HELD', 24, P.purple, true)
+      txt(pad + 18 * k, lowerY + half + gap + 90 * k, adaptationCopy(a.reasonCode) ?? 'Tempo kept the next segment steady.', 11, 0x5a4632)
     }
 
-    // weight + privacy
-    panel(0, 480, 1250, 66, 0.3)
-    text(20, 496, `BODY WEIGHT ${this.weightKg} kg`, 18, P.ink, DISPLAY); text(260, 502, '←→ to adjust · calories: one per swing plus movement intensity at this weight', 12, 0x5a4632)
-    text(20, 522, 'Stored in a local database on this machine only. Not a medical device, not a diagnosis. Active time and swings are measured; calories and range of motion are estimates.', 11, 0x5a4632)
+    panel(rightX, lowerY, rightW, half, .2)
+    section(rightX + 18 * k, lowerY + 14 * k, 'BODY RESPONSE', P.blue)
+    const v = s?.latestVitals
+    if (!v?.pulse) {
+      txt(rightX + 18 * k, lowerY + 54 * k, 'NOT MEASURED', 22, 0x7a6b58, true)
+      txt(rightX + 18 * k, lowerY + 88 * k, 'Enable camera on Ready-Up for pulse.', 12, 0x5a4632)
+    } else {
+      txt(rightX + 18 * k, lowerY + 52 * k, `${Math.round(v.pulse)} BPM`, 30, P.blue, true)
+      txt(rightX + 18 * k, lowerY + 96 * k, 'LATEST PULSE', 11, 0x5a4632)
+      if (v.breathing) txt(rightX + 18 * k, lowerY + 120 * k, `Breathing  ${Math.round(v.breathing)} / min`, 12, 0x5a4632)
+      if (v.hrvRmssd) txt(rightX + 18 * k, lowerY + 144 * k, `HRV RMSSD  ${Math.round(v.hrvRmssd)}  (extended)`, 11, 0x5a4632)
+    }
+
+    // ROM trend (same sport only)
+    panel(rightX, lowerY + half + gap, rightW, half, -.2)
+    section(rightX + 18 * k, lowerY + half + gap + 14 * k, 'ROM · ACTIVE MIN', P.teal)
+    const trendSport = last?.sport
+    const romTrend = (s?.romTrend ?? []).filter((r) => !trendSport || r.sport === trendSport).slice(-7)
+    if (romTrend.length >= 2) {
+      txt(rightX + 18 * k, lowerY + half + gap + 48 * k, `ROM TREND · ${trendSport?.toUpperCase() ?? 'SPORT'}`, 11, 0x5a4632)
+      const maxRom = Math.max(1, ...romTrend.map((r) => r.romMean))
+      romTrend.forEach((r, i) => {
+        const cell = (rightW - 36 * k) / Math.max(7, romTrend.length)
+        const x = rightX + 18 * k + i * cell
+        const h = Math.max(4 * k, 36 * k * (r.romMean / maxRom))
+        const base = lowerY + half + gap + 100 * k
+        add(this.add.rectangle(x + cell * .2, base - h, cell * .5, h, P.magenta).setOrigin(0).setDepth(12))
+      })
+    }
+    const days = s?.days ?? Array.from({ length: 7 }, () => ({ day: '', activeSeconds: 0 }))
+    const chartY = lowerY + lowerH - 28 * k, chartTop = lowerY + half + gap + (romTrend.length >= 2 ? 120 * k : 52 * k)
+    const max = Math.max(goal, ...days.map((d) => d.activeSeconds / 60), 1)
+    days.forEach((d, i) => {
+      const cell = (rightW - 36 * k) / 7, x = rightX + 18 * k + i * cell
+      const h = Math.max(3 * k, Math.max(0, chartY - chartTop) * (d.activeSeconds / 60) / max)
+      add(this.add.rectangle(x + cell * .18, chartY - h, cell * .55, h, d.activeSeconds ? P.teal : 0xcfc3a7).setOrigin(0).setDepth(12))
+      txt(x + cell * .45, chartY + 4 * k, weekday(d.day ?? '', i), 10, 0x5a4632, false, .5)
+    })
+
+    txt(W - pad, H - 18 * k, 'S SETTINGS  ·  R REFRESH  ·  Energy estimated from motion + weight  ·  Not a diagnosis', 10, P.ink, false, 1)
   }
 }

@@ -18,7 +18,8 @@ export function healthBadge(scene: Phaser.Scene, tracker: HealthTracker, x: numb
     lastAt = now
     const live = tracker.live()
     if (!live.moving) return
-    const text = `~${Math.round(live.kcal)} kcal  ·  ${live.swings} swing${live.swings === 1 ? '' : 's'}  ·  ${formatActive(live.activeSeconds)} active`
+    const energy = live.kcal === null ? `${Math.round(live.motionLoad * 100)}% load` : `~${Math.round(live.kcal)} kcal est.`
+    const text = `${energy}  ·  ${live.swings} action${live.swings === 1 ? '' : 's'}  ·  ${formatActive(live.activeSeconds)} active`
     if (text === last) return
     last = text
     t.setText(text).setVisible(true)

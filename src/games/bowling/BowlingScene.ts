@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { HealthTracker, summaryLine } from '../../health/tracker'
-import { healthBadge } from '../../health/liveBadge'
+import { tempoSenseHud } from '../../ui/TempoSenseHud'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
@@ -20,8 +20,9 @@ import { BowlingGame } from './sim/game'
 import { TIERS } from './sim/bot'
 import { HZ } from './sim/constants'
 import type { BotParams, BowlingEvent, Snapshot } from './sim/types'
+import { tempoFlow } from '../../wellness/tempoFlow'
 
-export interface BowlingSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean }
+export interface BowlingSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; tempo?: boolean }
 
 const STEP_MS = 1000 / HZ
 
@@ -45,7 +46,7 @@ export class BowlingScene extends Phaser.Scene {
   private paused = false
   private ended = false
   private health!: HealthTracker
-  private badge: { update: () => void; destroy: () => void } | null = null
+  private badge: { update: () => void; destroy: () => void; layout: (W: number, H: number) => void } | null = null
   private ready = false
   private startedAt = 0
   private lastPinSfx = 0
@@ -80,7 +81,7 @@ export class BowlingScene extends Phaser.Scene {
     controllerInput.setSport('bowling'); controllerInput.clear('controller_1'); this.pad = bowlingControllerState()
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('bowling')
-    this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
+    this.badge?.destroy(); this.badge = tempoSenseHud(this, 'bowling', this.health)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     this.hud = new BowlingHud(this)
     this.hud.names = is2p ? ['PLAYER 1', 'PLAYER 2'] : ['YOU', this.houseName]
@@ -116,6 +117,7 @@ export class BowlingScene extends Phaser.Scene {
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
     this.announcer?.layout(this.scale.width, this.scale.height)
+    this.badge?.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
@@ -204,7 +206,8 @@ export class BowlingScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
+    const healthDone = this.health.end()
+    void healthDone.then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard(); this.hud.meter(null); this.hud.aimReadout(null); this.hud.setTurn('')
     const r = this.sim.winner(), sb = this.sim.scoreboard()
     const youWin = r === 'a'
@@ -218,6 +221,19 @@ export class BowlingScene extends Phaser.Scene {
       `${n2}: ${strikes(this.sim.rolls.b)} strikes`,
       `seed ${this.seed}`,
     ]
+    const rolls = this.sim.rolls.a.flat(), mean = rolls.length ? rolls.reduce((a, b) => a + b, 0) / rolls.length : 0
+    const spread = rolls.length ? Math.sqrt(rolls.reduce((n, x) => n + (x - mean) ** 2, 0) / rolls.length) : 10
+    const performance = Math.max(0, Math.min(1, sb.a.total / 200)), consistency = Math.max(0, Math.min(1, 1 - spread / 5))
+    const sportResult = {
+      title: 'BOWLING RESULT',
+      lines: [
+        `Score  ${sb.a.total}`,
+        `Strikes  ${strikes(this.sim.rolls.a)}`,
+        `Consistency  ${Math.round(consistency * 100)}%`,
+      ],
+    }
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency, sportResult); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency, sportResult); wipeTo(this, 'session-summary') }) }
     let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
     let titleColor = youWin ? P.green : draw ? P.blue : P.red
     if (this.is2p) {
@@ -234,7 +250,7 @@ export class BowlingScene extends Phaser.Scene {
       sport: 'bowling',
       onComplete: () => {
         if (!this.scene.isActive()) return
-        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+        this.hud.result(title, lines, titleColor, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
       },
     })
   }

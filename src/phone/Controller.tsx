@@ -189,7 +189,7 @@ export default function Controller() {
   useEffect(() => {
     processor.setGestureHandler((gesture) => {
       // every detected swing contributes its range of motion, published or not
-      activityRef.current.noteSwing(gesture.t, gesture.duration)
+      activityRef.current.noteSwing(gesture.t, gesture.duration, gesture.power)
       if (sportRef.current === 'boxing') {
         publishGesture(gesture)
       } else if (

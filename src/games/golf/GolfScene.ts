@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { HealthTracker, summaryLine } from '../../health/tracker'
-import { healthBadge } from '../../health/liveBadge'
+import { tempoSenseHud } from '../../ui/TempoSenseHud'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
@@ -17,8 +17,9 @@ import { GolfWorld, type AimState } from './render/GolfWorld'
 import { CLUBS, CLUB_LIST, FULL_CLUBS, GolfRound, HZ, LIE_MUL, Rng, TIERS, courseById, simulateShot, surfaceAt, type CourseId } from './sim'
 import type { BotParams, Club, GolfEvent, GolfSnapshot, Player, Surface } from './sim/types'
 import { Announcer } from '../../announcer'
+import { tempoFlow } from '../../wellness/tempoFlow'
 
-export interface GolfSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId }
+export interface GolfSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId; tempo?: boolean }
 
 const STEP_MS = 1000 / HZ
 const AIM_RATE = 32       // deg/s while a key is held
@@ -55,7 +56,7 @@ export class GolfScene extends Phaser.Scene {
   private paused = false
   private ended = false
   private health!: HealthTracker
-  private badge: { update: () => void; destroy: () => void } | null = null
+  private badge: { update: () => void; destroy: () => void; layout: (W: number, H: number) => void } | null = null
   private ready = false
   private eventLog: string[] = []
   private bindings: GolfBindings = GOLF_KEYS
@@ -114,7 +115,7 @@ export class GolfScene extends Phaser.Scene {
     controllerInput.setSport('golf')
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('golf')
-    this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
+    this.badge?.destroy(); this.badge = tempoSenseHud(this, 'golf', this.health)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
     this.pad = golfControllerState()
@@ -142,6 +143,7 @@ export class GolfScene extends Phaser.Scene {
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
     this.announcer?.layout(this.scale.width, this.scale.height)
+    this.badge?.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
@@ -307,7 +309,8 @@ export class GolfScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
+    const healthDone = this.health.end()
+    void healthDone.then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard(); this.world?.setPreview(null)
     const r = this.round.result(), sc = this.round.scorecard()
     const youWin = r?.winner === 'a'
@@ -319,6 +322,19 @@ export class GolfScene extends Phaser.Scene {
       sc.holes.map((h) => `H${h.hole + 1} ${h.strokes.a}-${h.strokes.b}`).join('  ·  '),
       `seed ${this.round.seed}`,
     ]
+    const perHole = sc.holes.map((h) => h.strokes.a), mean = perHole.length ? perHole.reduce((a, b) => a + b, 0) / perHole.length : 8
+    const spread = perHole.length ? Math.sqrt(perHole.reduce((n, x) => n + (x - mean) ** 2, 0) / perHole.length) : 5
+    const performance = Math.max(0, Math.min(1, .7 - sc.toPar.a * .08)), consistency = Math.max(0, Math.min(1, 1 - spread / 4))
+    const sportResult = {
+      title: 'GOLF RESULT',
+      lines: [
+        `Score  ${toParText(sc.toPar.a)}`,
+        `Strokes  ${sc.totals.a}`,
+        `Consistency  ${Math.round(consistency * 100)}%`,
+      ],
+    }
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency, sportResult); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency, sportResult); wipeTo(this, 'session-summary') }) }
     let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
     let titleColor = youWin ? P.green : draw ? P.blue : P.red
     if (this.is2p) {
@@ -335,7 +351,7 @@ export class GolfScene extends Phaser.Scene {
       sport: 'golf',
       onComplete: () => {
         if (!this.scene.isActive()) return
-        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+        this.hud.result(title, lines, titleColor, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
       },
     })
   }
