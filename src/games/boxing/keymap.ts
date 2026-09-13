@@ -32,6 +32,23 @@ export function boxingCommand(k: KeyState, b: BoxingBindings = BOXING_KEYS): Com
 /** Same command with the one-shot parts removed, for extra sim steps inside one frame. */
 export const heldOnly = (c: Command): Command => ({ ...c, punch: null, dodge: null })
 
+/** Every key player 2 uses in a two-player match. Fixed, so player 1's bindings are filtered against them. */
+export const P2_BOXING_CODES: readonly string[] = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyU', 'Numpad4', 'Numpad1', 'KeyI', 'Numpad5', 'Numpad2', 'KeyL', 'KeyO', 'Numpad0', 'Digit0']
+/** Player 2 in a two-player match: arrows step in, out and slip; U jabs; I or L crosses; O holds the guard (numpad too). */
+export function boxingCommandP2(k: KeyState): Command {
+  const forward = k.isDown('ArrowUp') ? 1 : k.isDown('ArrowDown') ? -1 : 0
+  const dodge = k.isDown('ArrowLeft') ? 'swayL' : k.isDown('ArrowRight') ? 'swayR' : null
+  const punch = k.justPressed('KeyU', 'Numpad4', 'Numpad1') ? 'jab' : k.justPressed('KeyI', 'Numpad5', 'Numpad2', 'KeyL') ? 'cross' : null
+  return cmd({ forward, dodge, punch, block: k.isDown('KeyO', 'Numpad0', 'Digit0') })
+}
+/** Player 1's bindings in a two-player match, without any key player 2 uses. Without this an arrow moved both
+ *  fighters at once, because player 1's defaults step and strafe on the arrows too. Settings rebinds are kept. */
+export function playerOneBindings(b: BoxingBindings): BoxingBindings {
+  const out = { ...b }
+  for (const action of Object.keys(out) as (keyof BoxingBindings)[]) out[action] = b[action].filter((code) => !P2_BOXING_CODES.includes(code))
+  return out
+}
+
 /** Carried across frames by the scene: the phone's block is a latch, and a slip must re-arm at centre. */
 export interface BoxingControllerState { blocking: boolean; slipArmed: boolean }
 export const boxingControllerState = (): BoxingControllerState => ({ blocking: false, slipArmed: true })

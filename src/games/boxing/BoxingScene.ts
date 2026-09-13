@@ -7,7 +7,7 @@ import { controllerInput } from '../../input/controller'
 import { wipeTo } from '../../fx/transitions'
 import { KeyState } from '../../input/keys'
 import { P } from '../../theme'
-import { BOXING_HELP, BOXING_KEYS, boxingCommand, boxingControllerState, controllerBoxingCommand, heldOnly, keyLabel, type BoxingBindings } from './keymap'
+import { BOXING_HELP, BOXING_KEYS, boxingCommand, boxingCommandP2, boxingControllerState, controllerBoxingCommand, heldOnly, keyLabel, playerOneBindings, type BoxingBindings } from './keymap'
 import { boxingPractice, type PracticeStep } from './tutorial'
 import { loadSettings } from '../../agent/sliders'
 import { comicPanel } from '../../ui/widgets'
@@ -32,16 +32,6 @@ const STEP_MS = 1000 / HZ
 /** Both fighters in a two-player match wear the same build, so the fight reads as even; glove and trunk colours tell them apart. */
 const TWO_PLAYER_MODEL: import('./render/OpponentRig').BoxerModel = 'intermediate'
 
-function p2BoxingKeyboard(keys: KeyState): Command {
-  const fwd = keys.isDown('ArrowUp') ? 1 : keys.isDown('ArrowDown') ? -1 : 0
-  const dodge: Command['dodge'] = keys.isDown('ArrowLeft') ? 'swayL' : keys.isDown('ArrowRight') ? 'swayR' : null
-  const block = keys.isDown('KeyO') || keys.isDown('Numpad0') || keys.isDown('Digit0')
-  let punch: Command['punch'] = null
-  if (keys.justPressed('KeyU') || keys.justPressed('Numpad4') || keys.justPressed('Numpad1')) punch = 'jab'
-  else if (keys.justPressed('KeyI') || keys.justPressed('Numpad5') || keys.justPressed('Numpad2') || keys.justPressed('KeyL')) punch = 'cross'
-  return { forward: fwd, strafe: 0, dodge, block, punch }
-}
-
 /** First-person 3D boxing: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class BoxingScene extends Phaser.Scene {
   private data3!: BoxingSceneData
@@ -64,6 +54,8 @@ export class BoxingScene extends Phaser.Scene {
   private startedAt = 0
   private eventLog: string[] = []
   private bindings: BoxingBindings = BOXING_KEYS
+  /** Player 1's keys; in a two-player match they give up the arrows and every other key player 2 uses. */
+  private bindingsP1: BoxingBindings = BOXING_KEYS
   private steps: PracticeStep[] = []
   private stepIx = 0
   private guide: Phaser.GameObjects.GameObject[] = []
@@ -98,6 +90,7 @@ export class BoxingScene extends Phaser.Scene {
     const settings = loadSettings()
     sfx.enabled = settings.sound
     this.bindings = { ...BOXING_KEYS, ...(settings.bindings.boxing as Partial<BoxingBindings> | undefined) }
+    this.bindingsP1 = is2p ? playerOneBindings(this.bindings) : this.bindings
     this.steps = d.practice ? boxingPractice(this.bindings) : []
     this.stepIx = 0
     this.hud = new BoxingHud(this)
@@ -321,7 +314,7 @@ export class BoxingScene extends Phaser.Scene {
   update(_t: number, deltaMs: number): void {
     this.health.pump(); this.badge?.update()
     if (!this.ready || !this.world) return
-    const keyboard = boxingCommand(this.keys, this.bindings)
+    const keyboard = boxingCommand(this.keys, this.bindingsP1)
     this.keys.endFrame()
     // Keyboard, phone, and head tracker drive the same match. Every field takes the keyboard first,
     // falls through to the phone, then to the head tracker.
@@ -351,7 +344,7 @@ export class BoxingScene extends Phaser.Scene {
       punchPower: keyboard.punch !== null ? undefined : remote.command.punchPower,
     }
 
-    const keyboardB = this.is2p ? p2BoxingKeyboard(this.keys) : null
+    const keyboardB = this.is2p ? boxingCommandP2(this.keys) : null
     const cB: Command | null = this.is2p ? {
       forward: (keyboardB?.forward !== 0 ? keyboardB?.forward : remoteB.command.forward) ?? 0,
       strafe: (keyboardB?.strafe !== 0 ? keyboardB?.strafe : remoteB.command.strafe) ?? 0,
