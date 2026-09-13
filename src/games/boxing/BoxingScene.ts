@@ -316,6 +316,8 @@ export class BoxingScene extends Phaser.Scene {
     this.health.pump(); this.badge?.update()
     if (!this.ready || !this.world) return
     const keyboard = boxingCommand(this.keys, this.bindingsP1)
+    // Player 2's punches are press edges too, so their command must be read before this frame's edges are cleared.
+    const keyboardB = this.is2p ? boxingCommandP2(this.keys) : null
     this.keys.endFrame()
     // Keyboard, phone, and head tracker drive the same match. Every field takes the keyboard first,
     // falls through to the phone, then to the head tracker.
@@ -345,7 +347,6 @@ export class BoxingScene extends Phaser.Scene {
       punchPower: keyboard.punch !== null ? undefined : remote.command.punchPower,
     }
 
-    const keyboardB = this.is2p ? boxingCommandP2(this.keys) : null
     const cB: Command | null = this.is2p ? {
       forward: (keyboardB?.forward !== 0 ? keyboardB?.forward : remoteB.command.forward) ?? 0,
       strafe: (keyboardB?.strafe !== 0 ? keyboardB?.strafe : remoteB.command.strafe) ?? 0,
