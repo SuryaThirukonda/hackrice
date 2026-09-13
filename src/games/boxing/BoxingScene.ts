@@ -105,7 +105,7 @@ export class BoxingScene extends Phaser.Scene {
       this.book = new Book(loadChips())
       this.roundsWon = [0, 0]
     }
-    this.hud.layout(this.scale.width, this.scale.height)
+    this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.hud.showCard('LOADING RING', P.gold, `seed ${seed}`, 0)
     this.acc = 0; this.hitStop = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []
     this.detach = this.keys.attach(window)
@@ -129,7 +129,7 @@ export class BoxingScene extends Phaser.Scene {
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
       engine.setQuality(loadSettings().quality)
-      this.world = new BoxingWorld(engine, P.red, this.card)
+      this.world = new BoxingWorld(engine, P.red, this.card, this.is2p)
       this.world.show(this.scale.width, this.scale.height)
       this.hud.clearCard()
       this.ready = true
@@ -141,7 +141,7 @@ export class BoxingScene extends Phaser.Scene {
   }
 
   onResize(): void {
-    this.hud.layout(this.scale.width, this.scale.height)
+    this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
@@ -180,18 +180,44 @@ export class BoxingScene extends Phaser.Scene {
         const mine = e.who === 'a'
         if (e.result === 'hit') {
           sfx.thud(e.punch === 'cross' ? 1 : 0.7); w?.cheer(); w?.hitFx(this.curr, mine ? 'b' : 'a', e.punch === 'cross')
-          if (mine) { this.hud.burst(undefined, e.punch === 'cross' ? P.red : P.gold, e.punch === 'cross' ? 84 : 64); w?.punchKick(); w?.shake(0.35); this.hitStop = 60 }
-          else { this.hud.hitFlash(e.punch === 'cross' ? 0.45 : 0.28); w?.shake(e.punch === 'cross' ? 1 : 0.6); this.hitStop = 100 }
-        } else if (e.result === 'blocked') { sfx.block(); this.hud.burst('BLOCK', P.blue, 44); w?.shake(0.2) }
-        else if (e.result === 'dodged') { sfx.dodge(); this.hud.burst('MISS', P.cyan, 44) }
+          if (this.is2p) {
+            const victim = e.who === 'a' ? 'b' : 'a'
+            this.hud.hitFlash(e.punch === 'cross' ? 0.45 : 0.28, victim)
+            this.hud.burst(undefined, e.punch === 'cross' ? P.red : P.gold, e.punch === 'cross' ? 84 : 64, e.who)
+            w?.punchKick(e.who)
+            w?.shake(e.punch === 'cross' ? 0.9 : 0.5, victim)
+            this.hitStop = e.punch === 'cross' ? 80 : 60
+          } else {
+            if (mine) { this.hud.burst(undefined, e.punch === 'cross' ? P.red : P.gold, e.punch === 'cross' ? 84 : 64); w?.punchKick(); w?.shake(0.35); this.hitStop = 60 }
+            else { this.hud.hitFlash(e.punch === 'cross' ? 0.45 : 0.28); w?.shake(e.punch === 'cross' ? 1 : 0.6); this.hitStop = 100 }
+          }
+        } else if (e.result === 'blocked') {
+          sfx.block()
+          this.hud.burst('BLOCK', P.blue, 44, this.is2p ? e.who : undefined)
+          w?.shake(0.2, this.is2p ? (e.who === 'a' ? 'b' : 'a') : undefined)
+        } else if (e.result === 'dodged') {
+          sfx.dodge()
+          this.hud.burst('MISS', P.cyan, 44, this.is2p ? e.who : undefined)
+        }
         break
       }
-      case 'stagger': sfx.stagger(); if (e.who === 'b') this.hud.burst('STAGGER!', P.orange, 60); break
-      case 'guard_break': sfx.parry(); this.hud.burst('GUARD BREAK!', P.magenta, 60); w?.guardBreakFx(this.curr, e.who); break
-      case 'gassed': if (e.who === 'a') { sfx.gassed(); this.hud.gassed() } break
+      case 'stagger':
+        sfx.stagger()
+        this.hud.burst('STAGGER!', P.orange, 60, this.is2p ? (e.who === 'a' ? 'b' : 'a') : (e.who === 'b' ? 'b' : undefined))
+        break
+      case 'guard_break':
+        sfx.parry()
+        this.hud.burst('GUARD BREAK!', P.magenta, 60, this.is2p ? (e.who === 'a' ? 'b' : 'a') : undefined)
+        w?.guardBreakFx(this.curr, e.who)
+        break
+      case 'gassed':
+        if (this.is2p) { sfx.gassed(); this.hud.gassed(e.who) }
+        else if (e.who === 'a') { sfx.gassed(); this.hud.gassed('a') }
+        break
       case 'knockdown':
         sfx.knockdown(); w?.shake(1.4); this.hitStop = 250; w?.knockdownFx(this.curr, e.who); w?.cheer()
-        this.hud.showCard(e.who === 'b' ? 'DOWN!' : 'YOU ARE DOWN!', e.who === 'b' ? P.gold : P.red, e.ko ? 'that looks final' : 'get up before ten', 1200)
+        const kdName = e.who === 'a' ? this.hud.names[0] : this.hud.names[1]
+        this.hud.showCard(this.is2p ? `${kdName} IS DOWN!` : (e.who === 'b' ? 'DOWN!' : 'YOU ARE DOWN!'), e.who === 'b' ? P.gold : P.red, e.ko ? 'that looks final' : 'get up before ten', 1200)
         break
       case 'count':
         sfx.count()
@@ -301,7 +327,8 @@ export class BoxingScene extends Phaser.Scene {
     } : null
 
     // Visual indicators for remote actions
-    if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch()
+    if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch('a')
+    if (this.is2p && keyboardB?.punch === null && remoteB.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch('b')
     if (headDodge !== null && keyboard.dodge === null && remote.command.dodge === null && !this.paused && !this.ended && !this.betting) {
       const label = headDodge === 'duck' ? 'HEAD DUCK!' : headDodge === 'swayL' ? 'HEAD SLIP ◀' : 'HEAD SLIP ▶'
       this.hud.burst(label, P.cyan, 44)
