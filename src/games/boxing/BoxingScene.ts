@@ -20,19 +20,33 @@ import { BoxingHud } from './hud/BoxingHud'
 import { BoxingWorld } from './render/BoxingWorld'
 import { lerpView } from './render/interp'
 import { BoxingMatch } from './sim/match'
+import { playVictoryAnimation } from '../../fx/victoryAnimation'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
 
 export interface Persona { model?: import('./render/OpponentRig').BoxerModel; name: string; style: string; color: number }
-export interface BoxingSceneData { model?: import('./render/OpponentRig').BoxerModel; mode?: '1p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
+export interface BoxingSceneData { model?: import('./render/OpponentRig').BoxerModel; mode?: '1p' | '2p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
 
 const STEP_MS = 1000 / HZ
+/** Both fighters in a two-player match wear the same build, so the fight reads as even; glove and trunk colours tell them apart. */
+const TWO_PLAYER_MODEL: import('./render/OpponentRig').BoxerModel = 'intermediate'
+
+function p2BoxingKeyboard(keys: KeyState): Command {
+  const fwd = keys.isDown('ArrowUp') ? 1 : keys.isDown('ArrowDown') ? -1 : 0
+  const dodge: Command['dodge'] = keys.isDown('ArrowLeft') ? 'swayL' : keys.isDown('ArrowRight') ? 'swayR' : null
+  const block = keys.isDown('KeyO') || keys.isDown('Numpad0') || keys.isDown('Digit0')
+  let punch: Command['punch'] = null
+  if (keys.justPressed('KeyU') || keys.justPressed('Numpad4') || keys.justPressed('Numpad1')) punch = 'jab'
+  else if (keys.justPressed('KeyI') || keys.justPressed('Numpad5') || keys.justPressed('Numpad2') || keys.justPressed('KeyL')) punch = 'cross'
+  return { forward: fwd, strafe: 0, dodge, block, punch }
+}
 
 /** First-person 3D boxing: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class BoxingScene extends Phaser.Scene {
   private data3!: BoxingSceneData
   private pad = boxingControllerState()
+  private padB = boxingControllerState()
   private match!: BoxingMatch
   private hud!: BoxingHud
   private world: BoxingWorld | null = null
@@ -68,13 +82,15 @@ export class BoxingScene extends Phaser.Scene {
   constructor() { super('boxing') }
 
   private get card(): boolean { return this.data3.mode === 'card' }
+  private get is2p(): boolean { return this.data3.mode === '2p' }
 
   init(d: BoxingSceneData): void { this.data3 = d ?? {} }
 
   create(): void {
     const d = this.data3
+    const is2p = this.is2p
     const seed = d.seed ?? Math.floor(Math.random() * 1e9)
-    const bot = d.practice ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
+    const bot = (d.practice || is2p) ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
     this.match = new BoxingMatch({ seed, botB: d.mode === 'card' ? TIERS.pro : bot, botA: d.mode === 'card' ? TIERS.pro : null })
     this.prev = this.curr = this.match.snapshot()
     // class fields outlive scene restarts: clear everything that belongs to a previous fight (a Fight Night link must not drive a 1P match)
@@ -85,7 +101,7 @@ export class BoxingScene extends Phaser.Scene {
     this.steps = d.practice ? boxingPractice(this.bindings) : []
     this.stepIx = 0
     this.hud = new BoxingHud(this)
-    this.hud.names = ['YOU', d.practice ? 'SPARRING DUMMY' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`]
+    this.hud.names = is2p ? ['PLAYER 1', 'PLAYER 2'] : ['YOU', d.practice ? 'SPARRING DUMMY' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`]
     if (this.card) {
       const ps = d.personas ?? [{ name: 'Blue', style: 'a brawler', color: P.blue }, { name: 'Red', style: 'a counter-puncher', color: P.red }]
       this.hud.names = [ps[0].name, ps[1].name]
@@ -96,7 +112,7 @@ export class BoxingScene extends Phaser.Scene {
       this.ledger.begin(this.book, [ps[0].name, ps[1].name], seed)
       this.roundsWon = [0, 0]
     }
-    this.hud.layout(this.scale.width, this.scale.height)
+    this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.hud.showCard('LOADING RING', P.gold, `seed ${seed}`, 0)
     this.acc = 0; this.hitStop = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []
     this.detach = this.keys.attach(window)
@@ -109,6 +125,7 @@ export class BoxingScene extends Phaser.Scene {
     const w = (window as unknown as { __boxing?: BoxingScene }); w.__boxing = this
     // Phaser reuses scene instances, so the pad latch and any queued phone events must be reset per visit.
     this.pad = boxingControllerState()
+    this.padB = boxingControllerState()
     controllerInput.setSport('boxing')
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('boxing')
@@ -116,21 +133,24 @@ export class BoxingScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
     controllerInput.clear('head_tracker') // a head snap made while the ring was loading must not dodge at the bell
+    controllerInput.clear('controller_2')
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
       engine.setQuality(loadSettings().quality)
-      this.world = new BoxingWorld(engine, P.red, this.card, d.model ?? (d.tier === 'boss' ? 'boss' : d.tier === 'champ' ? 'pro' : d.tier === 'pro' ? 'intermediate' : 'beginner'), this.card ? d.personas : undefined)
+      const model = d.model ?? (is2p ? TWO_PLAYER_MODEL : d.tier === 'boss' ? 'boss' : d.tier === 'champ' ? 'pro' : d.tier === 'pro' ? 'intermediate' : 'beginner')
+      this.world = new BoxingWorld(engine, P.red, this.card, model, this.card ? d.personas : undefined, is2p)
       this.world.show(this.scale.width, this.scale.height)
       this.hud.clearCard()
       this.ready = true
       this.startedAt = this.time.now
       this.world.apply(this.curr, 0, false)
       if (this.card) { this.hud.setHint('spectating · A/D corner · ↑↓ stake · Enter bet · Esc pause'); this.link?.strategize(this.match); this.openBetting('match') }
+      else if (is2p) { this.hud.setHint('P1: WASD / Space / J / K / Phone 1  ·  P2: Arrows / U / I / O / Phone 2 · Esc pause') }
     })
   }
 
   onResize(): void {
-    this.hud.layout(this.scale.width, this.scale.height)
+    this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
@@ -169,18 +189,44 @@ export class BoxingScene extends Phaser.Scene {
         const mine = e.who === 'a'
         if (e.result === 'hit') {
           sfx.thud(e.punch === 'cross' ? 1 : 0.7); w?.cheer(); w?.hitFx(this.curr, mine ? 'b' : 'a', e.punch === 'cross')
-          if (mine) { this.hud.burst(undefined, e.punch === 'cross' ? P.red : P.gold, e.punch === 'cross' ? 84 : 64); w?.punchKick(); w?.shake(0.35); this.hitStop = 60 }
-          else { this.hud.hitFlash(e.punch === 'cross' ? 0.45 : 0.28); w?.shake(e.punch === 'cross' ? 1 : 0.6); this.hitStop = 100 }
-        } else if (e.result === 'blocked') { sfx.block(); this.hud.burst('BLOCK', P.blue, 44); w?.shake(0.2) }
-        else if (e.result === 'dodged') { sfx.dodge(); this.hud.burst('MISS', P.cyan, 44) }
+          if (this.is2p) {
+            const victim = e.who === 'a' ? 'b' : 'a'
+            this.hud.hitFlash(e.punch === 'cross' ? 0.45 : 0.28, victim)
+            this.hud.burst(undefined, e.punch === 'cross' ? P.red : P.gold, e.punch === 'cross' ? 84 : 64, e.who)
+            w?.punchKick(e.who)
+            w?.shake(e.punch === 'cross' ? 0.9 : 0.5, victim)
+            this.hitStop = e.punch === 'cross' ? 80 : 60
+          } else {
+            if (mine) { this.hud.burst(undefined, e.punch === 'cross' ? P.red : P.gold, e.punch === 'cross' ? 84 : 64); w?.punchKick(); w?.shake(0.35); this.hitStop = 60 }
+            else { this.hud.hitFlash(e.punch === 'cross' ? 0.45 : 0.28); w?.shake(e.punch === 'cross' ? 1 : 0.6); this.hitStop = 100 }
+          }
+        } else if (e.result === 'blocked') {
+          sfx.block()
+          this.hud.burst('BLOCK', P.blue, 44, this.is2p ? e.who : undefined)
+          w?.shake(0.2, this.is2p ? (e.who === 'a' ? 'b' : 'a') : undefined)
+        } else if (e.result === 'dodged') {
+          sfx.dodge()
+          this.hud.burst('MISS', P.cyan, 44, this.is2p ? e.who : undefined)
+        }
         break
       }
-      case 'stagger': sfx.stagger(); if (e.who === 'b') this.hud.burst('STAGGER!', P.orange, 60); break
-      case 'guard_break': sfx.parry(); this.hud.burst('GUARD BREAK!', P.magenta, 60); w?.guardBreakFx(this.curr, e.who); break
-      case 'gassed': if (e.who === 'a') { sfx.gassed(); this.hud.gassed() } break
+      case 'stagger':
+        sfx.stagger()
+        this.hud.burst('STAGGER!', P.orange, 60, this.is2p ? (e.who === 'a' ? 'b' : 'a') : (e.who === 'b' ? 'b' : undefined))
+        break
+      case 'guard_break':
+        sfx.parry()
+        this.hud.burst('GUARD BREAK!', P.magenta, 60, this.is2p ? (e.who === 'a' ? 'b' : 'a') : undefined)
+        w?.guardBreakFx(this.curr, e.who)
+        break
+      case 'gassed':
+        if (this.is2p) { sfx.gassed(); this.hud.gassed(e.who) }
+        else if (e.who === 'a') { sfx.gassed(); this.hud.gassed('a') }
+        break
       case 'knockdown':
         sfx.knockdown(); w?.shake(1.4); this.hitStop = 250; w?.knockdownFx(this.curr, e.who); w?.cheer()
-        this.hud.showCard(e.who === 'b' ? 'DOWN!' : 'YOU ARE DOWN!', e.who === 'b' ? P.gold : P.red, e.ko ? 'that looks final' : 'get up before ten', 1200)
+        const kdName = e.who === 'a' ? this.hud.names[0] : this.hud.names[1]
+        this.hud.showCard(this.is2p ? `${kdName} IS DOWN!` : (e.who === 'b' ? 'DOWN!' : 'YOU ARE DOWN!'), e.who === 'b' ? P.gold : P.red, e.ko ? 'that looks final' : 'get up before ten', 1200)
         break
       case 'count':
         sfx.count()
@@ -211,6 +257,7 @@ export class BoxingScene extends Phaser.Scene {
     this.hud.clearKnockdownCount()
     const r = this.match.getResult()
     const youWin = r?.winner === 'a'
+    const draw = r?.winner === 'draw'
     const m = this.match
     if (this.card && r) {
       if (r.by === 'ko') { const rid = `round${r.round}`; if (this.book?.markets.some((x) => x.id === rid && !x.settled)) this.settle(rid, r.winner) }
@@ -218,24 +265,57 @@ export class BoxingScene extends Phaser.Scene {
       if (this.book) {
         const rec = loadRecord(); rec.fights++; rec.won += this.book.won; rec.lost += this.book.lost; rec.net += this.book.net; rec.best = Math.max(rec.best, this.book.balance); saveRecord(rec); saveChips(this.book.balance)
         this.ledger.finish(this.book, { winner: r.winner, by: r.by, round: r.round })
-        this.time.delayedCall(2000, () => {
-          this.hud.result(r.winner === 'draw' ? 'DRAW' : `${this.hud.names[r.winner === 'a' ? 0 : 1].toUpperCase()} WINS`, [
-            `${r.by === 'ko' ? `by knockout in round ${r.round}` : r.by === 'decision' ? 'on points' : 'a draw'}`,
-            `bets: won ${this.book!.won} · lost ${this.book!.lost} · net ${this.book!.net >= 0 ? '+' : ''}${this.book!.net}`,
-            `chips ${this.book!.balance}`,
-          ], r.winner === 'a' ? P.blue : P.red, () => wipeTo(this, 'fightnight'), () => this.quit(), ['ANOTHER FIGHT', 'BACK TO MENU'])
+        playVictoryAnimation({
+          scene: this,
+          winner: r.winner,
+          is2p: true,
+          p1Name: this.hud.names[0],
+          p2Name: this.hud.names[1],
+          method: r.by,
+          sport: 'boxing',
+          onComplete: () => {
+            if (!this.scene.isActive()) return
+            this.hud.result(r.winner === 'draw' ? 'DRAW' : `${this.hud.names[r.winner === 'a' ? 0 : 1].toUpperCase()} WINS`, [
+              `${r.by === 'ko' ? `by knockout in round ${r.round}` : r.by === 'decision' ? 'on points' : 'a draw'}`,
+              `bets: won ${this.book!.won} · lost ${this.book!.lost} · net ${this.book!.net >= 0 ? '+' : ''}${this.book!.net}`,
+              `chips ${this.book!.balance}`,
+            ], r.winner === 'a' ? P.blue : P.red, () => wipeTo(this, 'fightnight'), () => this.quit(), ['ANOTHER FIGHT', 'BACK TO MENU'])
+          },
         })
       }
       return
     }
-    if (youWin) { sfx.win(); this.world?.confetti() }
+    if (youWin || (this.is2p && r?.winner === 'b')) {
+      this.world?.confetti()
+      this.time.delayedCall(450, () => this.world?.confetti())
+    }
+    const n1 = this.hud.names[0].toLowerCase(), n2 = this.hud.names[1].toLowerCase()
     const lines = [
       `${r?.by === 'ko' ? 'by knockout' : r?.by === 'decision' ? 'on points' : 'a draw'}${r?.by === 'ko' ? ` in round ${r.round}` : ''}`,
-      `you: ${m.a.landed}/${m.a.thrown} landed · ${Math.round(m.a.dealtTotal)} damage`,
-      `house: ${m.b.landed}/${m.b.thrown} landed · ${Math.round(m.b.dealtTotal)} damage`,
+      `${n1}: ${m.a.landed}/${m.a.thrown} landed · ${Math.round(m.a.dealtTotal)} damage`,
+      `${n2}: ${m.b.landed}/${m.b.thrown} landed · ${Math.round(m.b.dealtTotal)} damage`,
       `seed ${m.seedValue}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
+    let titleColor = youWin ? P.green : draw ? P.blue : P.red
+    if (this.is2p) {
+      if (youWin) { title = 'PLAYER 1 WINS!'; titleColor = P.blue }
+      else if (r?.winner === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.red }
+      else { title = 'DRAW'; titleColor = P.gold }
+    }
+    playVictoryAnimation({
+      scene: this,
+      winner: r?.winner ?? (youWin ? 'a' : 'b'),
+      is2p: this.is2p,
+      p1Name: this.hud.names[0],
+      p2Name: this.hud.names[1],
+      method: r?.by,
+      sport: 'boxing',
+      onComplete: () => {
+        if (!this.scene.isActive()) return
+        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+      },
+    })
   }
 
   update(_t: number, deltaMs: number): void {
@@ -247,6 +327,9 @@ export class BoxingScene extends Phaser.Scene {
     // falls through to the phone, then to the head tracker.
     const remote = controllerBoxingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'boxing'), this.pad, controllerInput.connected('controller_1'))
     this.pad = { blocking: remote.blocking, slipArmed: remote.slipArmed }
+
+    const remoteB = controllerBoxingCommand(controllerInput.stick('controller_2'), controllerInput.drain('controller_2', 'boxing'), this.padB, controllerInput.connected('controller_2'))
+    this.padB = { blocking: remoteB.blocking, slipArmed: remoteB.slipArmed }
 
     const headEvents = controllerInput.drain('head_tracker', 'boxing')
     let headDodge: Command['dodge'] = null
@@ -267,8 +350,20 @@ export class BoxingScene extends Phaser.Scene {
       // the power must follow whichever source actually threw, or a keyboard jab inherits the phone's swing
       punchPower: keyboard.punch !== null ? undefined : remote.command.punchPower,
     }
+
+    const keyboardB = this.is2p ? p2BoxingKeyboard(this.keys) : null
+    const cB: Command | null = this.is2p ? {
+      forward: (keyboardB?.forward !== 0 ? keyboardB?.forward : remoteB.command.forward) ?? 0,
+      strafe: (keyboardB?.strafe !== 0 ? keyboardB?.strafe : remoteB.command.strafe) ?? 0,
+      block: (keyboardB?.block || remoteB.command.block) ?? false,
+      punch: keyboardB?.punch ?? remoteB.command.punch,
+      dodge: keyboardB?.dodge ?? remoteB.command.dodge,
+      punchPower: keyboardB?.punch !== null ? undefined : remoteB.command.punchPower,
+    } : null
+
     // Visual indicators for remote actions
-    if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch()
+    if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch('a')
+    if (this.is2p && keyboardB?.punch === null && remoteB.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch('b')
     if (headDodge !== null && keyboard.dodge === null && remote.command.dodge === null && !this.paused && !this.ended && !this.betting) {
       const label = headDodge === 'duck' ? 'HEAD DUCK!' : headDodge === 'swayL' ? 'HEAD SLIP ◀' : 'HEAD SLIP ▶'
       this.hud.burst(label, P.cyan, 44)
@@ -296,6 +391,8 @@ export class BoxingScene extends Phaser.Scene {
         const ea = this.link.corners.a.exec, eb = this.link.corners.b.exec
         this.match.step(ea.isLate(t) ? null : ea.command(t), eb.isLate(t) ? null : eb.command(t))
         this.link.noteEvents(this.match.events)
+      } else if (this.is2p && cB) {
+        this.match.step(first ? c : heldOnly(c), first ? cB : heldOnly(cB))
       } else this.match.step(first ? c : heldOnly(c))
       first = false
       this.curr = this.match.snapshot()

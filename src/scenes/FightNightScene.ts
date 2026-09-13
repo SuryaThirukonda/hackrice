@@ -59,6 +59,7 @@ export class FightNightScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.content.push(o); return o }
     add(comicPanel(this, W / 2 - 420, 40, 840, H - 80, P.paper, 1))
+    add(new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.blue, w: 110, h: 42, size: 16 }))
     add(this.add.text(W / 2, 92, 'FIGHT NIGHT', { fontFamily: DISPLAY, fontSize: '54px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 }).setOrigin(0.5).setAngle(1))
     add(this.add.text(W / 2, 140, 'two AI fighters, one ring, your chips on the line', { fontFamily: FONT, fontSize: '18px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
     for (const i of [0, 1]) {

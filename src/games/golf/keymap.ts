@@ -70,11 +70,11 @@ export class SwingMeter {
   /** Phone path. A arms the swing; the swing itself then carries the power, and accuracy is taken as
    *  perfect because a real swing has no second timing window to hit. Both meter paths end in `done`,
    *  so the scene fires the shot the same way whichever one was used. */
-  arm(): void { if (this.state === 'idle') { this.state = 'armed'; this.value = 0; this.t = 0 } }
-  cancel(): void { if (this.state === 'armed') this.reset() }
+  arm(): void { if (this.state === 'idle') this.state = 'armed' }
+  cancel(): void { if (this.state === 'armed' || this.state === 'power' || this.state === 'accuracy') this.reset() }
   fromSwing(power: number): boolean {
-    if (this.state !== 'armed') return false
-    this.power = Math.max(0, Math.min(1, power)); this.accuracy = 0; this.state = 'done'
+    if (this.state !== 'armed' && this.state !== 'power' && this.state !== 'accuracy') return false
+    this.power = Math.max(0.05, Math.min(1, power)); this.accuracy = 0; this.state = 'done'
     return true
   }
 }
@@ -84,14 +84,14 @@ import type { ControllerEvent, ControllerStick } from '../../input/controller'
 
 export interface GolfControllerState { clubArmed: boolean }
 export const golfControllerState = (): GolfControllerState => ({ clubArmed: true })
-/** One frame of phone input for golf. aim is held; club, arm, cancel and the swing are one-shots. */
-export interface GolfPhoneCommand { aim: -1 | 0 | 1; club: -1 | 0 | 1; arm: boolean; cancel: boolean; swingPower: number | null }
+/** One frame of phone input for golf. aim is held; club, arm, cancel, stopOscillation and swing are one-shots. */
+export interface GolfPhoneCommand { aim: -1 | 0 | 1; club: -1 | 0 | 1; arm: boolean; cancel: boolean; swingPower: number | null; stopOscillation: boolean }
 const AIM_DEADZONE = 0.5, CLUB_FIRE = 0.6, CLUB_REARM = 0.3
 
 /**
- * Left/right on the D-pad turn the aim while held. Up/down step the club once per flick (up is a
- * longer club, as on the keyboard), re-arming when the pad returns to centre. A arms the swing, B
- * cancels it, and the first swing gesture of the frame carries the power on a 0..1 scale.
+ * Left/right on the D-pad turn the aim/spin while held. Up/down step the club once per flick.
+ * The bottom button arms the meter and starts the timer. The blue button stops oscillation (or steps the meter).
+ * A phone swing carries power directly into the shot.
  */
 export function controllerGolfCommand(stick: ControllerStick, events: readonly ControllerEvent[], state: GolfControllerState): { command: GolfPhoneCommand; clubArmed: boolean } {
   const x = stick.fresh ? stick.x : 0, y = stick.fresh ? stick.y : 0
@@ -99,15 +99,13 @@ export function controllerGolfCommand(stick: ControllerStick, events: readonly C
   let clubArmed = state.clubArmed, club: GolfPhoneCommand['club'] = 0
   if (Math.abs(y) < CLUB_REARM) clubArmed = true
   else if (clubArmed && Math.abs(y) > CLUB_FIRE) { club = y < 0 ? 1 : -1; clubArmed = false } // screen-Y is positive downward
-  let arm = false, cancel = false, swingPower: number | null = null
+  let arm = false, cancel = false, stopOscillation = false, swingPower: number | null = null
   for (const event of events) {
     if (event.kind === 'action') {
-      // A on the phone: `block_start` from a hold-style pad, `placeholder_primary` from the swing flow the
-      // phone runs outside boxing (A, a three-second countdown, then a two-second capture window whose
-      // best swing is published). Either arms the meter; the swing then arrives up to five seconds later.
-      if (event.action === 'block_start' || event.action === 'placeholder_primary') arm = true
-      else if (event.action === 'emergency_power' || event.action === 'placeholder_secondary') cancel = true
+      if (event.action === 'placeholder_primary' || event.action === 'block_start') { stopOscillation = true; arm = true }
+      else if (event.action === 'placeholder_secondary') arm = true
+      else if (event.action === 'emergency_power') cancel = true
     } else if (swingPower === null) swingPower = Math.max(0, Math.min(1, event.power / 100))
   }
-  return { clubArmed, command: { aim, club, arm, cancel, swingPower } }
+  return { clubArmed, command: { aim, club, arm, cancel, swingPower, stopOscillation } }
 }

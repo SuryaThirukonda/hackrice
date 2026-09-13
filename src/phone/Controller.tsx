@@ -26,7 +26,7 @@ import {
   type Vector3,
 } from './motionProcessor'
 import { TiltStickProcessor, type StickSnapshot } from './tiltStick'
-import { Arrow, Busy, Cancel, Duck, Pip, Play, Power, Shield } from './Glyphs'
+import { Arrow, Busy, Duck, Pip, Power, Shield, Stop, Timer } from './Glyphs'
 import { ActivityTracker } from '../health/activity'
 import './controller.css'
 import './play.css'
@@ -414,9 +414,9 @@ export default function Controller() {
   }
 
   const startAttempt = () => {
-    if (sportRef.current === 'boxing' || snapshot.calibration !== 'calibrated') return
+    if (sportRef.current === 'boxing') return
     cancelAttempt()
-    sendControllerAction('placeholder_primary', 'Aim locked')
+    sendControllerAction('placeholder_secondary', 'Armed · Timer started')
     setLastGesture(null)
     setFlash(null)
     attemptPhaseRef.current = 'countdown'
@@ -441,6 +441,10 @@ export default function Controller() {
         CONTROLLER_CONFIG.ui.attemptCaptureMs,
       )
     }, 1_000)
+  }
+
+  const stopOscillation = () => {
+    sendControllerAction('placeholder_primary', 'Oscillation stopped')
   }
 
   const selectPlayer = (nextPlayer: Player) => {
@@ -581,20 +585,56 @@ export default function Controller() {
             {motionState === 'requesting' || snapshot.calibration === 'calibrating' ? <Busy /> : <Power />}
           </button>
           <div className="face-buttons">
-            <div>{sport === 'boxing'
-              ? <button className="face-a" aria-label="A Hold to block" aria-pressed={blocking}
+            <div>
+              {sport === 'boxing' ? (
+                <button
+                  className="face-a"
+                  aria-label="A Hold to block"
+                  aria-pressed={blocking}
                   onPointerDown={e => { capture(e); beginBlock() }}
                   onPointerUp={endBlock} onPointerCancel={endBlock} onLostPointerCapture={endBlock}
                   onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); beginBlock() } }}
-                  onKeyUp={endBlock} onBlur={endBlock}><Shield /></button>
-              : <button className="face-a" aria-label="A Start motion" disabled={!attemptReady} onClick={startAttempt}><Play /></button>}
-              {sport === 'boxing' && <small>{blocking ? 'GUARD UP' : 'HOLD'}</small>}</div>
-            <div><button className="face-b" aria-label={sport === 'boxing' ? 'B Duck' : sport === 'bowling' ? 'B Arm the throw' : attemptActive ? 'B Cancel motion' : 'B Toggle aim mode'} onClick={sport === 'boxing' ? duck : sport === 'bowling' ? () => sendControllerAction('placeholder_secondary', 'Throw armed · now swing') : () => { if (attemptActive) cancelAttempt(); else sendControllerAction('placeholder_secondary', 'Aim / movement toggled') }}>{sport === 'boxing' ? <Duck /> : <Cancel />}</button></div>
+                  onKeyUp={endBlock} onBlur={endBlock}
+                >
+                  <Shield />
+                </button>
+              ) : (
+                <button
+                  className="face-a"
+                  aria-label="A Stop oscillation"
+                  onClick={stopOscillation}
+                >
+                  <Stop />
+                </button>
+              )}
+              <small>{sport === 'boxing' ? (blocking ? 'GUARD UP' : 'HOLD') : 'STOP'}</small>
+            </div>
+            <div>
+              <button
+                className="face-b"
+                aria-label={sport === 'boxing' ? 'B Duck' : 'B Arm & Start Timer'}
+                onClick={
+                  sport === 'boxing'
+                    ? duck
+                    : () => {
+                        if (attemptActive) cancelAttempt()
+                        else startAttempt()
+                      }
+                }
+              >
+                {sport === 'boxing' ? <Duck /> : <Timer />}
+              </button>
+              <small>{sport === 'boxing' ? 'DUCK' : (attemptActive ? `${countdown}s` : 'ARM / TIMER')}</small>
+            </div>
           </div>
         </div>
         <div className="console-grille">▰ ▰ ▰ ▰ ▰</div>
       </section>
-      <p className="remote-feedback" role="status">{lastAction || (sport === 'boxing' ? 'Punch toward your opponent. Recalibrate if you change your grip.' : 'B switches move / aim. In aim mode: Left/Right aim, Up/Down club or hook. A locks aim — swing on GO.')}</p>
+      <p className="remote-feedback" role="status">
+        {lastAction || (sport === 'boxing'
+          ? 'Punch toward your opponent. Recalibrate if you change your grip.'
+          : 'Tap ARM / TIMER (B) to arm and start countdown. Tap STOP (A) to stop oscillation. D-Pad shifts spin & aim.')}
+      </p>
       <details className="remote-options"><summary>Controller settings</summary><button onClick={calibrate} disabled={motionState !== 'enabled'}>Recalibrate</button><button onClick={disconnect}>Disconnect</button><button onClick={() => selectPlayer(player === 1 ? 2 : 1)}>Use Controller {player === 1 ? 2 : 1} (testing)</button><a href={`/controller?player=${player}&debug=1${fakeMode ? '&fake=1' : ''}`}>Motion diagnostics</a></details>
       {fakeMode && <section className="remote-options"><p>Desktop test input</p>{(['jab','hook','swing'] as const).map(g => <button key={g} onClick={() => triggerSynthetic(g)} disabled={motionState !== 'enabled'}>{g}</button>)}</section>}
     </main>
@@ -766,8 +806,8 @@ export default function Controller() {
           </>
         ) : (
           <>
-            <div className="simple-placeholder">Reserved: Block</div>
-            <div className="simple-placeholder">Reserved: Emergency Power</div>
+            <button type="button" className="simple-action" onClick={stopOscillation}>Stop oscillation (A)</button>
+            <button type="button" className="simple-action" onClick={startAttempt}>Arm & Start Timer (B)</button>
           </>
         )}
         {lastAction && <div className="action-status">{lastAction}</div>}

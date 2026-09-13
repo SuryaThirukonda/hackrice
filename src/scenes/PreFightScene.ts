@@ -9,7 +9,7 @@ import { COURSES, courseById, type CourseId } from '../games/golf/sim/courses'
 import { controllerInput } from '../input/controller'
 import { openControllerConnect } from './ControllerScene'
 
-export interface PreFightData { game: 'boxing' | 'bowling' | 'golf'; mode?: '1p' | 'card' }
+export interface PreFightData { game: 'boxing' | 'bowling' | 'golf'; mode?: '1p' | '2p' | 'card' }
 /** Settings plus the golf course pick; it rides along in the same saved blob (loadSettings spreads unknown keys through). */
 type PreSettings = GameSettings & { course?: CourseId; boxingTier?: keyof typeof TIERS }
 
@@ -30,9 +30,10 @@ export class PreFightScene extends Phaser.Scene {
   private get boxingTier(): keyof typeof TIERS { return this.s.boxingTier ?? 'rookie' }
   private get presets(): (Preset | 'boss')[] { return this.boxing ? ['rookie', 'pro', 'champ', 'boss'] : ['rookie', 'pro', 'champ', 'custom'] }
   private get selectedPreset(): Preset | 'boss' { return this.boxing ? this.boxingTier : this.s.preset }
+  private get is2p(): boolean { return this.d.mode === '2p' }
   private get golf(): boolean { return this.d.game === 'golf' }
-  private get courseRow(): number { return this.golf ? 6 : -1 }
-  private get seedRow(): number { return this.golf ? 7 : 6 }
+  private get courseRow(): number { return this.is2p ? (this.golf ? 0 : -1) : (this.golf ? 6 : -1) }
+  private get seedRow(): number { return this.is2p ? (this.golf ? 1 : 0) : (this.golf ? 7 : 6) }
   private get startRow(): number { return this.seedRow + 1 }
   private get nRows(): number { return this.startRow + 1 }
   private get course() { return courseById(this.s.course) }
@@ -82,9 +83,15 @@ export class PreFightScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closePhonePrompt())
     this.draw()
   }
-  private move(d: number): void { const n = this.nRows; this.row = (this.row + d + n) % n; if (this.boxing && this.row >= 1 && this.row <= 5) this.row = d > 0 ? this.seedRow : 0; sfx.hover(); this.draw() }
+  private move(d: number): void { const n = this.nRows; this.row = (this.row + d + n) % n; if (this.boxing && !this.is2p && this.row >= 1 && this.row <= 5) this.row = d > 0 ? this.seedRow : 0; sfx.hover(); this.draw() }
   private setPreset(p: Preset | 'boss'): void { if (this.boxing) { if (p !== 'custom') this.s.boxingTier = p; this.save(); return }; if (p === 'boss') return; this.s.preset = p; if (p !== 'custom') this.s.difficulty = { ...PRESETS[p] }; this.save() }
   private adjust(d: number): void {
+    if (this.is2p) {
+      if (this.row === this.courseRow) this.cycleCourse(d)
+      else if (this.row === this.seedRow) { this.seed = randomSeed() }
+      sfx.hover(); this.draw()
+      return
+    }
     if (this.row === 0) { const ps = this.presets; this.setPreset(ps[(ps.indexOf(this.selectedPreset) + d + ps.length) % ps.length]) }
     else if (this.row <= 5 && !this.boxing) { const k = SLIDER_KEYS[this.row - 1]; this.s.difficulty[k] = Math.round(Math.min(1, Math.max(0, this.s.difficulty[k] + d * 0.1)) * 10) / 10; this.s.preset = 'custom'; this.save() }
     else if (this.row === this.courseRow) this.cycleCourse(d)
@@ -94,11 +101,11 @@ export class PreFightScene extends Phaser.Scene {
   private activate(): void {
     if (this.row === this.seedRow) { this.seed = randomSeed(); this.draw(); return }
     if (this.row === this.courseRow) { this.cycleCourse(1); sfx.hover(); this.draw(); return }
-    if (this.row === this.startRow || this.row === 0) this.start()
+    if (this.row === this.startRow || (!this.is2p && this.row === 0)) this.start()
   }
   private save(): void { saveSettings(this.s) }
   private start(): void {
-    if (controllerInput.connected('controller_1')) {
+    if (this.is2p || controllerInput.connected('controller_1')) {
       this.launchGame()
       return
     }
@@ -108,9 +115,10 @@ export class PreFightScene extends Phaser.Scene {
   private launchGame(): void {
     sfx.select()
     const diff: Difficulty = this.s.difficulty
-    if (this.d.game === 'boxing') wipeTo(this, 'boxing', { mode: this.d.mode ?? '1p', tier: this.boxingTier, bot: TIERS[this.boxingTier], seed: this.seed })
-    else if (this.d.game === 'bowling') wipeTo(this, 'bowling', { mode: '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: bowlingParams(diff), seed: this.seed })
-    else wipeTo(this, 'golf', { mode: '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: golfParams(diff), seed: this.seed, course: this.course.id })
+    const is2p = this.is2p
+    if (this.d.game === 'boxing') wipeTo(this, 'boxing', { mode: is2p ? '2p' : (this.d.mode ?? '1p'), tier: this.boxingTier, bot: is2p ? undefined : TIERS[this.boxingTier], seed: this.seed })
+    else if (this.d.game === 'bowling') wipeTo(this, 'bowling', { mode: is2p ? '2p' : '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: is2p ? undefined : bowlingParams(diff), seed: this.seed })
+    else wipeTo(this, 'golf', { mode: is2p ? '2p' : '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: is2p ? undefined : golfParams(diff), seed: this.seed, course: this.course.id })
   }
 
   private showPhonePrompt(): void {
@@ -155,6 +163,68 @@ export class PreFightScene extends Phaser.Scene {
     this.content = []
     const { width: W, height: H } = this.scale
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.content.push(o); return o }
+
+    if (this.is2p) {
+      add(comicPanel(this, W / 2 - 400, 40, 800, H - 80, P.paper, 1))
+      add(new ComicButton(this, W / 2 - 335, 78, '◀ BACK', () => wipeTo(this, 'games', { mode: '2p' }), { color: P.blue, w: 100, h: 38, size: 16 }))
+      const title = add(this.add.text(W / 2, 78, `${this.d.game.toUpperCase()} · 2 PLAYERS`, { fontFamily: DISPLAY, fontSize: '28px', color: HEX(P.ink) }).setOrigin(0.5))
+      this.fit(title, 450)
+      add(new ComicButton(this, W / 2 + 335, 78, 'HELP', () => wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' }), { color: P.gold, w: 86, h: 38, size: 16 }))
+
+      // Dual Player Status Cards at y = 155
+      const p1Connected = controllerInput.connected('controller_1')
+      const p2Connected = controllerInput.connected('controller_2')
+      const cardY = 150, cardH = 92, cardW = 340
+
+      // Player 1 Box
+      const p1Bg = add(this.add.graphics())
+      p1Bg.fillStyle(P.ink, 0.9).fillRoundedRect(W / 2 - 365 + 5, cardY - cardH / 2 + 5, cardW, cardH, 14)
+      p1Bg.fillStyle(0xfff5ea).fillRoundedRect(W / 2 - 365, cardY - cardH / 2, cardW, cardH, 14)
+      p1Bg.lineStyle(4, P.ink).strokeRoundedRect(W / 2 - 365, cardY - cardH / 2, cardW, cardH, 14)
+      add(this.add.text(W / 2 - 350, cardY - 24, 'PLAYER 1', { fontFamily: DISPLAY, fontSize: '22px', color: HEX(P.blue) }))
+      const p1Badge = add(this.add.graphics())
+      p1Badge.fillStyle(p1Connected ? P.green : P.blue).fillRoundedRect(W / 2 - 350, cardY + 4, 155, 26, 8)
+      p1Badge.lineStyle(2, P.ink).strokeRoundedRect(W / 2 - 350, cardY + 4, 155, 26, 8)
+      add(this.add.text(W / 2 - 272, cardY + 17, p1Connected ? '📱 PHONE 1 LIVE' : '⌨ KEYBOARD 1', { fontFamily: DISPLAY, fontSize: '13px', color: HEX(P.paper) }).setOrigin(0.5))
+      add(this.add.text(W / 2 - 145, cardY + 17, p1Connected ? 'Motion active' : 'WASD / Space', { fontFamily: FONT, fontSize: '13px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+
+      // Player 2 Box
+      const p2Bg = add(this.add.graphics())
+      p2Bg.fillStyle(P.ink, 0.9).fillRoundedRect(W / 2 + 25 + 5, cardY - cardH / 2 + 5, cardW, cardH, 14)
+      p2Bg.fillStyle(0xfff5ea).fillRoundedRect(W / 2 + 25, cardY - cardH / 2, cardW, cardH, 14)
+      p2Bg.lineStyle(4, P.ink).strokeRoundedRect(W / 2 + 25, cardY - cardH / 2, cardW, cardH, 14)
+      add(this.add.text(W / 2 + 40, cardY - 24, 'PLAYER 2', { fontFamily: DISPLAY, fontSize: '22px', color: HEX(P.red) }))
+      const p2Badge = add(this.add.graphics())
+      p2Badge.fillStyle(p2Connected ? P.green : P.red).fillRoundedRect(W / 2 + 40, cardY + 4, 155, 26, 8)
+      p2Badge.lineStyle(2, P.ink).strokeRoundedRect(W / 2 + 40, cardY + 4, 155, 26, 8)
+      add(this.add.text(W / 2 + 118, cardY + 17, p2Connected ? '📱 PHONE 2 LIVE' : '⌨ KEYBOARD 2', { fontFamily: DISPLAY, fontSize: '13px', color: HEX(P.paper) }).setOrigin(0.5))
+      add(this.add.text(W / 2 + 245, cardY + 17, p2Connected ? 'Motion active' : 'Arrows / Enter', { fontFamily: FONT, fontSize: '13px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+
+      // Connect Phones Button
+      add(new ComicButton(this, W / 2, 235, '📱 CONNECT PHONES [ENTER]', () => openControllerConnect(this), { color: P.gold, w: 420, h: 48, size: 20 }))
+
+      // Course (if golf) & Seed rows
+      const cr = this.courseRow, c = this.course, sr = this.seedRow
+      const focus = (i: number) => (this.row === i ? P.gold : P.paper)
+      if (this.golf) {
+        const courseY = 310
+        add(this.add.text(W / 2 - 340, courseY, 'COURSE', { fontFamily: DISPLAY, fontSize: '22px', color: HEX(this.row === cr ? P.red : P.ink) }).setOrigin(0, 0.5))
+        add(new ComicButton(this, W / 2 + 80, courseY, `◀  ${c.name.toUpperCase()}  ▶`, () => { this.row = cr; this.cycleCourse(1); this.draw() }, { color: focus(cr), w: 420, h: 44, size: 18 }))
+      }
+      const seedY = this.golf ? 380 : 320
+      add(this.add.text(W / 2 - 340, seedY, 'SEED', { fontFamily: DISPLAY, fontSize: '22px', color: HEX(this.row === sr ? P.red : P.ink) }).setOrigin(0, 0.5))
+      add(new ComicButton(this, W / 2 + 80, seedY, `${this.seed}  ·  reroll`, () => { this.seed = randomSeed(); this.draw() }, { color: focus(sr), w: 420, h: 44, size: 18 }))
+      add(this.add.text(W / 2, seedY + 38, 'same seed + same inputs = the same match, every time', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+
+      // Start Match button
+      const startBtnLabel = this.d.game === 'golf' ? 'START 2P GOLF!' : this.d.game === 'bowling' ? 'START 2P BOWLING!' : 'START 2P FIGHT!'
+      const start = add(new ComicButton(this, W / 2, H - 92, startBtnLabel, () => this.launchGame(), { color: this.row === this.startRow ? P.red : P.green, w: 420, h: 66, size: 30 }))
+      if (this.row === this.startRow) start.setScale(1.06)
+
+      add(this.add.text(W / 2, H - 42, 'Enter connect phones · X start with keyboard · Esc back · click any item', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
+      return
+    }
+
     add(comicPanel(this, W / 2 - 400, 40, 800, H - 80, P.paper, 1))
     add(new ComicButton(this, W / 2 - 335, 78, '◀ BACK', () => wipeTo(this, 'games', { mode: this.d.mode ?? '1p' }), { color: P.blue, w: 100, h: 38, size: 16 }))
     const title = add(this.add.text(W / 2, 78, `${this.d.game.toUpperCase()} · CHOOSE YOUR OPPONENT`, { fontFamily: DISPLAY, fontSize: '26px', color: HEX(P.ink) }).setOrigin(0.5))

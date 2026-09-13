@@ -47,7 +47,6 @@ export class MainMenuScene extends Phaser.Scene {
     })
     new MenuNav(this, buttons, (i) => items[i][3]())
     void this.goalCard(W, H)
-    this.add.text(W / 2, H - 28, '↑↓ choose  ·  Enter select  ·  mouse works too', { fontFamily: FONT, fontSize: '16px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5)
   }
   /** Today's activity goal, read from the local health service. Silent when that service is off. */
   private async goalCard(W: number, H: number): Promise<void> {

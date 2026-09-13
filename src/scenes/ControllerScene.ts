@@ -59,7 +59,8 @@ export class ControllerScene extends Phaser.Scene {
     const backdrop = this.add.rectangle(0, 0, W, H, P.ink, 0.62).setOrigin(0).setDepth(200).setInteractive()
     backdrop.on('pointerdown', () => this.close())
     comicPanel(this, px, py, pw, ph, P.paper, 0.4).setDepth(201)
-    this.fit(this.add.text(W / 2, py + 50 * s, 'CONNECT A PHONE', { fontFamily: DISPLAY, fontSize: font(44), color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 * s }).setOrigin(0.5).setDepth(202), pw - 60 * s)
+    new ComicButton(this, px + pw - 45 * s, py + 45 * s, '✕', () => this.close(), { color: P.red, w: 46 * s, h: 46 * s, size: 24 * s }).setDepth(205)
+    this.fit(this.add.text(W / 2, py + 50 * s, 'CONNECT A PHONE', { fontFamily: DISPLAY, fontSize: font(44), color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 * s }).setOrigin(0.5).setDepth(202), pw - 120 * s)
     this.fit(this.add.text(W / 2, py + 86 * s, 'Scan with the phone camera, then tap Connect and Calibrate', { fontFamily: FONT, fontSize: font(15), color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5).setDepth(202), pw - 60 * s)
 
     // The address is spelled out as well as encoded, for a phone that will not scan or has no camera.

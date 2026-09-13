@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ComicBackdrop, ComicButton, MenuNav, comicPanel, doodles, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
+import { sfx } from '../fx/sfx'
 
 /** Stub for screens that come later (a match, host tools, settings). Shows a comic "COMING SOON" panel. */
 export class PlaceholderScene extends Phaser.Scene {
@@ -21,6 +22,7 @@ export class PlaceholderScene extends Phaser.Scene {
     doodles(this, 10)
     const p = comicPanel(this, W / 2 - 340, H * 0.22, 680, 260, P.paper, 2)
     p.setAlpha(0); this.tweens.add({ targets: p, alpha: 1, duration: 300 })
+    new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.blue, w: 110, h: 42, size: 16 })
     const t = this.add.text(W / 2, H * 0.22 + 90, this.title, { fontFamily: DISPLAY, fontSize: '64px', color: HEX(this.color), stroke: HEX(P.ink), strokeThickness: 10 }).setOrigin(0.5).setAngle(2).setScale(0)
     this.tweens.add({ targets: t, scale: 1, duration: 450, ease: 'Back.Out' })
     this.add.text(W / 2, H * 0.22 + 170, this.sub, { fontFamily: FONT, fontSize: '20px', color: HEX(P.ink), fontStyle: '900', align: 'center', wordWrap: { width: 600 } }).setOrigin(0.5).setAngle(2)

@@ -16,7 +16,8 @@ export class BoxingHud {
   private nameA!: Phaser.GameObjects.Text
   private nameB!: Phaser.GameObjects.Text
   private hint!: Phaser.GameObjects.Text
-  private flash!: Phaser.GameObjects.Rectangle
+  private flashA!: Phaser.GameObjects.Rectangle
+  private flashB?: Phaser.GameObjects.Rectangle
   private card: Phaser.GameObjects.GameObject[] = []
   private countPanel?: Phaser.GameObjects.Container
   private countBurst?: Phaser.GameObjects.Graphics
@@ -24,35 +25,62 @@ export class BoxingHud {
   private countSub?: Phaser.GameObjects.Text
   private ghostA = 100; private ghostB = 100
   private timerPanel!: Phaser.GameObjects.Graphics
-  private punchWash!: Phaser.GameObjects.Rectangle
-  private punchRing!: Phaser.GameObjects.Arc
+  private punchWashA!: Phaser.GameObjects.Rectangle
+  private punchRingA!: Phaser.GameObjects.Arc
+  private punchWashB?: Phaser.GameObjects.Rectangle
+  private punchRingB?: Phaser.GameObjects.Arc
+  private gassedFlashA = 0; private gassedFlashB = 0
+  private is2p = false
   private static: Phaser.GameObjects.GameObject[] = []
   private overlay: Phaser.GameObjects.GameObject[] = []
   names: [string, string] = ['YOU', 'THE HOUSE']
 
   constructor(scene: Phaser.Scene) { this.scene = scene; this.layout(scene.scale.width, scene.scale.height) }
 
-  layout(W: number, H: number): void {
+  layout(W: number, H: number, is2p = false): void {
     this.clearKnockdownCount()
-    this.W = W; this.H = H
+    this.W = W; this.H = H; this.is2p = is2p
     for (const o of this.static) o.destroy()
     this.static = []
     const s = this.scene
     this.bars = s.add.graphics().setDepth(100)
+
+    if (is2p) {
+      // Split-screen vertical comic divider down center
+      const div = s.add.graphics().setDepth(95)
+      div.fillStyle(P.ink, 0.4).fillRect(W / 2 - 4, 0, 8, H)
+      div.fillStyle(P.ink, 1).fillRect(W / 2 - 3, 0, 6, H)
+      div.fillStyle(P.gold, 0.95).fillRect(W / 2 - 1, 0, 2, H)
+      this.static.push(div)
+
+      this.flashA = s.add.rectangle(0, 0, W / 2, H, P.red, 0).setOrigin(0).setDepth(90)
+      this.flashB = s.add.rectangle(W / 2, 0, W / 2, H, P.red, 0).setOrigin(0).setDepth(90)
+      this.punchWashA = s.add.rectangle(14, 6, Math.min(380, W * 0.45), 96, P.green, 0).setOrigin(0).setDepth(99)
+      this.punchRingA = s.add.circle(180, 50, 26).setStrokeStyle(8, P.green).setAlpha(0).setDepth(102)
+      this.punchWashB = s.add.rectangle(W - 14 - Math.min(380, W * 0.45), 6, Math.min(380, W * 0.45), 96, P.green, 0).setOrigin(0).setDepth(99)
+      this.punchRingB = s.add.circle(W - 180, 50, 26).setStrokeStyle(8, P.green).setAlpha(0).setDepth(102)
+      this.static.push(this.flashA, this.flashB, this.punchWashA, this.punchRingA, this.punchWashB, this.punchRingB)
+
+      this.nameA = s.add.text(24, 14, 'P1 · ' + this.names[0], { fontFamily: DISPLAY, fontSize: '26px', color: HEX(P.blue), stroke: HEX(P.ink), strokeThickness: 7 }).setDepth(101)
+      this.nameB = s.add.text(W - 24, 14, 'P2 · ' + this.names[1], { fontFamily: DISPLAY, fontSize: '26px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 7 }).setOrigin(1, 0).setDepth(101)
+      this.hint = s.add.text(W / 2, H - 26, 'P1: WASD / Space / J / K  ·  P2: Arrows / O / U / I  ·  Esc pause', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101).setInteractive({ cursor: 'pointer' })
+    } else {
+      this.flashA = s.add.rectangle(0, 0, W, H, P.red, 0).setOrigin(0).setDepth(90)
+      this.punchWashA = s.add.rectangle(14, 6, Math.min(430, W * 0.42), 96, P.green, 0).setOrigin(0).setDepth(99)
+      this.punchRingA = s.add.circle(214, 50, 26).setStrokeStyle(8, P.green).setAlpha(0).setDepth(102)
+      this.static.push(this.flashA, this.punchWashA, this.punchRingA)
+
+      this.nameA = s.add.text(30, 14, this.names[0], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.blue), stroke: HEX(P.ink), strokeThickness: 6 }).setDepth(101)
+      this.nameB = s.add.text(W - 30, 14, this.names[1], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 6 }).setOrigin(1, 0).setDepth(101)
+      this.hint = s.add.text(W / 2, H - 26, 'J jab · K cross · Space block · A/D step · Q/E sway · W duck · ↑↓ in/out · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101).setInteractive({ cursor: 'pointer' })
+    }
+
     this.timerPanel = comicPanel(s, W / 2 - 76, 12, 152, 70, P.paper, -1.5).setDepth(100)
     this.timer = s.add.text(W / 2, 40, '1:30', { fontFamily: DISPLAY, fontSize: '40px', color: HEX(P.ink) }).setOrigin(0.5).setDepth(101).setAngle(-1.5)
     this.roundTxt = s.add.text(W / 2, 70, 'ROUND 1', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5).setDepth(101).setAngle(-1.5)
-    this.nameA = s.add.text(30, 14, this.names[0], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.blue), stroke: HEX(P.ink), strokeThickness: 6 }).setDepth(101)
-    this.nameB = s.add.text(W - 30, 14, this.names[1], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 6 }).setOrigin(1, 0).setDepth(101)
-    this.hint = s.add.text(W / 2, H - 26, 'J jab · K cross · Space block · A/D step · Q/E sway · W duck · ↑↓ in/out · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101).setInteractive({ cursor: 'pointer' })
     this.hint.on('pointerdown', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.())
     const pauseBtn = new ComicButton(s, W - 66, H - 26, '⏸ PAUSE', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.(), { color: P.gold, w: 104, h: 32, size: 14 }).setDepth(102)
-    this.flash = s.add.rectangle(0, 0, W, H, P.red, 0).setOrigin(0).setDepth(90)
-    // One wash and one ring for the phone-punch flash, reused every swing. Per-swing objects leaked:
-    // the scene slows the tween clock during hit-stop, so their fade-out tweens could outlive a fight.
-    this.punchWash = s.add.rectangle(14, 6, Math.min(430, W * 0.42), 96, P.green, 0).setOrigin(0).setDepth(99)
-    this.punchRing = s.add.circle(214, 50, 26).setStrokeStyle(8, P.green).setAlpha(0).setDepth(102)
-    this.static.push(this.bars, this.timerPanel, this.timer, this.roundTxt, this.nameA, this.nameB, this.hint, pauseBtn, this.flash, this.punchWash, this.punchRing)
+    this.static.push(this.bars, this.timerPanel, this.timer, this.roundTxt, this.nameA, this.nameB, this.hint, pauseBtn)
   }
 
   private bar(x: number, y: number, w: number, h: number, ratio: number, ghost: number, color: number, rtl: boolean): void {
@@ -66,9 +94,11 @@ export class BoxingHud {
     g.lineStyle(4, P.ink).strokeRoundedRect(x, y, w, h, 8)
   }
 
-  private gassedFlash = 0
   /** Flash the stamina bar red when a punch is refused. */
-  gassed(): void { this.gassedFlash = 0.5 }
+  gassed(side: 'a' | 'b' = 'a'): void {
+    if (side === 'a') this.gassedFlashA = 0.5
+    else this.gassedFlashB = 0.5
+  }
 
   /** One slim stamina bar under the health bar, split into ten segments (punches and blocks spend it, idle refills it). A shield marks a held guard. */
   private stamina(x: number, y: number, w: number, stamina: number, guard: boolean, rtl: boolean, flash: number): void {
@@ -92,42 +122,62 @@ export class BoxingHud {
 
   update(v: Snapshot, dt: number): void {
     const W = this.W
-    this.gassedFlash = Math.max(0, this.gassedFlash - dt)
-    this.ghostA += (v.a.hp - this.ghostA) * Math.min(1, dt * 2.5); this.ghostB += (v.b.hp - this.ghostB) * Math.min(1, dt * 2.5)
+    this.gassedFlashA = Math.max(0, this.gassedFlashA - dt)
+    this.gassedFlashB = Math.max(0, this.gassedFlashB - dt)
+    this.ghostA += (v.a.hp - this.ghostA) * Math.min(1, dt * 2.5)
+    this.ghostB += (v.b.hp - this.ghostB) * Math.min(1, dt * 2.5)
     this.bars.clear()
-    const bw = Math.min(420, W * 0.36)
+    const bw = this.is2p ? Math.min(360, W * 0.5 - 60) : Math.min(420, W * 0.36)
     const hpCol = (r: number) => (r > 0.5 ? P.green : r > 0.25 ? P.gold : P.red)
-    this.bar(30, 48, bw, 28, v.a.hp / 100, this.ghostA / 100, hpCol(v.a.hp / 100), false)
-    this.stamina(30, 82, bw, v.a.stamina, v.a.guard, false, this.gassedFlash)
-    this.bar(W - 30 - bw, 48, bw, 28, v.b.hp / 100, this.ghostB / 100, hpCol(v.b.hp / 100), true)
-    this.stamina(W - 30 - bw, 82, bw, v.b.stamina, v.b.guard, true, 0)
+    const p1X = this.is2p ? 24 : 30
+    const p2X = W - (this.is2p ? 24 : 30) - bw
+    this.bar(p1X, 48, bw, 28, v.a.hp / 100, this.ghostA / 100, hpCol(v.a.hp / 100), false)
+    this.stamina(p1X, 82, bw, v.a.stamina, v.a.guard, false, this.gassedFlashA)
+    this.bar(p2X, 48, bw, 28, v.b.hp / 100, this.ghostB / 100, hpCol(v.b.hp / 100), true)
+    this.stamina(p2X, 82, bw, v.b.stamina, v.b.guard, true, this.gassedFlashB)
     // knockdown pips
+    const pipA = this.is2p ? 34 : 40
+    const pipB = this.is2p ? 34 : 40
     for (let i = 0; i < 3; i++) {
-      this.bars.fillStyle(i < v.a.kd ? P.red : P.paper).fillCircle(40 + i * 20, 108, 7); this.bars.lineStyle(3, P.ink).strokeCircle(40 + i * 20, 108, 7)
-      this.bars.fillStyle(i < v.b.kd ? P.red : P.paper).fillCircle(W - 40 - i * 20, 108, 7); this.bars.lineStyle(3, P.ink).strokeCircle(W - 40 - i * 20, 108, 7)
+      this.bars.fillStyle(i < v.a.kd ? P.red : P.paper).fillCircle(pipA + i * 20, 108, 7); this.bars.lineStyle(3, P.ink).strokeCircle(pipA + i * 20, 108, 7)
+      this.bars.fillStyle(i < v.b.kd ? P.red : P.paper).fillCircle(W - pipB - i * 20, 108, 7); this.bars.lineStyle(3, P.ink).strokeCircle(W - pipB - i * 20, 108, 7)
     }
     const c = Math.ceil(v.clock)
     this.timer.setText(`${Math.floor(c / 60)}:${String(c % 60).padStart(2, '0')}`)
     this.roundTxt.setText(v.phase === 'count' ? `COUNT ${v.count}` : `ROUND ${v.round}`)
   }
 
-  hitFlash(alpha = 0.35): void { this.flash.setAlpha(alpha); this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 180 }) }
-
-  /** A phone swing was accepted as a punch. A green ring swells off the player's bars and a green wash
-   *  crosses their corner, so a player watching the screen rather than the phone sees the swing
-   *  register before the punch itself resolves. Keyboard punches never trigger this. */
-  phonePunch(): void {
-    const s = this.scene
-    s.tweens.killTweensOf([this.punchWash, this.punchRing])
-    this.punchWash.setAlpha(0.3)
-    this.punchRing.setScale(1).setAlpha(1)
-    s.tweens.add({ targets: this.punchWash, alpha: 0, duration: 340, ease: 'Quad.Out' })
-    s.tweens.add({ targets: this.punchRing, scale: 3.6, alpha: 0, duration: 440, ease: 'Cubic.Out' })
+  hitFlash(alpha = 0.35, side: 'a' | 'b' = 'a'): void {
+    if (this.is2p && side === 'b' && this.flashB) {
+      this.flashB.setAlpha(alpha)
+      this.scene.tweens.add({ targets: this.flashB, alpha: 0, duration: 180 })
+    } else {
+      this.flashA.setAlpha(alpha)
+      this.scene.tweens.add({ targets: this.flashA, alpha: 0, duration: 180 })
+    }
   }
 
-  burst(word?: string, color = P.gold, size = 70): void {
+  phonePunch(side: 'a' | 'b' = 'a'): void {
+    const s = this.scene
+    if (side === 'a') {
+      s.tweens.killTweensOf([this.punchWashA, this.punchRingA])
+      this.punchWashA.setAlpha(0.3)
+      this.punchRingA.setScale(1).setAlpha(1)
+      s.tweens.add({ targets: this.punchWashA, alpha: 0, duration: 340, ease: 'Quad.Out' })
+      s.tweens.add({ targets: this.punchRingA, scale: 3.6, alpha: 0, duration: 440, ease: 'Cubic.Out' })
+    } else if (this.punchWashB && this.punchRingB) {
+      s.tweens.killTweensOf([this.punchWashB, this.punchRingB])
+      this.punchWashB.setAlpha(0.3)
+      this.punchRingB.setScale(1).setAlpha(1)
+      s.tweens.add({ targets: this.punchWashB, alpha: 0, duration: 340, ease: 'Quad.Out' })
+      s.tweens.add({ targets: this.punchRingB, scale: 3.6, alpha: 0, duration: 440, ease: 'Cubic.Out' })
+    }
+  }
+
+  burst(word?: string, color = P.gold, size = 70, side?: 'a' | 'b'): void {
     const W = this.W, H = this.H
-    const b = actionBurst(this.scene, W / 2 + Phaser.Math.Between(-W * 0.12, W * 0.12), H * 0.4 + Phaser.Math.Between(-H * 0.08, H * 0.08), word ?? Phaser.Utils.Array.GetRandom(WORDS), color, size).setDepth(110).setScale(0)
+    const cx = this.is2p && side ? (side === 'a' ? W * 0.25 : W * 0.75) : W / 2
+    const b = actionBurst(this.scene, cx + Phaser.Math.Between(-W * 0.08, W * 0.08), H * 0.4 + Phaser.Math.Between(-H * 0.08, H * 0.08), word ?? Phaser.Utils.Array.GetRandom(WORDS), color, size).setDepth(110).setScale(0)
     this.scene.tweens.add({ targets: b, scale: 1.1, duration: 140, ease: 'Back.Out', onComplete: () => this.scene.tweens.add({ targets: b, scale: 1, y: b.y - 40, alpha: 0, duration: 450, delay: 120, onComplete: () => b.destroy() }) })
   }
 
@@ -191,7 +241,7 @@ export class BoxingHud {
       const sub = s.add.text(0, panelH / 2 - 28, this.countLine(n, who, spectator), {
         fontFamily: FONT,
         fontSize: '18px',
-        color: HEX(who === 'a' && !spectator ? P.red : P.ink),
+        color: HEX(this.is2p || (who === 'a' && !spectator) ? P.red : P.ink),
         fontStyle: '900',
       }).setOrigin(0.5)
 
@@ -219,7 +269,7 @@ export class BoxingHud {
 
     if (this.countSub) {
       this.countSub.setText(this.countLine(n, who, spectator))
-      this.countSub.setColor(HEX(who === 'a' && !spectator ? P.red : P.ink))
+      this.countSub.setColor(HEX(this.is2p || (who === 'a' && !spectator) ? P.red : P.ink))
     }
 
     if (this.countBurst) {
@@ -262,9 +312,12 @@ export class BoxingHud {
   }
 
   /** The line under the count. The referee's count is fixed by the sim (up at eight unless it is a KO) and
-   *  ignores every input, so the board never asks for key taps or a shake. Fight Night names the fighter. */
+   *  ignores every input, so the board never asks for key taps or a shake. Fight Night and two-player matches
+   *  name the fighter, because neither side of the screen is simply "you". */
   private countLine(n: number, who: 'a' | 'b', spectator: boolean): string {
-    if (spectator) return `${this.names[who === 'a' ? 0 : 1].toUpperCase()} IS DOWN${n >= 8 ? ' · ALMOST OUT' : ''}`
+    const name = this.names[who === 'a' ? 0 : 1].toUpperCase()
+    if (spectator) return `${name} IS DOWN${n >= 8 ? ' · ALMOST OUT' : ''}`
+    if (this.is2p) return n >= 8 ? `${name}: LAST CHANCE!` : `${name} IS DOWN!`
     if (who === 'a') return n >= 8 ? 'LAST CHANCE!' : 'GET UP BEFORE TEN!'
     return n >= 8 ? 'ALMOST OUT!' : 'STAY DOWN!'
   }

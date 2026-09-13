@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ComicBackdrop, ComicButton, comicPanel, doodles, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
+import { sfx } from '../fx/sfx'
 import { loadSettings, saveSettings } from '../agent/sliders'
 import type { HealthSummary } from '../../server/health'
 import { formatActive, praise, type HealthSport } from '../health/energy'
@@ -37,7 +38,7 @@ export class HealthScene extends Phaser.Scene {
     this.add.text(60, 40, 'HEALTH', { fontFamily: DISPLAY, fontSize: '54px', color: HEX(P.teal), stroke: HEX(P.ink), strokeThickness: 10 }).setDepth(11).setAngle(-1.5)
     this.add.text(300, 52, 'from phone motion · estimates,\nnot medical measurements', { fontFamily: FONT, fontSize: '13px', color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0, 0.5).setDepth(11)
     this.status = this.add.text(W / 2, H / 2, 'reading your movement history…', { fontFamily: FONT, fontSize: '18px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 14, y: 8 } }).setOrigin(0.5).setDepth(20)
-    const back = new ComicButton(this, W - 150, 62, 'BACK', () => wipeTo(this, 'menu'), { color: P.gold, w: 200, h: 56, size: 24 }).setDepth(12)
+    const back = new ComicButton(this, W - 150, 62, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.gold, w: 200, h: 56, size: 24 }).setDepth(12)
     back.setFocus(true)
     this.input.keyboard!.on('keydown-ESC', () => wipeTo(this, 'menu'))
     this.input.keyboard!.on('keydown-BACKSPACE', () => wipeTo(this, 'menu'))
