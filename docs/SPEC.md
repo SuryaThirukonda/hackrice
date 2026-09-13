@@ -1,6 +1,6 @@
 # Tempo — repository spec sheet and PlayCanvas guide
 
-Accurate as of commit `77fc829` (2026-09-13): the merge of the `treys` branch (`eaa604f`) and its follow-ups. Everything below was read from the code, not from memory.
+Accurate as of commit `4421bd6` (2026-09-13): the second merge of the `treys` branch (`acb26ec`) on top of astra's boxer models, and its follow-ups. Everything below was read from the code, not from memory.
 Where a number appears, it is the value in the file named next to it.
 
 This document has three jobs:
@@ -28,7 +28,7 @@ the static venue scenery. `README.md` is the run sheet. This file is the referen
 | 3D | PlayCanvas 2.22.2, engine-only (no editor, no asset pipeline) |
 | Phone pages | React 19 (only `controller.html`, `join.html`, `motion.html`, `vitals.html`) |
 | Server | Node 24, `tsx server/agent.ts` on :8790, `ws`, `node:sqlite` (`DatabaseSync`) |
-| Tests | vitest 5, 29 test files, 251 tests, `npm test` (about 4 s); `npm run test:head-tracker` runs the Python tracker test |
+| Tests | vitest 5, 30 test files, 254 tests, `npm test` (about 4 s); `npm run test:head-tracker` runs the Python tracker test |
 | Source size | 16 071 lines of TS/TSX/MJS across `src`, `server`, `scripts` |
 | Optional services | OpenAI (`OPENAI_KEY`), Presage SmartSpectra (`PRESSAGE_KEY`), ElevenLabs (`ELEVENLABS_KEY`, unused so far) |
 | Webcam tracker | Python 3 with `mediapipe`, `opencv-python`, `websockets` (`scripts/head_tracker.py`), optional |
@@ -130,14 +130,14 @@ These hold everywhere. Break one and something already written stops being true.
 | `BootScene.ts` | `boot` | Texture generation, jumps to title. |
 | `TitleScene.ts` | `title` | Title card. |
 | `MainMenuScene.ts` | `menu` | PLAY, FIGHT NIGHT, HOST A GAME (placeholder), CONNECT A PHONE, HEALTH, HOW TO PLAY, SETTINGS, CREDITS (the `credits` scene). `goalCard()` shows today's kcal against the daily goal (`/health/summary`). Rows at `H*0.13 + i*76`, button height 70. |
-| `ModeSelectScene.ts` | `mode` | 1P vs Fight Night (`card` goes straight to `fightnight`). ◀ BACK returns to the menu. |
-| `GameSelectScene.ts` | `games` | Picks from `GAMES`; boxing/bowling/golf go to `prefight`. Cards take clicks where they are drawn; ◀ BACK returns to `mode`. |
-| `PreFightScene.ts` | `prefight` | Difficulty preset (`rookie`/`pro`/`champ`/`custom` sliders) and seed; golf also picks a course. Starts the sport with `{ mode, tier, bot: boxingParams(diff) | bowlingParams | golfParams, seed, course? }`. Sliders can be clicked or dragged (that sets the preset to `custom`); ◀ BACK and HELP buttons. FIGHT with no phone on `controller_1` opens a JOIN WITH PHONE? prompt: `Enter` or `Space` open the connect screen, `X` starts on the keyboard, `Esc` or a click outside closes it. `X` also starts straight away from the screen itself. |
+| `ModeSelectScene.ts` | `mode` | 1 PLAYER and 2 PLAYERS go to `games` with that mode; FIGHT NIGHT goes straight to `fightnight`. ◀ BACK returns to the menu. |
+| `GameSelectScene.ts` | `games` | Picks from `GAMES`; boxing/bowling/golf go to `prefight` with the mode (`1p`, `2p` or `card`). Cards take clicks where they are drawn; ◀ BACK returns to `mode`. |
+| `PreFightScene.ts` | `prefight` | Boxing offers four fixed tiers (`rookie`/`pro`/`champ`/`boss`, saved as `boxingTier`) with read-only rating bars; bowling and golf keep presets and editable sliders, `custom` included; golf also picks a course. Two-player lobby (`mode: '2p'`): a card per player showing keyboard or phone, CONNECT PHONES, the course for golf, seed, START. Starts the sport with `{ mode, tier, bot: TIERS[boxingTier] | bowlingParams | golfParams (none in 2P), seed, course? }`. Bowling and golf sliders can be clicked or dragged (that sets the preset to `custom`); ◀ BACK and HELP buttons. FIGHT with no phone on `controller_1` opens a JOIN WITH PHONE? prompt: `Enter` or `Space` open the connect screen, `X` starts on the keyboard, `Esc` or a click outside closes it. `X` also starts straight away from the screen itself. |
 | `TutorialScene.ts` | `tutorial` | Pages from each sport's `tutorial.ts`; boxing has a guided practice. |
 | `SettingsScene.ts` | `settings` | SOUND, 3D QUALITY (`low`/`medium`/`high`, applied live with `Engine3D.peek()?.setQuality`), key bindings per sport, reset. |
 | `ControllerScene.ts` | `controller` | Phone connect screen: resolves the join link, draws a QR (dynamic `import('qrcode')`), shows FREE/CONNECTED per slot, LAN fallback warning. `openControllerConnect(scene)` pauses the caller and launches it (used by the pause overlay and the pre-fight join prompt). A click on the dimmed backdrop, `Esc` or `Enter` closes it. |
 | `HealthScene.ts` | `health` | Today, 7-day strip, per-sport totals, ROM trend, last-session effort curve, goal bar; weight and goal editing; `C` twice clears (`DELETE /health`), `R` refreshes, auto-refresh every 5 s. |
-| `FightNightScene.ts` | `fightnight` | `PERSONAS` (Knuckles McGraw / red, The Professor / blue, Lucky Lou / gold, Iron Maggie / green), chips and record in `localStorage` (`hap.v2.chips`, `hap.v2.record`) reconciled with `/chips/summary`. Starts `boxing` with `{ mode: 'card', personas, seed }`. |
+| `FightNightScene.ts` | `fightnight` | `PERSONAS` with a model each (Knuckles McGraw / pro / red, The Professor / alien / blue, Lucky Lou / lizard / gold, Iron Maggie / robot / green), chips and record in `localStorage` (`hap.v2.chips`, `hap.v2.record`) reconciled with `/chips/summary`. Starts `boxing` with `{ mode: 'card', personas, seed }`. |
 | `PlaceholderScene.ts` | `placeholder` | Title + subtitle card with a COMING SOON stamp (`hideStamp` hides it). |
 | `CreditsScene.ts` | `credits` | Comic credits card naming Atreya Jariwala, Surya Thirukonda and Gaurav Yadav, HackRice 16 · Rice University, BACK TO MENU. |
 
@@ -148,6 +148,7 @@ These hold everywhere. Break one and something already written stops being true.
 | `ui/widgets.ts` | `ensureTextures`, `ComicBackdrop`, `actionBurst`, `doodles`, `ComicButton` (+`ComicButtonOpts`; hit area `Rectangle(0, 0, w, h)`, because a Phaser container measures input from its top-left corner, so a click lands where the button is drawn), `comicPanel(scene, x, y, w, h, color, tilt, alpha)`, `MenuNav` |
 | `ui/pauseOverlay.ts` | `pauseOverlay(scene, rows, actions, title)`, `PauseRow`, `PauseAction` (includes the CONNECT PHONE action). A click on the dimmed backdrop runs the first action, RESUME in every sport. |
 | `fx/transitions.ts` | `wipeTo(scene, key, data)`, `isWiping()` |
+| `fx/victoryAnimation.ts` | `playVictoryAnimation({ scene, winner, is2p, spectator?, p1Name?, p2Name?, method?, sport?, onComplete })` returns `{ destroy }`: dimmer, rotating rays, confetti, slammed banner, action bursts; a click or key skips it after 850 ms and it advances by itself after 3.8 s. `is2p` names both sides and highlights the winner's half of the screen; `spectator` (Fight Night) keeps the names without the half highlight. |
 | `fx/sfx.ts` | `sfx` singleton (WebAudio, `enabled`, `unlock()`, cues: `hover`, `select`, `back`, `stamp`, `wipe`, `sparkle`, `whoosh`, `thud`, `block`, `dodge`, `parry`, `stagger`, `gassed`, `bell`, `countdown`, `knockdown`, `count`, `ko`, `win`, `crowd`) |
 | `fx/CursorTrail.ts` | `CursorTrail` scene (`cursor`), always on top |
 
@@ -351,9 +352,10 @@ slipArmed }`: stick x/y → strafe/forward; `gesture` → `phonePunchKind()` jab
 
 ### 7.3 Scene (`BoxingScene.ts`)
 
-`BoxingSceneData { mode?: '1p' | 'card', tier?, bot?, seed?, practice?, personas? }`. Creates the match
-(`botB` = chosen tier or `TIERS.pro` in card mode, `botA` = `TIERS.pro` in card mode), the HUD, the
-`HealthTracker('boxing')` and badge, then `Engine3D.get()` → `new BoxingWorld(engine, P.red, card)`. Card mode
+`BoxingSceneData { model?, mode?: '1p' | '2p' | 'card', tier?, bot?, seed?, practice?, personas? }`. Creates the match
+(`botB` = chosen tier, `TIERS.pro` in card mode, none in 2P; `botA` = `TIERS.pro` in card mode), the HUD, the
+`HealthTracker('boxing')` and badge, then `Engine3D.get()` → `new BoxingWorld(engine, P.red, card, model, card ? personas : undefined, is2p)`,
+where `model` is `d.model`, else `intermediate` in 2P, else by tier (rookie beginner, pro intermediate, champ pro, boss boss). Card mode
 also creates `AgentLink`, `Book`, `ChipLedger`, and runs the betting panel (A/D corner, ↑↓ stake, Enter, Space).
 `onEvent()` maps every `SimEvent` to sound, HUD and world fx. Practice mode drives `boxingPractice()` steps.
 Head tracker: each frame the scene drains `head_tracker` actions (`duck` or `emergency_power` → duck, `sway_left` →
@@ -361,27 +363,33 @@ Head tracker: each frame the scene drains `head_tracker` actions (`duck` or `eme
 HEAD SLIP burst; the queue is cleared at match start. Count events drive `hud.knockdownCount(n, who, card)`.
 Dev hook: `window.__boxing` (the scene; `getSnapshot()`, `getEventLog()`, `match`).
 
-Note for part 15: the persona colours from Fight Night reach the HUD names only. `BoxingWorld` is always built
-with `P.red` gloves for the opponent and the spectator rig A is hard-coded `P.blue` gloves / `P.red` trunks.
+Two players: player 2's command merges `boxingCommandP2(keys)` with phone 2 (`controller_2`), player 1 uses
+`playerOneBindings(bindings)` so the arrows belong to player 2, and events route bursts, flashes and camera shake to
+the matching side. Every `finish()` plays `playVictoryAnimation` before the result panel. Fight Night persona models
+and colours reach both spectator rigs (`docs/boxing-models.md`).
 
 ### 7.4 HUD (`hud/BoxingHud.ts`)
 
-`names`, `layout(W, H)`, `update(view, dt)`, `phonePunch()` (pooled green ring), `burst(word, color, size)`,
-`showCard(title, color, sub, ms)`, `clearCard()`, `countdownNumber(n)`, `hitFlash(a)`, `gassed()`, `result(...)`,
+`names`, `layout(W, H, is2p)`, `update(view, dt)`, `phonePunch(side)` (pooled green ring per side), `burst(word, color, size, side?)`,
+`showCard(title, color, sub, ms)`, `clearCard()`, `countdownNumber(n)`, `hitFlash(alpha, side)`, `gassed(side)`, `result(...)`,
 `taunt(side, text)`, `cornerStatus(a, b)`, `betPanel(o)`, `clearBet()`, `pauseOverlay(...)`, `clearOverlay()`,
 `setHint(text)`, `knockdownCount(n, who, spectator)`, `clearKnockdownCount()`, `destroy()`. The key hint is clickable and a
 ⏸ PAUSE button sits bottom-right; both call the scene's `togglePause` (bowling and golf HUDs have the same pair). The
 count board is a paper panel with a starburst whose number pops each second, gold, then orange from 4, red from 7,
-magenta from 9; its line never asks for input because the sim ignores input during the count, and in Fight Night it
-names the fighter.
+magenta from 9; its line never asks for input because the sim ignores input during the count, and in Fight Night and
+two-player matches it names the fighter. In 2P the layout draws a gold-and-ink divider down the middle and gives each
+half its own hit flash, stamina flash and phone-punch ring.
 
 ### 7.5 Renderer (`render/`)
 
-**`BoxingWorld`** — `constructor(engine, oppColor = P.red, spectator = false)`. Builds the world root, batch groups
+**`BoxingWorld`** — `constructor(engine, oppColor = P.red, spectator = false, model = 'beginner', fighters?, is2p = false)`. Builds the world root, batch groups
 `ring-static` (static, 60) and `ring-crowd` (dynamic, 60), `RingScene`, `Fx`, the opponent `OpponentRig(root,
-oppColor, P.blue, device)`, re-parents the camera into a `CameraRig(root, camera, EYE_H)` and hangs `PlayerArms`
-on the camera. Spectator mode disables the arms, adds `rigA = OpponentRig(root, P.blue, P.red, device)` and a
-`ringside` orbit pivot for the camera. `show(w, h)` calls `lightSport(engine, 'boxing')`, `engine.show`,
+color, trunks, device, model)` (persona colour and model in Fight Night), re-parents the camera into a `CameraRig(root, camera, EYE_H)` and hangs `PlayerArms`
+on the camera. Spectator mode disables the arms, adds `rigA` (persona model, `pro` by default) and a
+`ringside` orbit pivot for the camera. Two-player mode builds both fighters from `model`, adds `cameraB` (priority 1,
+right half) with its own `CameraRig` and `PlayerArms`, puts each player's arms and the opponent's body on a private
+layer (`LAYER_P1` 1001, `LAYER_P2` 1002) so neither view sees its own body, splits the main camera to the left half,
+turns the post stack off while split, and on `hide()` restores the camera rect, the saved layer list and the post stack. `show(w, h)` calls `lightSport(engine, 'boxing')`, `engine.show`,
 `applyLook('boxing', { sky {top e7e8e4, horizon f7edda, ground 8d9caa}, tint ffffff, saturation 1.02, exposure
 1.05, ambient abb7c0 })` and sets the FOV (44 spectator, 62 first person). `apply(v, dt, playerDown)`: FOV drama
 (countdown push, count pull), yaw of each rig from `v.dir`, ringside orbit (`r = 6 + min(1.6, dist × 0.6)`,
@@ -468,10 +476,11 @@ face buttons:
 | Sport | A | B |
 |---|---|---|
 | Boxing | hold = guard (`block_start` / `block_end`) | duck (`emergency_power`) |
-| Bowling | lock the path (`placeholder_primary`) | arm the throw (`placeholder_secondary`), then swing |
-| Golf | arm the swing (`placeholder_primary`), then swing in any direction for power | cancel / toggle aim (`placeholder_secondary`) |
+| Bowling | lock the path (`placeholder_primary`); once armed, throw at 0.8 power | arm the throw (`placeholder_secondary`) and start the phone's timer, then swing |
+| Golf | STOP: step the swing meter like Space (`placeholder_primary`, also arms an idle meter) | ARM / TIMER: arm the meter (`placeholder_secondary`), then swing in any direction for power |
 
-Outside boxing the phone's A also starts a 3 s countdown and a 2 s capture window for the swing.
+Outside boxing the phone's B starts a 3 s countdown and a 2 s capture window whose strongest swing is sent; A sends
+one action with no countdown. In two-player bowling and golf the scene reads `controller_2` on player 2's turns.
 
 ---
 
@@ -662,6 +671,13 @@ Reference: the engine API at `https://api.playcanvas.com/engine/` and the source
 
 ## 14. The boxer rig as built today (`OpponentRig.ts`)
 
+> **Superseded parts table.** Astra replaced the single build below with seven procedural builds selected by
+> `BoxerModel` (`beginner`, `intermediate`, `pro`, `boss`, `alien`, `lizard`, `robot`; commits `a91f204` and
+> `ab7fd50`, described in `docs/boxing-models.md`). The constructor is now `new OpponentRig(parent, color, trunks,
+> device, model)`, parts are flat boxes and faceted spheres without ink hulls, and the hip pivots are `leftHip` and
+> `rightHip`. The skeleton (`root`, `lean`, `body`, `headPivot`), the arm IK and `apply()` are unchanged, so the
+> rules below still hold; the parts table describes the earlier build.
+
 Constructor: `new OpponentRig(parent, color = P.red /* gloves */, trunks = P.blue, device?)`. Skin is fixed:
 `SKIN f3b98c`, `SKIN_HI ffd2a6`, `SKIN_LO c8845c`, ink `141414`. Materials (`M`): `skin`, `skinHi`, `skinLo`,
 `glove` (leather map, tiling 3), `gloveLo` (`shade(color, 0.62)`), `trunk` (weave map, tiling 6), `gold`,
@@ -693,6 +709,10 @@ sets `root` world position and yaw; puts the fall on `lean`; runs two-bone IK fo
 ---
 
 ## 15. Recipe: different, more detailed cartoon boxers
+
+> **Implemented differently.** The goal of this part shipped as `BoxerModel` inside `OpponentRig` rather than a
+> separate `looks.ts`: tiers and Fight Night personas pick a build, and two-player matches use `intermediate` for
+> both fighters. The recipe remains a guide for adding further builds.
 
 Goal: the player picks or is matched against different people, each with a recognisable body, face, kit and
 colours, while the sim, poses and IK stay exactly as they are.

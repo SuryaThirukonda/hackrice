@@ -1,7 +1,7 @@
 # Tempo — handoff
 
-Everything the project does as of commit `77fc829` (the `treys` merge and its follow-ups), how it fits
-together, how to run and verify it, and what is still open. Written for someone who has never opened this repo. Read `README.md` for the short
+Everything the project does as of commit `4421bd6` (the second `treys` merge, astra's boxer models and the
+follow-ups), how it fits together, how to run and verify it, and what is still open. Written for someone who has never opened this repo. Read `README.md` for the short
 version; this is the long one.
 
 ## 1. What Tempo is
@@ -22,7 +22,7 @@ the opponent is still called "The House".
 | Phone pages and lab pages | React 19, separate Vite entries |
 | Server | Node 24, `tsx`, one process (`server/agent.ts`) on port 8790 |
 | Build | Vite 8, TypeScript strict with `erasableSyntaxOnly`, `noUnusedLocals`, `noUnusedParameters` |
-| Tests | vitest, 29 files, 251 tests, all deterministic; one Python test for the webcam head tracker |
+| Tests | vitest, 30 files, 254 tests, all deterministic; one Python test for the webcam head tracker |
 | Local data | SQLite through Node's built-in `node:sqlite`, file `data/health.sqlite` (git-ignored) |
 
 Rules that everything else depends on:
@@ -42,7 +42,7 @@ Rules that everything else depends on:
 npm install          # also fetches Presage's native runtime for every platform, a few hundred MB
 npm run agent        # server on :8790: AI corners, phone relay, health and vitals routes
 npm run dev          # game on http://localhost:5174, starts a Cloudflare quick tunnel for phones
-npm test             # 251 tests
+npm test             # 254 tests
 npm run build        # strict typecheck, then the production bundle
 ```
 
@@ -70,10 +70,11 @@ Keys dispatched from scripts must be DOM `KeyboardEvent`s with `keyCode` set, or
 ## 4. The games
 
 ### Boxing (`src/games/boxing/`)
-Three rounds against a bot tier (rookie, pro, champ) or a sparring dummy. Health, stamina (punches, absorbed blocks and dodges spend it; it refills at 40/s in every state except the punch itself, at half that with the guard held, footwork is free, and a dodge that evades a punch pays back more than it cost; bots and AI corners never retreat, and two fighters cannot back away in the same tick), guard, slips, ducks, step in and out, knockdowns with a count, KO and
+Three rounds against a bot tier (rookie, pro, champ, boss), a sparring dummy, or a second player. Health, stamina (punches, absorbed blocks and dodges spend it; it refills at 40/s in every state except the punch itself, at half that with the guard held, footwork is free, and a dodge that evades a punch pays back more than it cost; bots and AI corners never retreat, and two fighters cannot back away in the same tick), guard, slips, ducks, step in and out, knockdowns with a count, KO and
 decision. Keyboard: `J` jab, `K` cross, `Space`/`S` block, `A`/`D` step, `Q`/`E` sway, `W` duck, arrows in
-and out, `Esc` pause, `H` help. The renderer draws an anatomical opponent rig (`render/OpponentRig.ts`)
-and first-person player arms (`render/PlayerArms.ts`); a knockdown drops the rig to the canvas.
+and out, `Esc` pause, `H` help. The renderer draws the opponent in one of seven procedural builds (`render/OpponentRig.ts`,
+`docs/boxing-models.md`: beginner, intermediate, pro, boss, alien, lizard, robot, chosen by tier or Fight Night
+persona) and first-person player arms (`render/PlayerArms.ts`); a knockdown drops the rig to the canvas.
 
 Bot tiers live in `sim/tiers.ts`. They were lowered deliberately; the suite pins floors (a rookie must
 throw more than four punches a minute, a champ must defend more than a rookie) and a ceiling raised to
@@ -96,6 +97,14 @@ wind-up is the whole blocking window; a guard raised 140 ms into a jab or 250 ms
 (`sim/boxing.test.ts`). The guard-break stagger grew from 60 to 66 ticks with it, so a guard broken by a cross
 can still be punished: the attacker's quickest jab lands in the same five-tick window as before. The pace
 measurements above were taken before that change.
+
+Two players (`mode: '2p'`, from `treys`): the screen splits into two first-person views on separate render
+layers (`LAYER_P1` and `LAYER_P2` in `render/BoxingWorld.ts`), each showing the other fighter and the player's
+own arms. The post stack is off while split, and the shared camera's layers are restored on exit. Both fighters
+use the intermediate build, player 1 in blue gloves and red trunks, player 2 the reverse. Player 2 plays on the
+arrows, `U` jab, `I` or `L` cross and `O` block (numpad too) or on phone 2, and player 1's bindings drop every
+key player 2 uses (`boxingCommandP2` and `playerOneBindings` in `keymap.ts`). The HUD splits bursts, hit flashes,
+stamina flashes and phone-punch rings per side. There are no bots.
 
 ### Bowling (`src/games/bowling/`)
 Ten frames against a bot. Aim phase: the release line sweeps; a tap locks it, hold and release for
@@ -140,8 +149,8 @@ Keyboard and phone are merged every frame; the keyboard wins any field it is usi
 | Phone | Boxing | Golf | Bowling |
 |---|---|---|---|
 | Swing | punch in any direction; speed sets damage; a wrist turn (>200 deg/s) is a cross | the shot once armed; speed sets power, accuracy perfect | the roll once armed; speed sets power |
-| A | hold to guard | arm the swing (the phone sends `placeholder_primary`, then a 3 s countdown and 2 s capture window) | lock the sweeping line |
-| B | duck | cancel | arm the throw |
+| A | hold to guard | STOP: steps the swing meter like `Space` (`placeholder_primary`; an idle meter is armed as well) | lock the sweeping line; once armed, throws at 0.8 power |
+| B | duck | ARM / TIMER: arms the meter (`placeholder_secondary`); the phone then runs a 3 s countdown and a 2 s capture window and sends the strongest swing | arm the throw and start the same timer |
 | D-pad ←→ | slip, once per flick | aim while held | one hook step per flick |
 | D-pad ↑↓ | step in / out | longer / shorter club | — |
 
@@ -247,6 +256,11 @@ the lab pages (`/vitals.html`) from being captured by the API prefix.
 - Head tracker (at the `treys` merge): synthetic faces through MediaPipe 1.0.1 on Linux, the tracker's
   `RelayClient`, the real relay and a game socket delivered `sway_left`, `sway_right` and `duck` over one
   connection. The tracker as first merged never delivered with websockets 17.1 (see section 13).
+- Second `treys` merge, in the browser: the two-player lobby's start row is reachable from the keyboard; split-screen
+  boxing runs two cameras on layers 1001 and 1002 with both fighters in the intermediate build; an arrow key moved
+  only player 2; U and I gave player 2 a jab and a cross while J still jabbed for player 1; Fight Night's banner
+  shows no half-screen highlight and a long headline fits; leaving the match restored the camera's five default
+  layers; a single-player boss fight still shows the boss build.
 
 Things never verified with real hardware: a real phone's swing thresholds (the motion lab exists for this),
 a real camera reading, the head tracker's thresholds on a real webcam (this machine has none).
@@ -269,7 +283,9 @@ a real camera reading, the head tracker's thresholds on a real webcam (this mach
    (record punch power beside the seed). Both deferred by the owner.
 8. **Head tracker on a real webcam**: tune the distance and speed thresholds with a person rather than synthetic
    faces. The connect screen does not show the tracker's slot yet.
-9. Small: the pause screen's key hints overlap on short windows; the HUD phone-punch ring lingers while the
+9. **Two-player follow-ons**: only phone 1's movement reaches the health record, a keyboard player 1 has no
+   step in or out once player 2 takes the arrows, and the pause help still lists player 1's arrow keys.
+10. Small: the pause screen's key hints overlap on short windows; the HUD phone-punch ring lingers while the
    scene slows its tween clock.
 
 ## 10. Where things are
@@ -281,6 +297,7 @@ src/scenes/                    title, menu, mode and game select, settings, tuto
                                ControllerScene (QR), HealthScene, CreditsScene
 src/games/<sport>/             Scene.ts, keymap.ts (+phone mapping), sim/, render/, hud/, tutorial.ts
 src/engine3d/                  shared PlayCanvas device, camera rig, materials, textures, effects
+src/fx/, src/ui/               transitions, sound, cursor trail, victory animation; comic widgets, pause overlay
 src/input/                     keys, controller client (relay), joinLink (tunnel address)
 src/health/                    energy model, phone activity tracker, game-side tracker, live badge
 src/phone/                     React controller and join pages, motion processing, socket
@@ -291,7 +308,7 @@ scripts/                       tunnel plugin (+joinConfig), standalone tunnel, q
                                head_tracker.py (webcam dodges)
 test/                          end-to-end phone swing, smoke, joinConfig, head tracker (Python)
 docs/                          this file, SPEC.md (code-level spec sheet, PlayCanvas guide, new-boxer recipe),
-                               NEXT_PHASE.md (research and decisions), ENVIRONMENT_LAYER.md
+                               boxing-models.md (the seven builds), NEXT_PHASE.md, ENVIRONMENT_LAYER.md
 legacy/2d/                     the archived Phaser-only pixel renderer
 data/                          health.sqlite (git-ignored)
 ```
@@ -350,3 +367,41 @@ Follow-ups committed on `main` after the merge:
   page's focus outline and reduced-motion rule, dropped by the restyle, are back.
 
 After pulling: restart `npm run agent` so the relay knows `head_tracker`; Vite restarts itself on the plugin change.
+
+## 14. Second merge from `treys` (`acb26ec`, 2026-09-13), on top of astra's boxer models
+
+Before this merge `main` gained astra's boxer models (`a91f204`, `ab7fd50`: seven procedural builds, a boss tier,
+fixed boxing tiers on the pre-fight screen and a model per Fight Night persona; see `docs/boxing-models.md`), the
+slower punch wind-ups (`be7f39d`), and a stray `bub.txt` from a test commit (`e2e30c9`). `treys` then brought four
+commits:
+
+- **Two-player lobbies and match flow** (`12a94c1`) for boxing, bowling and golf, and new phone buttons outside
+  boxing: A is STOP, stepping the swing meter; B is ARM / TIMER, arming it and running the phone's countdown.
+- **Main menu hint banner removed** (`9e2cf1c`).
+- **Two-player split-screen boxing** (`ae4fd8b`), described in section 4.
+- **Victory animation and back buttons** (`947b11b`): `src/fx/victoryAnimation.ts` plays before every result panel,
+  and every menu screen has a ◀ BACK button.
+
+Four files conflicted, each resolved keeping both sides: `BoxingWorld` (astra's model and persona arguments plus the
+two-player flag, with the split-screen fighters built from the new models), `BoxingScene` (model and two-player mode
+in the scene data, both new input queues cleared at match start, the chip ledger recorded before Fight Night's
+victory animation), `BoxingHud` (the accurate count copy plus two-player names) and `PreFightScene` (fixed boxing
+tiers beside the two-player lobby; astra's tier-row skip is kept out of the lobby, where it hid the start row).
+
+Follow-ups committed after the merge:
+
+- `e1bbd90` Leaving any boxing match set the shared camera's layers to the world layer alone. PlayCanvas cameras
+  default to world, depth, skybox, UI and immediate, so every later sport ran with one layer. The world now saves the
+  list before a split screen narrows it and restores it on exit.
+- `d1d541e` Player 1's default bindings step and strafe on the arrows that `treys` gave player 2, so one arrow press
+  moved both fighters. Player 1 now drops every player-2 key in a two-player match (`twoPlayerKeys.test.ts`).
+- `fe71033` Fight Night's victory banner no longer draws the split-screen half highlight and a "2-player champion"
+  ribbon over the single ringside view, a single-player win says YOU WIN! as the result panel does, and the golf
+  phone test asserts the STOP and ARM / TIMER mapping.
+- `2a1271b` Player 2's keyboard punches never fired: the scene cleared the frame's key presses before reading
+  player 2's keys, a bug already present on `treys`. Player 2's command is now read first.
+- `4421bd6` Long winner names such as "KNUCKLES MCGRAW WINS!" ran off the victory banner; the headline now shrinks
+  to fit.
+
+For the owner to confirm: golf's arm moved from A to B with the new phone buttons (arming and then swinging for power
+works as before), and both two-player fighters use the intermediate build.

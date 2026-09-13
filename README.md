@@ -26,12 +26,14 @@ corner of the screen, and in the motion lab.
 | Phone | Boxing | Golf | Bowling |
 |---|---|---|---|
 | Swing | punch, any direction; speed sets damage, a wrist turn makes it a cross | the shot, once armed; speed sets power, accuracy is perfect | the roll, once armed; speed sets power |
-| `A` | hold to guard | arm the swing | lock the sweeping line |
-| `B` | duck | cancel the arm | arm the throw |
+| `A` | hold to guard | stop the swing meter, like `Space` | lock the sweeping line, or throw at fixed power once armed |
+| `B` | duck | arm the swing and start the timer, then swing | arm the throw and start the timer, then swing |
 | D-pad ←→ | slip | aim | one step of hook per flick |
 | D-pad ↑↓ | step in / out | longer / shorter club | — |
 
-The bowling aim marker is a blue line, thicker once locked.
+The bowling aim marker is a blue line, thicker once locked. Outside boxing, `B` starts a three-second
+countdown on the phone, then a two-second window in which the strongest swing counts. In a two-player
+match, phone 2 plays for player 2.
 
 A phone needs HTTPS, because browsers only expose the motion sensors on a secure origin. `npm run dev`
 therefore starts a Cloudflare quick tunnel by itself and prints the address next to the local one. No
@@ -132,6 +134,7 @@ ignored and each snap produces the right action. Both commands download MediaPip
 | Game | Keys |
 |---|---|
 | Boxing | `J` jab, `K` cross, `Space`/`S` block, `A`/`D` step, `Q`/`E` sway, `W` duck, `↑`/`↓` in/out |
+| Boxing, player 2 | arrows step in, out and slip, `U` jab, `I`/`L` cross, `O` block, numpad too; player 1 then gives up the arrows |
 | Bowling | `A`/`D` lane, `Q`/`E` aim, `←`/`→` hook, tap `Space` to lock, then hold/release for power, `Tab` sheet |
 | Golf | `W`/`S` club, `A`/`D` aim, three presses of `Space` for power/accuracy, `Tab` map |
 | Fight Night | `A`/`D` corner, `↑`/`↓` stake, `Enter` place, `Space` skip |
@@ -143,7 +146,19 @@ The mouse works throughout: buttons and game cards take a click where they are d
 sliders can be clicked or dragged, every match HUD has a **PAUSE** button (clicking the key hints pauses
 too), and clicking outside a pause or connect overlay closes it. Starting a match with no phone connected
 first asks whether to connect one; `Enter` opens the QR codes and `X` goes straight to the keyboard. A
-knocked-down fighter gets the referee's count on a board in the middle of the screen.
+knocked-down fighter gets the referee's count on a board in the middle of the screen, every match ends on
+a comic victory banner before the result panel, and every menu screen has a **◀ BACK** button.
+
+## Two players
+
+**PLAY**, then **2 PLAYERS**, opens a lobby for any of the three sports. It shows whether each player is on
+the keyboard or a phone, has a **CONNECT PHONES** button, and keeps the seed and, for golf, the course.
+Boxing splits the screen into two first-person views: player 1 on the left in blue gloves, player 2 on the
+right in red, both fighters in the same build. Bowling and golf take turns, and each turn listens to that
+player's phone when one is connected. There are no bots in a two-player match.
+
+Boxers come in seven procedural builds, chosen by tier in single player and by persona in Fight Night; see
+[`docs/boxing-models.md`](docs/boxing-models.md).
 
 ## Architecture
 
