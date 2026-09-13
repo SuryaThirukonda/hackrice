@@ -47,6 +47,8 @@ export class BoxingWorld {
   private t = 0
   private engine: Engine3D
   private fovS = 0
+  /** The shared camera's layers before a two-player match narrowed them; put back on hide so other sports keep theirs. */
+  private savedCameraLayers: number[] | null = null
 
   constructor(engine: Engine3D, oppColor = P.red, spectator = false, model: BoxerModel = 'beginner', fighters?: [{ model?: BoxerModel; color: number }, { model?: BoxerModel; color: number }], is2p = false) {
     this.engine = engine
@@ -98,6 +100,7 @@ export class BoxingWorld {
         engine.app.scene.layers.push(l2)
       }
 
+      this.savedCameraLayers = [...engine.camera.camera!.layers]
       engine.camera.camera!.rect = new Vec4(0, 0, 0.5, 1)
       engine.camera.camera!.priority = 0
       engine.camera.camera!.layers = [LAYERID_WORLD, LAYER_P1]
@@ -155,7 +158,7 @@ export class BoxingWorld {
     }
     if (this.engine.camera.camera) {
       this.engine.camera.camera.rect = new Vec4(0, 0, 1, 1)
-      this.engine.camera.camera.layers = [LAYERID_WORLD]
+      if (this.savedCameraLayers) { this.engine.camera.camera.layers = this.savedCameraLayers; this.savedCameraLayers = null }
     }
     this.engine.key.light!.layers = [LAYERID_WORLD]
     this.engine.fill.light!.layers = [LAYERID_WORLD]
