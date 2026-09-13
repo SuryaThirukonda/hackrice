@@ -262,6 +262,7 @@ export class BoxingScene extends Phaser.Scene {
           scene: this,
           winner: r.winner,
           is2p: true,
+          spectator: true,
           p1Name: this.hud.names[0],
           p2Name: this.hud.names[1],
           method: r.by,

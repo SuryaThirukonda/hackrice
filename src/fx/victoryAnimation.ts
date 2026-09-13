@@ -7,6 +7,8 @@ export interface VictoryAnimationOpts {
   scene: Phaser.Scene
   winner: 'a' | 'b' | 'draw'
   is2p: boolean
+  /** Fight Night: two named corners watched on one shared view, so no split-screen highlight and no 2-player ribbon. */
+  spectator?: boolean
   p1Name?: string
   p2Name?: string
   method?: string // 'ko' | 'decision' | 'draw' | 'score' | etc.
@@ -37,13 +39,13 @@ export function playVictoryAnimation(opts: VictoryAnimationOpts): { destroy: () 
   if (is2p) {
     if (winner === 'a') {
       headline = `${p1Name.toUpperCase()} WINS!`
-      ribbonText = '★ 2-PLAYER CHAMPION ★'
+      ribbonText = opts.spectator ? '★ FIGHT NIGHT ★' : '★ 2-PLAYER CHAMPION ★'
       subheader = opts.method === 'ko' ? 'KNOCKOUT VICTORY!' : 'DECISION VICTORY!'
       themeColor = P.blue
       bursts = [['POW!', P.blue], ['CHAMP!', P.gold], ['VICTORY!', P.blue], ['KO!', P.magenta]]
     } else if (winner === 'b') {
       headline = `${p2Name.toUpperCase()} WINS!`
-      ribbonText = '★ 2-PLAYER CHAMPION ★'
+      ribbonText = opts.spectator ? '★ FIGHT NIGHT ★' : '★ 2-PLAYER CHAMPION ★'
       subheader = opts.method === 'ko' ? 'KNOCKOUT VICTORY!' : 'DECISION VICTORY!'
       themeColor = P.red
       bursts = [['BAM!', P.red], ['CHAMP!', P.gold], ['VICTORY!', P.red], ['KO!', P.magenta]]
@@ -57,7 +59,7 @@ export function playVictoryAnimation(opts: VictoryAnimationOpts): { destroy: () 
   } else {
     // 1-Player (Player 1 vs AI / The House)
     if (winner === 'a') {
-      headline = 'PLAYER 1 WINS!'
+      headline = 'YOU WIN!'
       ribbonText = '★ NEW CHAMPION! ★'
       subheader = opts.method === 'ko' ? 'KNOCKOUT! THE HOUSE IS DOWN!' : 'THE HOUSE HAS BEEN DEFEATED!'
       themeColor = P.green
@@ -113,7 +115,7 @@ export function playVictoryAnimation(opts: VictoryAnimationOpts): { destroy: () 
   objects.push(dim)
 
   // 2. Winner corner highlight (for 2-player split screen)
-  if (is2p && (winner === 'a' || winner === 'b')) {
+  if (is2p && !opts.spectator && (winner === 'a' || winner === 'b')) {
     const isP1 = winner === 'a'
     const x0 = isP1 ? 0 : W / 2
     const wHalf = W / 2
