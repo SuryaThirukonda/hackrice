@@ -217,4 +217,15 @@ describe('controller relay over real sockets', () => {
     expect(phone.readyState).toBe(WebSocket.OPEN)
     await shut(phone, game)
   })
+
+  it('accepts head_tracker client and relays duck / sway actions to game sockets', async () => {
+    const game = await open('/controller-game-ws')
+    const tracker = await open('/controller-ws')
+    const ack = await hello(tracker, 'head_tracker')
+    expect(ack).toMatchObject({ ok: true, controllerId: 'head_tracker' })
+    const duckAction = next(game, (m) => m.type === 'action' && m.action === 'duck')
+    tracker.send(JSON.stringify({ v: 1, type: 'action', controllerId: 'head_tracker', seq: 10, eventId: 'head-duck-1', action: 'duck' }))
+    expect(await duckAction).toMatchObject({ action: 'duck', controllerId: 'head_tracker' })
+    await shut(tracker, game)
+  })
 })

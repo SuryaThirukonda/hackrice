@@ -72,7 +72,9 @@ export class PreFightScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.content.push(o); return o }
     add(comicPanel(this, W / 2 - 400, 40, 800, H - 80, P.paper, 1))
-    add(this.add.text(W / 2, 90, `${this.d.game.toUpperCase()} · CHOOSE YOUR OPPONENT`, { fontFamily: DISPLAY, fontSize: '40px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(1))
+    add(this.add.text(W / 2, 90, `${this.d.game.toUpperCase()} · CHOOSE YOUR OPPONENT`, { fontFamily: DISPLAY, fontSize: '32px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(1))
+    add(new ComicButton(this, W / 2 - 320, 90, '◀ BACK', () => wipeTo(this, 'games', { mode: this.d.mode ?? '1p' }), { color: P.blue, w: 110, h: 40, size: 16 }))
+    add(new ComicButton(this, W / 2 + 320, 90, 'HELP', () => wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' }), { color: P.gold, w: 90, h: 40, size: 16 }))
     const rowY = (i: number) => 150 + i * (this.golf ? 55 : 62) // golf fits one more row (the course) in the same panel
     const focus = (i: number) => (this.row === i ? P.gold : P.paper)
     const seedRow = this.seedRow, startRow = this.startRow
@@ -90,6 +92,18 @@ export class PreFightScene extends Phaser.Scene {
       g.fillStyle(this.row === i + 1 ? P.red : P.blue).fillRoundedRect(W / 2 - 147, y - 5, 454 * v, 10, 5)
       g.fillStyle(P.gold).fillCircle(W / 2 - 147 + 454 * v, y, 13); g.lineStyle(3, P.ink).strokeCircle(W / 2 - 147 + 454 * v, y, 13)
       add(this.add.text(W / 2 + 330, y, `${Math.round(v * 100)}`, { fontFamily: FONT, fontSize: '18px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+      const hit = add(this.add.zone(W / 2 + 80, y, 480, 32).setInteractive({ cursor: 'pointer' }))
+      const setVal = (px: number) => {
+        const frac = Math.max(0, Math.min(1, (px - (W / 2 - 147)) / 454))
+        this.s.difficulty[k] = Math.round(frac * 10) / 10
+        this.s.preset = 'custom'
+        this.row = i + 1
+        this.save()
+        sfx.hover()
+        this.draw()
+      }
+      hit.on('pointerdown', (p: Phaser.Input.Pointer) => setVal(p.x))
+      hit.on('pointermove', (p: Phaser.Input.Pointer) => { if (p.isDown) setVal(p.x) })
     })
     if (this.golf) {
       const cr = this.courseRow, c = this.course
@@ -101,7 +115,7 @@ export class PreFightScene extends Phaser.Scene {
     add(this.add.text(W / 2, rowY(seedRow) + 34, 'same seed + same inputs = the same fight, every time', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
     const start = add(new ComicButton(this, W / 2, H - 92, 'FIGHT!', () => this.start(), { color: this.row === startRow ? P.red : P.green, w: 360, h: 66, size: 32 }))
     if (this.row === startRow) start.setScale(1.06)
-    add(this.add.text(W / 2, H - 42, '↑↓ rows · ←→ adjust · Enter start · H how to play · Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
+    add(this.add.text(W / 2, H - 42, '↑↓ rows · ←→ adjust · Enter start · H how to play · Esc back · click any item', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
   }
   update(_t: number, dt: number): void { this.city.update(dt) }
 }

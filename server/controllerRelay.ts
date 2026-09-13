@@ -2,13 +2,13 @@ import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { WebSocket, WebSocketServer } from 'ws'
 
-type ControllerId = 'controller_1' | 'controller_2'
+type ControllerId = 'controller_1' | 'controller_2' | 'head_tracker'
 type Sport = 'boxing' | 'bowling' | 'golf'
 type Packet = Record<string, unknown>
 
-const ids: readonly ControllerId[] = ['controller_1', 'controller_2']
+const ids: readonly ControllerId[] = ['controller_1', 'controller_2', 'head_tracker']
 const gestures = new Set(['punch', 'bowling_swing', 'golf_swing'])
-const actions = new Set(['block_start', 'block_end', 'emergency_power', 'placeholder_primary', 'placeholder_secondary'])
+const actions = new Set(['block_start', 'block_end', 'emergency_power', 'placeholder_primary', 'placeholder_secondary', 'duck', 'sway_left', 'sway_right'])
 
 interface Slot { socket: WebSocket; lastSequence: number }
 

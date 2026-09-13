@@ -200,7 +200,10 @@ export class VitalsBridge {
       return this.state
     }
     let mod: SdkModule
-    try { mod = await import('@smartspectra/node-sdk') as unknown as SdkModule }
+    try {
+      // @ts-ignore -- optional dependency loaded dynamically at runtime if installed
+      mod = await import('@smartspectra/node-sdk') as unknown as SdkModule
+    }
     catch (e) { this.state.status = 'unavailable'; this.state.error = `SmartSpectra SDK not available: ${(e as Error).message.slice(0, 160)}`; this.state.guidance = this.state.error; return this.state }
     const validationNames = Object.fromEntries(Object.entries(mod.ValidationCode).map(([k, v]) => [v, k.replace(/^k/, '')]))
     const statusNames = Object.fromEntries(Object.entries(mod.ProcessingStatus).map(([k, v]) => [v, k.replace(/^k/, '').toLowerCase()]))

@@ -79,7 +79,9 @@ export class GolfHud {
     // swing meter (bottom-centre)
     this.meterBox = { x: W / 2 - 200, y: H - 100, w: 400, h: 30 }
     this.meterTxt = add(s.add.text(W / 2, H - 112, '', { fontFamily: DISPLAY, fontSize: '20px', color: '#fff6e5', stroke: HEX(P.ink), strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(101))
-    this.hint = add(s.add.text(W / 2, H - 26, 'W/S club · A/D aim · Space swing ×3 · Tab map · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101))
+    this.hint = add(s.add.text(W / 2, H - 26, 'W/S club · A/D aim · Space swing ×3 · Tab map · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101).setInteractive({ cursor: 'pointer' }))
+    this.hint.on('pointerdown', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.())
+    add(new ComicButton(s, W - 66, H - 26, '⏸ PAUSE', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.(), { color: P.gold, w: 104, h: 32, size: 14 }).setDepth(102))
     this.dyn = add(s.add.graphics().setDepth(100))
   }
 

@@ -56,7 +56,8 @@ export class ControllerScene extends Phaser.Scene {
     const px = W / 2 - pw / 2, py = H / 2 - ph / 2
     const font = (size: number): string => `${Math.round(size * s)}px`
 
-    this.add.rectangle(0, 0, W, H, P.ink, 0.62).setOrigin(0).setDepth(200)
+    const backdrop = this.add.rectangle(0, 0, W, H, P.ink, 0.62).setOrigin(0).setDepth(200).setInteractive()
+    backdrop.on('pointerdown', () => this.close())
     comicPanel(this, px, py, pw, ph, P.paper, 0.4).setDepth(201)
     this.fit(this.add.text(W / 2, py + 54 * s, 'CONNECT A PHONE', { fontFamily: DISPLAY, fontSize: font(46), color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 * s }).setOrigin(0.5).setDepth(202), pw - 60 * s)
     this.fit(this.add.text(W / 2, py + 92 * s, 'Scan with the phone camera, then tap Connect and Calibrate', { fontFamily: FONT, fontSize: font(15), color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5).setDepth(202), pw - 60 * s)

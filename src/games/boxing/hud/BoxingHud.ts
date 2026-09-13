@@ -39,13 +39,15 @@ export class BoxingHud {
     this.roundTxt = s.add.text(W / 2, 70, 'ROUND 1', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5).setDepth(101).setAngle(-1.5)
     this.nameA = s.add.text(30, 14, this.names[0], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.blue), stroke: HEX(P.ink), strokeThickness: 6 }).setDepth(101)
     this.nameB = s.add.text(W - 30, 14, this.names[1], { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 6 }).setOrigin(1, 0).setDepth(101)
-    this.hint = s.add.text(W / 2, H - 26, 'J jab · K cross · Space block · A/D step · Q/E sway · W duck · ↑↓ in/out · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101)
+    this.hint = s.add.text(W / 2, H - 26, 'J jab · K cross · Space block · A/D step · Q/E sway · W duck · ↑↓ in/out · Esc pause · H help', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101).setInteractive({ cursor: 'pointer' })
+    this.hint.on('pointerdown', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.())
+    const pauseBtn = new ComicButton(s, W - 66, H - 26, '⏸ PAUSE', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.(), { color: P.gold, w: 104, h: 32, size: 14 }).setDepth(102)
     this.flash = s.add.rectangle(0, 0, W, H, P.red, 0).setOrigin(0).setDepth(90)
     // One wash and one ring for the phone-punch flash, reused every swing. Per-swing objects leaked:
     // the scene slows the tween clock during hit-stop, so their fade-out tweens could outlive a fight.
     this.punchWash = s.add.rectangle(14, 6, Math.min(430, W * 0.42), 96, P.green, 0).setOrigin(0).setDepth(99)
     this.punchRing = s.add.circle(214, 50, 26).setStrokeStyle(8, P.green).setAlpha(0).setDepth(102)
-    this.static.push(this.bars, this.timerPanel, this.timer, this.roundTxt, this.nameA, this.nameB, this.hint, this.flash, this.punchWash, this.punchRing)
+    this.static.push(this.bars, this.timerPanel, this.timer, this.roundTxt, this.nameA, this.nameB, this.hint, pauseBtn, this.flash, this.punchWash, this.punchRing)
   }
 
   private bar(x: number, y: number, w: number, h: number, ratio: number, ghost: number, color: number, rtl: boolean): void {
