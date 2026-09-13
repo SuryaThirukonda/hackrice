@@ -5,6 +5,8 @@ import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
 import { bowlingParams, boxingParams, golfParams, loadSettings, PRESETS, randomSeed, saveSettings, SLIDER_KEYS, type Difficulty, type GameSettings, type Preset } from '../agent/sliders'
 import { COURSES, courseById, type CourseId } from '../games/golf/sim/courses'
+import { controllerInput } from '../input/controller'
+import { openControllerConnect } from './ControllerScene'
 
 export interface PreFightData { game: 'boxing' | 'bowling' | 'golf'; mode?: '1p' | 'card' }
 /** Settings plus the golf course pick; it rides along in the same saved blob (loadSettings spreads unknown keys through). */
@@ -17,6 +19,8 @@ export class PreFightScene extends Phaser.Scene {
   private s!: PreSettings
   private row = 0 // 0 presets, 1..5 sliders, [6 course: golf only], then seed, then start
   private content: Phaser.GameObjects.GameObject[] = []
+  private promptObjects: Phaser.GameObjects.GameObject[] = []
+  private phonePromptOpen = false
   private seed = 0
   constructor() { super('prefight') }
   init(d: PreFightData): void { this.d = d; this.s = loadSettings(); this.seed = this.s.seed ?? randomSeed(); this.row = this.startRow }
@@ -36,11 +40,41 @@ export class PreFightScene extends Phaser.Scene {
     ensureTextures(this)
     this.city = new ComicBackdrop(this, 33)
     const kb = this.input.keyboard!
-    kb.on('keydown-DOWN', () => this.move(1)); kb.on('keydown-UP', () => this.move(-1))
-    kb.on('keydown-LEFT', () => this.adjust(-1)); kb.on('keydown-RIGHT', () => this.adjust(1))
-    kb.on('keydown-ENTER', () => this.activate()); kb.on('keydown-SPACE', () => this.activate())
-    kb.on('keydown-ESC', () => wipeTo(this, 'games', { mode: this.d.mode ?? '1p' }))
-    kb.on('keydown-H', () => wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' }))
+    kb.on('keydown-DOWN', () => { if (!this.phonePromptOpen) this.move(1) })
+    kb.on('keydown-UP', () => { if (!this.phonePromptOpen) this.move(-1) })
+    kb.on('keydown-LEFT', () => { if (!this.phonePromptOpen) this.adjust(-1) })
+    kb.on('keydown-RIGHT', () => { if (!this.phonePromptOpen) this.adjust(1) })
+    kb.on('keydown-ENTER', () => {
+      if (this.phonePromptOpen) {
+        this.closePhonePrompt()
+        openControllerConnect(this)
+        return
+      }
+      this.activate()
+    })
+    kb.on('keydown-SPACE', () => {
+      if (this.phonePromptOpen) {
+        this.closePhonePrompt()
+        openControllerConnect(this)
+        return
+      }
+      this.activate()
+    })
+    kb.on('keydown-X', () => {
+      if (this.phonePromptOpen) this.closePhonePrompt()
+      this.launchGame()
+    })
+    kb.on('keydown-ESC', () => {
+      if (this.phonePromptOpen) {
+        this.closePhonePrompt()
+        return
+      }
+      wipeTo(this, 'games', { mode: this.d.mode ?? '1p' })
+    })
+    kb.on('keydown-H', () => {
+      if (!this.phonePromptOpen) wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' })
+    })
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closePhonePrompt())
     this.draw()
   }
   private move(d: number): void { const n = this.nRows; this.row = (this.row + d + n) % n; sfx.hover(); this.draw() }
@@ -59,11 +93,56 @@ export class PreFightScene extends Phaser.Scene {
   }
   private save(): void { saveSettings(this.s) }
   private start(): void {
+    if (controllerInput.connected('controller_1')) {
+      this.launchGame()
+      return
+    }
+    this.showPhonePrompt()
+  }
+
+  private launchGame(): void {
     sfx.select()
     const diff: Difficulty = this.s.difficulty
     if (this.d.game === 'boxing') wipeTo(this, 'boxing', { mode: this.d.mode ?? '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: boxingParams(diff), seed: this.seed })
     else if (this.d.game === 'bowling') wipeTo(this, 'bowling', { mode: '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: bowlingParams(diff), seed: this.seed })
     else wipeTo(this, 'golf', { mode: '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: golfParams(diff), seed: this.seed, course: this.course.id })
+  }
+
+  private showPhonePrompt(): void {
+    if (this.phonePromptOpen) return
+    this.phonePromptOpen = true
+    const { width: W, height: H } = this.scale
+    const addPrompt = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.promptObjects.push(o); return o }
+
+    const backdrop = addPrompt(this.add.rectangle(0, 0, W, H, P.ink, 0.65).setOrigin(0).setDepth(300).setInteractive())
+    backdrop.on('pointerdown', () => this.closePhonePrompt())
+
+    addPrompt(comicPanel(this, W / 2 - 270, H / 2 - 165, 540, 330, P.paper, 0.5).setDepth(301))
+    addPrompt(this.add.text(W / 2, H / 2 - 105, 'JOIN WITH PHONE?', { fontFamily: DISPLAY, fontSize: '32px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 6 }).setOrigin(0.5).setDepth(302))
+    addPrompt(this.add.text(W / 2, H / 2 - 50, 'Scan a QR code to use motion controls with your phone,\nor press X to play with keyboard!', { fontFamily: FONT, fontSize: '15px', color: HEX(P.ink), fontStyle: '900', align: 'center', lineSpacing: 4 }).setOrigin(0.5).setDepth(302))
+
+    addPrompt(new ComicButton(this, W / 2, H / 2 + 18, '📱 CONNECT PHONE [ENTER]', () => {
+      this.closePhonePrompt()
+      openControllerConnect(this)
+    }, { color: P.blue, w: 340, h: 48, size: 18 }).setDepth(302))
+
+    addPrompt(new ComicButton(this, W / 2, H / 2 + 76, '⌨ USE KEYBOARD [X]', () => {
+      this.closePhonePrompt()
+      this.launchGame()
+    }, { color: P.green, w: 340, h: 48, size: 18 }).setDepth(302))
+
+    addPrompt(new ComicButton(this, W / 2 + 235, H / 2 - 135, '✕', () => this.closePhonePrompt(), { color: P.paper, w: 34, h: 34, size: 18 }).setDepth(302))
+  }
+
+  private closePhonePrompt(): void {
+    this.phonePromptOpen = false
+    for (const o of this.promptObjects) o.destroy()
+    this.promptObjects = []
+  }
+
+  private fit(text: Phaser.GameObjects.Text, max: number): Phaser.GameObjects.Text {
+    if (text.width > max) text.setScale(max / text.width)
+    return text
   }
 
   private draw(): void {
@@ -72,9 +151,10 @@ export class PreFightScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.content.push(o); return o }
     add(comicPanel(this, W / 2 - 400, 40, 800, H - 80, P.paper, 1))
-    add(this.add.text(W / 2, 90, `${this.d.game.toUpperCase()} · CHOOSE YOUR OPPONENT`, { fontFamily: DISPLAY, fontSize: '32px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(1))
-    add(new ComicButton(this, W / 2 - 320, 90, '◀ BACK', () => wipeTo(this, 'games', { mode: this.d.mode ?? '1p' }), { color: P.blue, w: 110, h: 40, size: 16 }))
-    add(new ComicButton(this, W / 2 + 320, 90, 'HELP', () => wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' }), { color: P.gold, w: 90, h: 40, size: 16 }))
+    add(new ComicButton(this, W / 2 - 335, 78, '◀ BACK', () => wipeTo(this, 'games', { mode: this.d.mode ?? '1p' }), { color: P.blue, w: 100, h: 38, size: 16 }))
+    const title = add(this.add.text(W / 2, 78, `${this.d.game.toUpperCase()} · CHOOSE YOUR OPPONENT`, { fontFamily: DISPLAY, fontSize: '26px', color: HEX(P.ink) }).setOrigin(0.5))
+    this.fit(title, 450)
+    add(new ComicButton(this, W / 2 + 335, 78, 'HELP', () => wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' }), { color: P.gold, w: 86, h: 38, size: 16 }))
     const rowY = (i: number) => 150 + i * (this.golf ? 55 : 62) // golf fits one more row (the course) in the same panel
     const focus = (i: number) => (this.row === i ? P.gold : P.paper)
     const seedRow = this.seedRow, startRow = this.startRow
@@ -112,10 +192,10 @@ export class PreFightScene extends Phaser.Scene {
     }
     add(this.add.text(W / 2 - 340, rowY(seedRow), 'SEED', { fontFamily: DISPLAY, fontSize: '22px', color: HEX(this.row === seedRow ? P.red : P.ink) }).setOrigin(0, 0.5))
     add(new ComicButton(this, W / 2 + 80, rowY(seedRow), `${this.seed}  ·  reroll`, () => { this.seed = randomSeed(); this.draw() }, { color: focus(seedRow), w: 420, h: 44, size: 18 }))
-    add(this.add.text(W / 2, rowY(seedRow) + 34, 'same seed + same inputs = the same fight, every time', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+    add(this.add.text(W / 2, rowY(seedRow) + 38, 'same seed + same inputs = the same fight, every time', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
     const start = add(new ComicButton(this, W / 2, H - 92, 'FIGHT!', () => this.start(), { color: this.row === startRow ? P.red : P.green, w: 360, h: 66, size: 32 }))
     if (this.row === startRow) start.setScale(1.06)
-    add(this.add.text(W / 2, H - 42, '↑↓ rows · ←→ adjust · Enter start · H how to play · Esc back · click any item', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
+    add(this.add.text(W / 2, H - 42, '↑↓ rows · ←→ adjust · Enter start · X keyboard fight · Esc back · click any item', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
   }
   update(_t: number, dt: number): void { this.city.update(dt) }
 }

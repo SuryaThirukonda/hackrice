@@ -16,7 +16,7 @@ import { DISPLAY, FONT, HEX, P } from '../theme'
 interface Slot { id: ControllerId; player: 1 | 2; x: number; plate: Phaser.GameObjects.Rectangle; hint: Phaser.GameObjects.Text }
 
 /** Design size of the panel. Everything is laid out at this size and scaled down to fit the window. */
-const PANEL_W = 940, PANEL_H = 600, QR_PX = 236
+const PANEL_W = 940, PANEL_H = 650, QR_PX = 200
 const POLL_LINK_MS = 4000
 const POLL_STATUS_MS = 300
 
@@ -59,18 +59,19 @@ export class ControllerScene extends Phaser.Scene {
     const backdrop = this.add.rectangle(0, 0, W, H, P.ink, 0.62).setOrigin(0).setDepth(200).setInteractive()
     backdrop.on('pointerdown', () => this.close())
     comicPanel(this, px, py, pw, ph, P.paper, 0.4).setDepth(201)
-    this.fit(this.add.text(W / 2, py + 54 * s, 'CONNECT A PHONE', { fontFamily: DISPLAY, fontSize: font(46), color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 * s }).setOrigin(0.5).setDepth(202), pw - 60 * s)
-    this.fit(this.add.text(W / 2, py + 92 * s, 'Scan with the phone camera, then tap Connect and Calibrate', { fontFamily: FONT, fontSize: font(15), color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5).setDepth(202), pw - 60 * s)
+    this.fit(this.add.text(W / 2, py + 50 * s, 'CONNECT A PHONE', { fontFamily: DISPLAY, fontSize: font(44), color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 * s }).setOrigin(0.5).setDepth(202), pw - 60 * s)
+    this.fit(this.add.text(W / 2, py + 86 * s, 'Scan with the phone camera, then tap Connect and Calibrate', { fontFamily: FONT, fontSize: font(15), color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5).setDepth(202), pw - 60 * s)
 
     // The address is spelled out as well as encoded, for a phone that will not scan or has no camera.
-    this.address = this.add.text(W / 2, py + 120 * s, 'looking for an address…', { fontFamily: FONT, fontSize: font(15), color: HEX(P.blue), fontStyle: '900' }).setOrigin(0.5).setDepth(202)
-    this.warn = this.add.text(W / 2, py + 470 * s, '', { fontFamily: FONT, fontSize: font(13), color: HEX(P.orange), fontStyle: '900', align: 'center' }).setOrigin(0.5).setDepth(202)
-    this.relay = this.add.text(W / 2, py + 514 * s, '', { fontFamily: FONT, fontSize: font(14), color: HEX(P.red), fontStyle: '900' }).setOrigin(0.5).setDepth(202)
+    this.address = this.add.text(W / 2, py + 114 * s, 'looking for an address…', { fontFamily: FONT, fontSize: font(15), color: HEX(P.blue), fontStyle: '900' }).setOrigin(0.5).setDepth(202)
 
-    for (const player of [1, 2] as const) this.slots.push(this.card(player, W / 2 + (player === 1 ? -155 : 155) * s, py + 152 * s))
+    for (const player of [1, 2] as const) this.slots.push(this.card(player, W / 2 + (player === 1 ? -160 : 160) * s, py + 140 * s))
 
-    this.fit(this.add.text(W / 2, py + 490 * s, 'The keyboard keeps working. A phone just adds motion.', { fontFamily: FONT, fontSize: font(13), color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5).setDepth(202), pw - 60 * s)
-    new ComicButton(this, W / 2, py + 556 * s, 'CLOSE', () => this.close(), { color: P.green, w: 240 * s, h: 54 * s, size: 24 * s }).setDepth(203)
+    this.warn = this.add.text(W / 2, py + 448 * s, '', { fontFamily: FONT, fontSize: font(13), color: HEX(P.orange), fontStyle: '900', align: 'center' }).setOrigin(0.5).setDepth(202)
+    this.fit(this.add.text(W / 2, py + 480 * s, 'The keyboard keeps working. A phone just adds motion.', { fontFamily: FONT, fontSize: font(13), color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5).setDepth(202), pw - 60 * s)
+    this.relay = this.add.text(W / 2, py + 512 * s, '', { fontFamily: FONT, fontSize: font(14), color: HEX(P.red), fontStyle: '900' }).setOrigin(0.5).setDepth(202)
+
+    new ComicButton(this, W / 2, py + 566 * s, 'CLOSE', () => this.close(), { color: P.green, w: 240 * s, h: 50 * s, size: 22 * s }).setDepth(203)
     this.input.keyboard?.on('keydown-ESC', () => this.close())
     this.input.keyboard?.on('keydown-ENTER', () => this.close())
 
@@ -92,9 +93,9 @@ export class ControllerScene extends Phaser.Scene {
     const s = this.s, side = (QR_PX + 18) * s
     const plate = this.add.rectangle(x, y + side / 2, side, side, 0xffffff).setDepth(202).setStrokeStyle(5 * s, P.ink)
     const hint = this.add.text(x, y + side / 2, '', { fontFamily: FONT, fontSize: `${Math.round(14 * s)}px`, color: HEX(0x5a4632), fontStyle: '900', align: 'center', wordWrap: { width: side - 30 * s }, lineSpacing: 4 * s }).setOrigin(0.5).setDepth(203)
-    this.add.text(x, y + side + 26 * s, `CONTROLLER ${player}`, { fontFamily: DISPLAY, fontSize: `${Math.round(22 * s)}px`, color: HEX(P.ink) }).setOrigin(0.5).setDepth(202)
+    this.add.text(x, y + side + 20 * s, `CONTROLLER ${player}`, { fontFamily: DISPLAY, fontSize: `${Math.round(22 * s)}px`, color: HEX(P.ink) }).setOrigin(0.5).setDepth(202)
     const box = this.add.graphics().setDepth(202)
-    const label = this.add.text(x, y + side + 56 * s, '', { fontFamily: DISPLAY, fontSize: `${Math.round(16 * s)}px`, color: HEX(P.paper) }).setOrigin(0.5).setDepth(203)
+    const label = this.add.text(x, y + side + 48 * s, '', { fontFamily: DISPLAY, fontSize: `${Math.round(16 * s)}px`, color: HEX(P.paper) }).setOrigin(0.5).setDepth(203)
     const id: ControllerId = player === 1 ? 'controller_1' : 'controller_2'
     this.chips.set(id, { box, label })
     return { id, player, x, plate, hint }
