@@ -14,8 +14,12 @@ class TempoFlow {
     this.goal = goal; this.duration = duration; this.plan = new SessionPlanner().plan(goal, duration); this.cursor = 0
     this.baselinePulse = null; this.physiologyMode = 'off'; this.segments = []; this.difficulty = { ...loadSettings().difficulty }
   }
+  peekNextSport(): HealthSport | null {
+    const planned = this.plan.slice(this.cursor).find((s) => s.phase === 'active' && s.sport)?.sport ?? null
+    return planned ? this.latest?.decision?.nextSportBias ?? planned : null
+  }
   nextSport(): HealthSport | null {
-    while (this.cursor < this.plan.length) { const s = this.plan[this.cursor++]; if (s.phase === 'active' && s.sport) return s.sport }
+    while (this.cursor < this.plan.length) { const s = this.plan[this.cursor++]; if (s.phase === 'active' && s.sport) return this.latest?.decision?.nextSportBias ?? s.sport }
     return null
   }
   addSegment(sport: HealthSport, summary: SessionSummaryLine | null, performance: number, consistency: number): CompletedSegment {

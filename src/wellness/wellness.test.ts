@@ -5,6 +5,7 @@ import { buildPlayerState } from './playerState'
 import { AdaptationEngine } from './adaptation'
 import { SessionPlanner } from './sessionPlanner'
 import { metricUsable } from './physiology'
+import { tempoFlow } from './tempoFlow'
 import type { Epoch } from '../health/energy'
 
 const epoch = (mean: number, rotation = 0, swings = 0): Epoch => ({ t: 0, mean, peak: mean * 2, rotation, swings })
@@ -32,5 +33,12 @@ describe('wellness core', () => {
   it('plans deterministic goal-appropriate sessions', () => {
     const p = new SessionPlanner(); expect(p.plan('energize', 10)).toEqual(p.plan('energize', 10))
     expect(p.plan('energize', 10).filter((x) => x.sport === 'boxing').length).toBeGreaterThan(p.plan('reset', 10).filter((x) => x.sport === 'boxing').length)
+  })
+  it('applies a boundary decision next-sport bias without changing the stored plan', () => {
+    tempoFlow.start('energize', 10); const plan = JSON.stringify(tempoFlow.plan); expect(tempoFlow.nextSport()).toBe('boxing')
+    const segment = tempoFlow.addSegment('boxing', null, .5, .5)
+    segment.decision = { difficultyDelta: 0, recoverySecondsDelta: 15, nextSportBias: 'bowling', reasonCode: 'high_exertion_limited_recovery' }
+    expect(tempoFlow.peekNextSport()).toBe('bowling'); expect(tempoFlow.nextSport()).toBe('bowling')
+    expect(JSON.stringify(tempoFlow.plan)).toBe(plan)
   })
 })

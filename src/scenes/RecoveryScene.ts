@@ -34,7 +34,7 @@ export class RecoveryScene extends Phaser.Scene {
     const engine = new AdaptationEngine(), decision = engine.decide(player, latest.sport), previous = tempoFlow.difficulty.reaction, next = engine.apply(previous, decision)
     latest.player = player; latest.decision = decision
     for (const key of ['reaction', 'accuracy', 'defense'] as const) tempoFlow.difficulty[key] = engine.apply(tempoFlow.difficulty[key], decision)
-    if (latest.summary) void fetch(`/health/session/${latest.summary.id}/adaptation`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ at: Date.now(), player, previousDifficulty: previous, newDifficulty: next, decision }) }).catch(() => {})
+    if (latest.summary && latest.summary.id > 0) void fetch(`/health/session/${latest.summary.id}/adaptation`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ at: Date.now(), player, previousDifficulty: previous, newDifficulty: next, decision }) }).catch(() => {})
     this.adapted = true; this.draw()
   }
   private continue(): void {
@@ -60,8 +60,9 @@ export class RecoveryScene extends Phaser.Scene {
     const latest = tempoFlow.latest, decision = latest?.decision
     text(W - left - cardW + 24 * k, top + 76 * k, latest ? `PERFORMANCE  ${latest.performance >= .72 ? 'STRONG' : latest.performance >= .45 ? 'STEADY' : 'BUILDING'}` : 'PERFORMANCE  —', 14, P.ink)
     text(W - left - cardW + 24 * k, top + 112 * k, `RECOVERY  ${recoveryLabel(this.recovery)}`, 14, P.ink)
-    text(W - left - cardW + 24 * k, top + 168 * k, decision ? decision.difficultyDelta > 0 ? `REACTION +${Math.round(decision.difficultyDelta * 100)}%` : decision.difficultyDelta < 0 ? `CHALLENGE ${Math.round(decision.difficultyDelta * 100)}%` : 'CHALLENGE HELD' : 'PREPARING…', 25, decision ? P.purple : P.orange)
-    if (decision) text(W - left - cardW + 24 * k, top + 220 * k, adaptationCopy(decision.reasonCode), 11, 0x5a4632, 0, cardW - 48 * k)
+    if (decision) text(W - left - cardW + 24 * k, top + 146 * k, `NEXT SPORT  ${tempoFlow.peekNextSport()?.toUpperCase() ?? 'COOLDOWN'}`, 14, P.blue)
+    text(W - left - cardW + 24 * k, top + (decision ? 184 : 168) * k, decision ? decision.difficultyDelta > 0 ? `REACTION +${Math.round(decision.difficultyDelta * 100)}%` : decision.difficultyDelta < 0 ? `CHALLENGE ${Math.round(decision.difficultyDelta * 100)}%` : 'CHALLENGE HELD' : 'PREPARING…', 25, decision ? P.purple : P.orange)
+    if (decision) text(W - left - cardW + 24 * k, top + 232 * k, adaptationCopy(decision.reasonCode), 11, 0x5a4632, 0, cardW - 48 * k)
     const status = this.recovery === null ? 'Physiology unavailable · continuing with movement + performance.' : `Signal good · ${Math.round(this.recovery * 100)}% toward starting pulse.`
     text(W / 2, H - 138 * k, status, 12, this.recovery === null ? P.orange : P.green, .5)
     if (this.adapted) add(new ComicButton(this, W / 2, H - 78 * k, 'CONTINUE', () => this.continue(), { color: P.green, w: 300 * k, h: 58 * k, size: Math.round(24 * k) }))
