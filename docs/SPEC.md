@@ -915,7 +915,7 @@ the preview pane visible, and for renderer changes a before/after frame-time rea
 
 ## 17. Announcer (`src/announcer/`, `scripts/announcer/`)
 
-The announcer is `treys`' implementation (`feced77`, merged in `57c042b`). Every spoken line is a preset with its own
+The announcer is `treys`' implementation (`feced77` and `1e52324`, merged in `57c042b` and `2805cd3`). Every spoken line is a preset with its own
 committed clip, so the game plays them with no key and no service. Without a clip, or with `?voice=captions` in dev,
 a call shows as a caption only, under the same rules. The event maps are in `src/announcer/maps/`, and every line is
 in `lines.ts`.
@@ -928,10 +928,10 @@ in `lines.ts`.
 | `director.ts` | `createMap(sport, perspective)`, `SportTypes` |
 | `rules.ts` | `SpeechRules`: one voice; a higher priority interrupts with an 80 ms fade; one pending slot; stale after 2 s (4 s at priority 5); beats never queue, cut lower calls and each other, and are skipped under a priority-5 line; priority 2 waits for 1.2 s of silence and has a 15 s cooldown; colour after 12 s of silence, 30 s apart, four per match; pause clears everything. Also `requestFor(cues)` and `VariantPicker` (never the same variant twice in a row) |
 | `voice.ts` | `voice` singleton: `load(groups)`, `status(line)` (`ready`, `loading`, `missing`), `play(line, onEnd)` returning `{ stop(fadeMs) }`, `setVolume`, `duration`. Decodes after `sfx` unlocks, plays each line's own clip trimmed of silence below −45 dBFS, ducks game sound while it speaks |
-| `manifest.ts` | `Manifest` (`public/announcer/manifest.json`: `voiceId`, `modelId`, `takes[id] { file, hash, seed, stability, chars, bytes, perLine }`, `lines[id] { take, file, hash, start: null, end: null }`), `lineFile`, `takeFiles` |
+| `manifest.ts` | `Manifest` (`public/announcer/manifest.json`: `voiceId`, `modelId`, `takes[id] { file, hash, seed, stability, chars, bytes, perLine }`, `lines[id] { take, file, start: null, end: null }`), `lineFile`, `takeFiles` |
 | `index.ts` | `Announcer<S>(scene, { sport, perspective?, practice?, place?, captions? })`: `start`, `event`, `frame`, `say`, `pause`, `layout`, `destroy`; follows the scene's UPDATE, PAUSE, RESUME and SHUTDOWN events. `Announcer.once(scene, cue, place)` and `Announcer.sample(scene, cue)`. Dev hook `window.__announcer { log, say, status }` |
 | `review.ts` | The `announcer-review.html` listening page |
-| `scripts/announcer/cli.ts` | `npm run announcer -- generate` (default) or `status`; `--dry-run`, `--force`, `--group`, `--take`, `--line`, `--voice` (default `JBFqnCBsd6RMkjVDRZzb`, George), `--model` (default `eleven_turbo_v2_5`), `--limit`. One `POST /v1/text-to-speech/{voice}` per line (`mp3_44100_128`, stability 0.5, similarity boost 0.75), saved as `<take>_<line>.mp3`, 180 ms apart. A line is skipped while its file exists and its stored hash of text, voice, model and settings still matches |
+| `scripts/announcer/cli.ts` | `npm run announcer -- generate` (default) or `status`; `--dry-run`, `--force`, `--group`, `--take`, `--line`, `--voice` (default `pNInz6obpgDQGcFmaJgB`, Adam), `--model` (default `eleven_flash_v2_5`), `--limit`. One `POST /v1/text-to-speech/{voice}` per line (`mp3_44100_128`, stability 0.5, similarity boost 0.75), saved as `<take>_<line>.mp3`, 180 ms apart. A line is skipped only while its file exists and the take's stored hash equals the line's hash; the take keeps the last line's hash, so most lines are re-synthesized on every run |
 
 Scene hooks: boxing, bowling and golf create an `Announcer` in `create()` (inert in practice), call `start()` when
 the 3D world is ready, `event(e, ctx)` at the top of `onEvent`, `frame(this.curr)` at the top of `update`,

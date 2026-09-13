@@ -415,21 +415,26 @@ Follow-ups committed after the merge:
 For the owner to confirm: golf's arm moved from A to B with the new phone buttons (arming and then swinging for power
 works as before), and both two-player fighters use the intermediate build.
 
-## 15. Announcer from `treys` and the wellness branch (`57c042b`, `cd870b8`, 2026-09-13)
+## 15. Announcer from `treys` and the wellness branch (`57c042b`, `2805cd3`, `cd870b8`, 2026-09-13)
 
 **The announcer is `treys`' implementation** (`feced77`). It was built on this repository's first announcer commit
 (`d260934`) and replaces the later version from `d0ddbfd`:
 
-- 142 preset lines in `src/announcer/lines.ts`, each with its own clip in `public/announcer/`, voiced by ElevenLabs'
-  George voice (`JBFqnCBsd6RMkjVDRZzb`, `eleven_turbo_v2_5`, `mp3_44100_128`).
+- 142 preset lines in `src/announcer/lines.ts`, each with its own clip in `public/announcer/`. Treys' second commit
+  (`1e52324`, merged in `2805cd3`) regenerated them all with ElevenLabs' Adam voice (`pNInz6obpgDQGcFmaJgB`, American)
+  on `eleven_flash_v2_5` (`mp3_44100_128`); his first set used the British George voice.
 - `scripts/announcer/cli.ts`: `npm run announcer -- generate|status` with `--dry-run`, `--force`, `--group`,
   `--take`, `--line`, `--voice`, `--model` and `--limit`.
 - Wiring in boxing, bowling, golf, the main menu and the Fight Night lobby: rounds, knockdown counts, strikes, golf
   scores, corner introductions, winners and colour lines. There are no betting or payout calls.
 - Removed with the replacement: the budget, design and create commands, the take-based stock-voice clips, the extra
   line variants, the pause-snapped segments and their tests. The ElevenLabs credit on the credits screen stays.
-- Follow-up: the generator compared every line with one hash stored per take, so a plain `generate` would have
-  re-synthesized 129 of the 142 clips. Each line now keeps its own hash, backfilled for the committed clips.
+- The generator is exactly treys'. It compares every line with one hash stored per take, so a plain `generate`
+  re-synthesizes nearly every line. A per-line fix was tried and reverted so that treys' version stands; use `--line`.
+- The ElevenLabs key on this machine used its whole 10,000-credit monthly quota on 2026-09-13, so nothing can be
+  regenerated with it until the quota resets.
+- 19 lines start with an `[excited]` tag, which the flash model does not interpret. Those clips run longer than
+  similar untagged lines, so the tag may be spoken aloud. Speech-to-text could not confirm it before the quota ran out.
 
 **The wellness branch** (`cursor-wellness-review`, 10 commits by Gaurav Yadav) brings Tempo Session:
 

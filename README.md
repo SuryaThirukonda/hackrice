@@ -142,16 +142,17 @@ ignored and each snap produces the right action. Both commands download MediaPip
 
 Every game has a spoken announcer: round, frame and hole calls, big moments, results, and a few colour lines in
 quiet stretches. Every line is a preset in `src/announcer/lines.ts` and has its own committed clip in
-`public/announcer/`, voiced with ElevenLabs' George voice (`JBFqnCBsd6RMkjVDRZzb`, model `eleven_turbo_v2_5`). The
+`public/announcer/`, voiced with ElevenLabs' Adam voice (`pNInz6obpgDQGcFmaJgB`, model `eleven_flash_v2_5`). The
 game needs no key and no service to announce. Settings has ANNOUNCER, ANNOUNCER VOLUME and CAPTIONS rows, and a line
 without a clip still shows as a caption.
 
-Regenerating needs `ELEVENLABS_KEY` in `.env`. A line whose clip already matches its text, voice and model is skipped.
+Regenerating needs `ELEVENLABS_KEY` in `.env`. The generator checks one stored hash per group of lines, so a plain
+`generate` re-synthesizes most lines; use `--line` to redo only the lines you changed.
 
 ```bash
 npm run announcer -- status                            # how many lines have a clip on disk
 npm run announcer -- generate --dry-run                # the lines that would be synthesized
-npm run announcer -- generate                          # synthesize missing or changed lines
+npm run announcer -- generate                          # re-synthesizes most lines, see above
 npm run announcer -- generate --line win.you --force   # redo one line
 ```
 
