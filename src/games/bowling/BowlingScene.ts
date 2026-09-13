@@ -14,6 +14,7 @@ import { controllerInput } from '../../input/controller'
 import { bowlingPractice, type PracticeStep, type PracticeView } from './tutorial'
 import { BowlingHud } from './hud/BowlingHud'
 import { BowlingWorld } from './render/BowlingWorld'
+import { playVictoryAnimation } from '../../fx/victoryAnimation'
 import { BowlingGame } from './sim/game'
 import { TIERS } from './sim/bot'
 import { HZ } from './sim/constants'
@@ -208,7 +209,18 @@ export class BowlingScene extends Phaser.Scene {
       else if (r === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.blue }
       else { title = 'DRAW'; titleColor = P.gold }
     }
-    this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+    playVictoryAnimation({
+      scene: this,
+      winner: r ?? (youWin ? 'a' : 'b'),
+      is2p: this.is2p,
+      p1Name: this.hud.names[0],
+      p2Name: this.hud.names[1],
+      sport: 'bowling',
+      onComplete: () => {
+        if (!this.scene.isActive()) return
+        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+      },
+    })
   }
 
   update(_t: number, deltaMs: number): void {

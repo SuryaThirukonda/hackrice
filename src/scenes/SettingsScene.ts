@@ -66,6 +66,7 @@ export class SettingsScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.content.push(o); return o }
     add(comicPanel(this, W / 2 - 440, 24, 880, H - 48, P.paper, -1))
+    add(new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.blue, w: 110, h: 42, size: 16 }))
     add(this.add.text(W / 2, 64, 'SETTINGS', { fontFamily: DISPLAY, fontSize: '44px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(-1))
     const rows = allRows(this.s.bindings)
     const total = rows.length + 3

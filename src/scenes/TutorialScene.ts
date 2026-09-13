@@ -55,6 +55,7 @@ export class TutorialScene extends Phaser.Scene {
     const pages = this.pages(), pg = pages[this.page]
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.content.push(o); return o }
     // tabs
+    add(new ComicButton(this, 90, 56, '◀ BACK', () => { sfx.back(); wipeTo(this, this.from) }, { color: P.blue, w: 110, h: 46, size: 16 }))
     TABS.forEach((g, i) => {
       const x = W / 2 + (i - 1) * 220
       const b = add(new ComicButton(this, x, 56, g.toUpperCase(), () => { this.game3 = g; this.page = 0; this.draw() }, { color: g === this.game3 ? P.red : P.paper, w: 200, h: 54, size: 24 }))

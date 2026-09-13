@@ -12,6 +12,7 @@ import { GOLF_HELP, GOLF_KEYS, SwingMeter, golfInput, keyLabel, type GolfBinding
 import { controllerInput } from '../../input/controller'
 import { golfPractice, type GolfPracticeStep, type GolfPracticeUi } from './tutorial'
 import { GolfHud, CLUB_NAMES, toParText } from './hud/GolfHud'
+import { playVictoryAnimation } from '../../fx/victoryAnimation'
 import { GolfWorld, type AimState } from './render/GolfWorld'
 import { CLUBS, CLUB_LIST, FULL_CLUBS, GolfRound, HZ, LIE_MUL, Rng, TIERS, courseById, simulateShot, surfaceAt, type CourseId } from './sim'
 import type { BotParams, Club, GolfEvent, GolfSnapshot, Player, Surface } from './sim/types'
@@ -308,7 +309,18 @@ export class GolfScene extends Phaser.Scene {
       else if (r?.winner === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.blue }
       else { title = 'DRAW'; titleColor = P.gold }
     }
-    this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+    playVictoryAnimation({
+      scene: this,
+      winner: r?.winner ?? (youWin ? 'a' : 'b'),
+      is2p: this.is2p,
+      p1Name: this.hud.names[0],
+      p2Name: this.hud.names[1],
+      sport: 'golf',
+      onComplete: () => {
+        if (!this.scene.isActive()) return
+        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+      },
+    })
   }
 
   update(t: number, deltaMs: number): void {

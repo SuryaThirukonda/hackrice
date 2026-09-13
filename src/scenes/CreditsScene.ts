@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ComicBackdrop, ComicButton, MenuNav, comicPanel, doodles, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
+import { sfx } from '../fx/sfx'
 
 export class CreditsScene extends Phaser.Scene {
   private city!: ComicBackdrop
@@ -26,6 +27,7 @@ export class CreditsScene extends Phaser.Scene {
     const p = comicPanel(this, panelX, panelY, panelW, panelH, P.paper, 1.5)
     p.setAlpha(0)
     this.tweens.add({ targets: p, alpha: 1, duration: 280 })
+    new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.blue, w: 110, h: 42, size: 16 })
 
     // Title
     const title = this.add.text(W / 2, panelY + 54, 'CREDITS', {

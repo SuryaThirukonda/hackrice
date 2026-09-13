@@ -19,6 +19,7 @@ import { BoxingHud } from './hud/BoxingHud'
 import { BoxingWorld } from './render/BoxingWorld'
 import { lerpView } from './render/interp'
 import { BoxingMatch } from './sim/match'
+import { playVictoryAnimation } from '../../fx/victoryAnimation'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
@@ -255,17 +256,30 @@ export class BoxingScene extends Phaser.Scene {
       this.settle('match1', r.winner)
       if (this.book) {
         const rec = loadRecord(); rec.fights++; rec.won += this.book.won; rec.lost += this.book.lost; rec.net += this.book.net; rec.best = Math.max(rec.best, this.book.balance); saveRecord(rec); saveChips(this.book.balance)
-        this.time.delayedCall(2000, () => {
-          this.hud.result(r.winner === 'draw' ? 'DRAW' : `${this.hud.names[r.winner === 'a' ? 0 : 1].toUpperCase()} WINS`, [
-            `${r.by === 'ko' ? `by knockout in round ${r.round}` : r.by === 'decision' ? 'on points' : 'a draw'}`,
-            `bets: won ${this.book!.won} · lost ${this.book!.lost} · net ${this.book!.net >= 0 ? '+' : ''}${this.book!.net}`,
-            `chips ${this.book!.balance}`,
-          ], r.winner === 'a' ? P.blue : P.red, () => wipeTo(this, 'fightnight'), () => this.quit(), ['ANOTHER FIGHT', 'BACK TO MENU'])
+        playVictoryAnimation({
+          scene: this,
+          winner: r.winner,
+          is2p: true,
+          p1Name: this.hud.names[0],
+          p2Name: this.hud.names[1],
+          method: r.by,
+          sport: 'boxing',
+          onComplete: () => {
+            if (!this.scene.isActive()) return
+            this.hud.result(r.winner === 'draw' ? 'DRAW' : `${this.hud.names[r.winner === 'a' ? 0 : 1].toUpperCase()} WINS`, [
+              `${r.by === 'ko' ? `by knockout in round ${r.round}` : r.by === 'decision' ? 'on points' : 'a draw'}`,
+              `bets: won ${this.book!.won} · lost ${this.book!.lost} · net ${this.book!.net >= 0 ? '+' : ''}${this.book!.net}`,
+              `chips ${this.book!.balance}`,
+            ], r.winner === 'a' ? P.blue : P.red, () => wipeTo(this, 'fightnight'), () => this.quit(), ['ANOTHER FIGHT', 'BACK TO MENU'])
+          },
         })
       }
       return
     }
-    if (youWin || (this.is2p && r?.winner === 'b')) { sfx.win(); this.world?.confetti() }
+    if (youWin || (this.is2p && r?.winner === 'b')) {
+      this.world?.confetti()
+      this.time.delayedCall(450, () => this.world?.confetti())
+    }
     const n1 = this.hud.names[0].toLowerCase(), n2 = this.hud.names[1].toLowerCase()
     const lines = [
       `${r?.by === 'ko' ? 'by knockout' : r?.by === 'decision' ? 'on points' : 'a draw'}${r?.by === 'ko' ? ` in round ${r.round}` : ''}`,
@@ -280,7 +294,19 @@ export class BoxingScene extends Phaser.Scene {
       else if (r?.winner === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.red }
       else { title = 'DRAW'; titleColor = P.gold }
     }
-    this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+    playVictoryAnimation({
+      scene: this,
+      winner: r?.winner ?? (youWin ? 'a' : 'b'),
+      is2p: this.is2p,
+      p1Name: this.hud.names[0],
+      p2Name: this.hud.names[1],
+      method: r?.by,
+      sport: 'boxing',
+      onComplete: () => {
+        if (!this.scene.isActive()) return
+        this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
+      },
+    })
   }
 
   update(_t: number, deltaMs: number): void {
