@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { VitalsState } from '../../server/vitals'
 import { Trace } from './Trace'
 import './lab.css'
+import { motionLoad } from '../wellness/motionLoad'
+import { metForLoad, type HealthSport } from '../health/energy'
+import { buildPlayerState } from '../wellness/playerState'
+import { AdaptationEngine } from '../wellness/adaptation'
 
 /**
  * Vitals lab: the camera reading on the big screen, with the phone's movement beside it.
@@ -12,8 +16,8 @@ import './lab.css'
  * labelled as an uncleared metric. All of it is a wellness reading, none of it a diagnosis.
  */
 type ControllerId = 'controller_1' | 'controller_2'
-interface Movement { swingsPerMinute: number; intensity: number; trace: number[]; swings: number; activeSeconds: number }
-const blankMovement = (): Movement => ({ swingsPerMinute: 0, intensity: 0, trace: [], swings: 0, activeSeconds: 0 })
+interface Movement { swingsPerMinute: number; intensity: number; motionLoad: number; trace: number[]; swings: number; activeSeconds: number; sport: HealthSport }
+const blankMovement = (): Movement => ({ swingsPerMinute: 0, intensity: 0, motionLoad: 0, trace: [], swings: 0, activeSeconds: 0, sport: 'boxing' })
 
 export default function VitalsLab(): React.ReactElement {
   const [state, setState] = useState<VitalsState | null>(null)
@@ -22,7 +26,7 @@ export default function VitalsLab(): React.ReactElement {
   const [movement, setMovement] = useState<Movement>(blankMovement())
   const [linked, setLinked] = useState(false)
   const [devices, setDevices] = useState<{ checked: boolean; devices: string[] } | null>(null)
-  const epochsRef = useRef<{ at: number; mean: number; swings: number }[]>([])
+  const epochsRef = useRef<{ at: number; mean: number; swings: number; load: number }[]>([])
 
   // The reading itself: poll the service twice a second while it runs.
   useEffect(() => {
@@ -46,19 +50,22 @@ export default function VitalsLab(): React.ReactElement {
       socket.onclose = () => { setLinked(false); if (!closed) retry = window.setTimeout(open, 1000) }
       socket.onmessage = (message) => {
         if (typeof message.data !== 'string') return
-        let p: { type?: string; controllerId?: string; epochs?: { t: number; mean: number; swings: number }[] }
+        let p: { type?: string; controllerId?: string; sport?: HealthSport; epochs?: { t: number; mean: number; peak?: number; swings: number; rotation?: number; accelRms?: number; gyroRms?: number; activeFraction?: number; actionPower?: number }[] }
         try { p = JSON.parse(message.data) } catch { return }
         if (p.type !== 'activity' || (p.controllerId as ControllerId) !== 'controller_1' || !Array.isArray(p.epochs)) return
         const now = Date.now()
-        for (const e of p.epochs) epochsRef.current.push({ at: now, mean: e.mean, swings: e.swings })
+        const sport = p.sport ?? 'boxing'
+        for (const e of p.epochs) epochsRef.current.push({ at: now, mean: e.mean, swings: e.swings, load: motionLoad(sport, { t: e.t, mean: e.mean, peak: e.peak ?? e.mean, swings: e.swings, rotation: e.rotation ?? 0, accelRms: e.accelRms, gyroRms: e.gyroRms, activeFraction: e.activeFraction, actionPower: e.actionPower }) })
         epochsRef.current = epochsRef.current.filter((e) => e.at >= now - 120_000)
         const last60 = epochsRef.current.slice(-60)
         setMovement((m) => ({
           swingsPerMinute: last60.reduce((s, e) => s + e.swings, 0),
           intensity: last60.length ? last60.reduce((s, e) => s + e.mean, 0) / last60.length : 0,
+          motionLoad: last60.length ? last60.reduce((s, e) => s + e.load, 0) / last60.length : 0,
           trace: epochsRef.current.map((e) => e.mean).slice(-120),
           swings: m.swings + p.epochs!.reduce((s, e) => s + e.swings, 0),
           activeSeconds: m.activeSeconds + p.epochs!.filter((e) => e.mean >= 0.8).length,
+          sport,
         }))
       }
     }
@@ -82,12 +89,14 @@ export default function VitalsLab(): React.ReactElement {
   const pulseValues = state?.pulseHistory.map((p) => p.bpm) ?? []
   const breathValues = state?.breathingTrace.map((p) => p.v) ?? []
   const settling = running && !state?.pulse
+  const player = buildPlayerState({ performance: .72, consistency: .68, motionIntensity: movement.motionLoad, engagement: movement.activeSeconds ? .8 : 0, recovery: null })
+  const devDecision = new AdaptationEngine().decide(player, movement.sport)
 
   return <main className="lab">
     <header>
       <div>
-        <h1>Vitals lab</h1>
-        <p>Camera pulse and breathing, with the phone's movement beside them. Wellness readings, not a diagnosis.</p>
+        <h1>Wellness dev lab</h1>
+        <p>Raw sensing, normalized state, energy interpolation and deterministic adaptation. Diagnostics only.</p>
       </div>
       <div className="lab-state">
         <span className={`pill pill-${offline ? 'bad' : running ? 'ok' : 'idle'}`}>{offline ? 'service offline' : state.status}{state?.source ? ` · ${state.source}` : ''}</span>
@@ -133,6 +142,35 @@ export default function VitalsLab(): React.ReactElement {
         </div>
         <Trace values={pulseValues.length ? pulseValues : [0]} threshold={state?.baselinePulse ?? 0} ceiling={Math.max(100, ...pulseValues)} color="#ff6b7d" />
         <p className="hint">{state?.guidance}{settling ? ' · the first stable reading takes about twelve still seconds' : ''}</p>
+      </article>
+
+      <article className="card">
+        <h2>Presage diagnostics <small>raw SDK state · never shown in consumer UI</small></h2>
+        <dl className="readout">
+          <div><dt>mode</dt><dd>{state?.mode ?? '—'}</dd></div><div><dt>validation</dt><dd>{state?.validation || '—'}</dd></div>
+          <div><dt>pulse stable</dt><dd>{state?.pulse?.stable ? 'yes' : 'no'}</dd></div><div><dt>pulse confidence</dt><dd>{Math.round(state?.pulse?.confidence ?? 0)}</dd></div>
+          <div><dt>breathing stable</dt><dd>{state?.breathing?.stable ? 'yes' : 'no'}</dd></div><div><dt>breathing confidence</dt><dd>{Math.round(state?.breathing?.confidence ?? 0)}</dd></div>
+        </dl>
+        <p className="hint">{state?.guidance}</p>
+      </article>
+
+      <article className="card">
+        <h2>Normalized motion + energy <small>one-second activity epochs</small></h2>
+        <dl className="readout">
+          <div><dt>sport</dt><dd>{movement.sport}</dd></div><div><dt>MotionLoad</dt><dd>{movement.motionLoad.toFixed(2)}</dd></div>
+          <div><dt>estimated MET</dt><dd>{metForLoad(movement.sport, movement.motionLoad).toFixed(2)}</dd></div><div><dt>active kcal</dt><dd>—</dd></div>
+        </dl>
+        <p className="hint">Kcal is intentionally unavailable here until a local profile weight is supplied.</p>
+      </article>
+
+      <article className="card card-wide">
+        <h2>Player state + adaptation <small>deterministic preview; sample performance values</small></h2>
+        <dl className="readout">
+          <div><dt>performance</dt><dd>{player.performance.toFixed(2)}</dd></div><div><dt>motion</dt><dd>{player.motionIntensity.toFixed(2)}</dd></div>
+          <div><dt>exertion</dt><dd>{player.exertion.toFixed(2)}</dd></div><div><dt>recovery</dt><dd>—</dd></div>
+          <div><dt>consistency</dt><dd>{player.consistency.toFixed(2)}</dd></div><div><dt>engagement</dt><dd>{player.engagement.toFixed(2)}</dd></div>
+          <div><dt>decision</dt><dd>{devDecision.difficultyDelta >= 0 ? '+' : ''}{devDecision.difficultyDelta.toFixed(2)}</dd></div><div><dt>reason</dt><dd>{devDecision.reasonCode}</dd></div>
+        </dl>
       </article>
 
       <article className="card">

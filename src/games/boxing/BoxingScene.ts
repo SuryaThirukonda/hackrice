@@ -22,9 +22,10 @@ import { BoxingMatch } from './sim/match'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, SimEvent, Snapshot } from './sim/types'
+import { tempoFlow } from '../../wellness/tempoFlow'
 
 export interface Persona { name: string; style: string; color: number }
-export interface BoxingSceneData { mode?: '1p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
+export interface BoxingSceneData { mode?: '1p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona]; tempo?: boolean }
 
 const STEP_MS = 1000 / HZ
 
@@ -188,7 +189,8 @@ export class BoxingScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
+    const healthDone = this.health.end()
+    void healthDone.then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard()
     const r = this.match.getResult()
     const youWin = r?.winner === 'a'
@@ -215,7 +217,11 @@ export class BoxingScene extends Phaser.Scene {
       `house: ${m.b.landed}/${m.b.thrown} landed · ${Math.round(m.b.dealtTotal)} damage`,
       `seed ${m.seedValue}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    const accuracy = m.a.thrown ? m.a.landed / m.a.thrown : 0
+    const performance = Math.max(0, Math.min(1, accuracy * .65 + (m.a.dealtTotal / Math.max(1, m.a.dealtTotal + m.b.dealtTotal)) * .35))
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('boxing', line, performance, accuracy); wipeTo(this, 'session-summary') }) }
+    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
   }
 
   update(_t: number, deltaMs: number): void {

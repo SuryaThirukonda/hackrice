@@ -37,6 +37,24 @@ describe('HealthStore', () => {
     expect(row.source).toBe('keyboard'); expect(row.kcal).toBe(0); expect(row.activeSeconds).toBe(0)
     db.close()
   })
+  it('keeps active energy unknown without optional weight and persists normalized motion load', () => {
+    const db = new HealthStore(':memory:')
+    const id = db.start({ sport: 'boxing', controller: 'controller_1', startedAt: 0, weightKg: null, source: 'phone' })
+    db.add(id, [{ ...sec(0, 1), accelRms: 5, gyroRms: 260, activeFraction: .8, actionPower: .7 }], [84])
+    const row = db.finish(id, 1000)!
+    expect(row.weightKg).toBeNull(); expect(row.kcal).toBeNull(); expect(row.energyConfidence).toBe('LOW')
+    expect(row.motionLoad).toBeGreaterThan(.5)
+    expect(db.epochs(id)[0].motionLoad).toBeCloseTo(row.motionLoad)
+    db.close()
+  })
+  it('stores and exposes the latest deterministic adaptation decision', () => {
+    const db = new HealthStore(':memory:')
+    const id = db.start({ sport: 'golf', controller: 'controller_1', startedAt: 0, weightKg: null, source: 'phone' })
+    const player = { performance: .8, motionIntensity: .6, exertion: .65, recovery: .7, consistency: .8, engagement: .75, physiologyConfidence: .8, sources: { motion: true, performance: true, physiology: true }, timestamp: 1000 }
+    db.addAdaptation(id, 1000, player, .5, .55, { difficultyDelta: .05, recoverySecondsDelta: -5, reasonCode: 'strong_performance_good_recovery' })
+    expect(db.latestAdaptation()).toEqual({ sessionId: id, at: 1000, previousDifficulty: .5, newDifficulty: .55, reasonCode: 'strong_performance_good_recovery' })
+    db.close()
+  })
   it('clear wipes everything', () => {
     const db = new HealthStore(':memory:')
     const id = db.start({ sport: 'boxing', controller: 'controller_1', startedAt: 0, weightKg: 70, source: 'phone' })

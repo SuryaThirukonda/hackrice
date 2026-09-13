@@ -18,8 +18,9 @@ import { BowlingGame } from './sim/game'
 import { TIERS } from './sim/bot'
 import { HZ } from './sim/constants'
 import type { BotParams, BowlingEvent, Snapshot } from './sim/types'
+import { tempoFlow } from '../../wellness/tempoFlow'
 
-export interface BowlingSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean }
+export interface BowlingSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; tempo?: boolean }
 
 const STEP_MS = 1000 / HZ
 
@@ -166,7 +167,8 @@ export class BowlingScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
+    const healthDone = this.health.end()
+    void healthDone.then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard(); this.hud.meter(null); this.hud.aimReadout(null); this.hud.setTurn('')
     const r = this.sim.winner(), sb = this.sim.scoreboard()
     const youWin = r === 'a'
@@ -178,7 +180,12 @@ export class BowlingScene extends Phaser.Scene {
       `house: ${strikes(this.sim.rolls.b)} strikes`,
       `seed ${this.seed}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    const rolls = this.sim.rolls.a.flat(), mean = rolls.length ? rolls.reduce((a, b) => a + b, 0) / rolls.length : 0
+    const spread = rolls.length ? Math.sqrt(rolls.reduce((n, x) => n + (x - mean) ** 2, 0) / rolls.length) : 10
+    const performance = Math.max(0, Math.min(1, sb.a.total / 200)), consistency = Math.max(0, Math.min(1, 1 - spread / 5))
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('bowling', line, performance, consistency); wipeTo(this, 'session-summary') }) }
+    this.hud.result(youWin ? 'YOU WIN!' : r === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
   }
 
   update(_t: number, deltaMs: number): void {

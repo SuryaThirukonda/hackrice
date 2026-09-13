@@ -15,8 +15,9 @@ import { GolfHud, CLUB_NAMES, toParText } from './hud/GolfHud'
 import { GolfWorld, type AimState } from './render/GolfWorld'
 import { CLUBS, CLUB_LIST, FULL_CLUBS, GolfRound, HZ, LIE_MUL, Rng, TIERS, courseById, simulateShot, surfaceAt, type CourseId } from './sim'
 import type { BotParams, Club, GolfEvent, GolfSnapshot, Player, Surface } from './sim/types'
+import { tempoFlow } from '../../wellness/tempoFlow'
 
-export interface GolfSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId }
+export interface GolfSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId; tempo?: boolean }
 
 const STEP_MS = 1000 / HZ
 const AIM_RATE = 32       // deg/s while a key is held
@@ -260,7 +261,8 @@ export class GolfScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
+    const healthDone = this.health.end()
+    void healthDone.then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard(); this.world?.setPreview(null)
     const r = this.round.result(), sc = this.round.scorecard()
     const youWin = r?.winner === 'a'
@@ -270,7 +272,12 @@ export class GolfScene extends Phaser.Scene {
       sc.holes.map((h) => `H${h.hole + 1} ${h.strokes.a}-${h.strokes.b}`).join('  ·  '),
       `seed ${this.round.seed}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : r?.winner === 'draw' ? P.blue : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    const perHole = sc.holes.map((h) => h.strokes.a), mean = perHole.length ? perHole.reduce((a, b) => a + b, 0) / perHole.length : 8
+    const spread = perHole.length ? Math.sqrt(perHole.reduce((n, x) => n + (x - mean) ** 2, 0) / perHole.length) : 5
+    const performance = Math.max(0, Math.min(1, .7 - sc.toPar.a * .08)), consistency = Math.max(0, Math.min(1, 1 - spread / 4))
+    const next = () => { if (!this.data3.tempo) return this.scene.restart(this.data3); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency); wipeTo(this, 'recovery') }) }
+    const end = () => { if (!this.data3.tempo) return this.quit(); void healthDone.then((line) => { tempoFlow.addSegment('golf', line, performance, consistency); wipeTo(this, 'session-summary') }) }
+    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : r?.winner === 'draw' ? P.blue : P.red, next, end, this.data3.tempo ? ['RECOVER', 'END SESSION'] : undefined)
   }
 
   update(t: number, deltaMs: number): void {

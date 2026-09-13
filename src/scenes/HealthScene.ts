@@ -73,7 +73,7 @@ export class HealthScene extends Phaser.Scene {
       txt(pad + 20 * k, lowerY + 54 * k, last.sport.toUpperCase(), 27, SPORT_COLOR[last.sport], true)
       txt(pad + leftW - 20 * k, lowerY + 58 * k, new Date(last.endedAt ?? last.startedAt).toLocaleDateString(), 11, 0x5a4632, false, 1)
       txt(pad + 20 * k, lowerY + 94 * k, `${formatActive(last.activeSeconds)} active  ·  ${last.swings} actions  ·  ${Math.round(last.motionLoad * 100)}% movement load`, 13, P.ink)
-      txt(pad + 20 * k, lowerY + 122 * k, last.weightKg ? `~${Math.round(last.kcal)} kcal estimated · ${last.energyConfidence.toLowerCase()} confidence` : 'Energy not calculated · add optional weight in Settings', 11, 0x5a4632)
+      txt(pad + 20 * k, lowerY + 122 * k, last.weightKg ? `~${Math.round(last.kcal ?? 0)} kcal estimated · ${last.energyConfidence.toLowerCase()} confidence` : 'Energy not calculated · add optional weight in Settings', 11, 0x5a4632)
     }
 
     panel(pad, lowerY + half + gap, leftW, half, .25); section(pad + 20 * k, lowerY + half + gap + 16 * k, 'TEMPO ADAPTED', P.purple)

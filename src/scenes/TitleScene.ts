@@ -23,7 +23,7 @@ export class TitleScene extends Phaser.Scene {
       const target = H * 0.34
       this.tweens.add({ targets: t, y: target, duration: 650, delay: i * 110, ease: 'Bounce.Out', onComplete: () => { sfx.stamp(); this.tweens.add({ targets: t, scaleY: 0.86, scaleX: 1.12, duration: 90, yoyo: true }); this.tweens.add({ targets: t, y: target - 8, duration: 1300 + i * 160, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: 300 }) } })
     })
-    const sub = this.add.text(W / 2, H * 0.72, 'a casino sports arcade  ·  the room bets on you', { fontFamily: FONT, fontSize: '22px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 18, y: 8 } }).setOrigin(0.5).setAlpha(0)
+    const sub = this.add.text(W / 2, H * 0.72, 'an adaptive wellness arcade  ·  move at your tempo', { fontFamily: FONT, fontSize: '22px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 18, y: 8 } }).setOrigin(0.5).setAlpha(0)
     this.tweens.add({ targets: sub, alpha: 1, duration: 500, delay: 900 })
     const press = this.add.text(W / 2, H * 0.84, 'PRESS ANY KEY', { fontFamily: DISPLAY, fontSize: '36px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 }).setOrigin(0.5).setAlpha(0)
     this.tweens.add({ targets: press, alpha: 1, duration: 600, delay: 1200, onComplete: () => this.tweens.add({ targets: press, scale: 1.08, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' }) })

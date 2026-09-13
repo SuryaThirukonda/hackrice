@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ensureTextures } from '../ui/widgets'
 import { DISPLAY, HEX, P } from '../theme'
 import { sfx } from '../fx/sfx'
+import { wellnessPreview } from '../wellness/devPreview'
 
 /** Generates UI textures, shows the loading beat, then starts the title. */
 export class BootScene extends Phaser.Scene {
@@ -16,6 +17,6 @@ export class BootScene extends Phaser.Scene {
     const prog = { v: 0 }
     const draw = () => { bar.clear(); bar.fillStyle(P.ink).fillRoundedRect(W / 2 - 200, H / 2 + 6, 400, 28, 14); bar.fillStyle(P.cyan).fillRoundedRect(W / 2 - 194, H / 2 + 12, 388 * prog.v, 16, 8); chip.x = W / 2 - 190 + 380 * prog.v; chip.rotation += 0.2 + prog.v }
     this.input.once('pointerdown', () => sfx.unlock()); this.input.keyboard?.once('keydown', () => sfx.unlock())
-    this.tweens.add({ targets: prog, v: 1, duration: 700, ease: 'Sine.InOut', onUpdate: draw, onComplete: () => { label.setText('READY'); this.time.delayedCall(150, () => this.scene.start('title')) } })
+    this.tweens.add({ targets: prog, v: 1, duration: 700, ease: 'Sine.InOut', onUpdate: draw, onComplete: () => { label.setText('READY'); this.time.delayedCall(150, () => this.scene.start(wellnessPreview() ?? 'title')) } })
   }
 }

@@ -18,7 +18,7 @@ export interface SessionRow extends SessionStart {
   durationMs: number
   activeSeconds: number
   activeMinutes: number
-  kcal: number
+  kcal: number | null
   meanIntensity: number
   peakAcceleration: number
   swings: number
@@ -132,8 +132,8 @@ export class HealthStore {
   }
 
   epochs(id: number): Epoch[] {
-    return this.db.prepare('select t, mean, peak, swings, rotation from epochs where session_id = ? order by t').all(id)
-      .map((r) => { const e = r as Record<string, number>; return { t: e.t, mean: e.mean, peak: e.peak, swings: e.swings, rotation: e.rotation } })
+    return this.db.prepare('select t, mean, peak, swings, rotation, motion_load from epochs where session_id = ? order by t').all(id)
+      .map((r) => { const e = r as Record<string, number>; return { t: e.t, mean: e.mean, peak: e.peak, swings: e.swings, rotation: e.rotation, motionLoad: e.motion_load } })
   }
 
   sessions(limit = 50): SessionRow[] {
@@ -151,9 +151,9 @@ export class HealthStore {
     const romCount: Record<HealthSport, number> = { boxing: 0, bowling: 0, golf: 0 }
     for (const s of finished) {
       const d = byDay.get(dayOf(s.endedAt ?? s.startedAt))
-      if (d) { d.activeSeconds += s.activeSeconds; d.kcal += s.kcal; d.swings += s.swings; d.sessions += 1 }
+      if (d) { d.activeSeconds += s.activeSeconds; d.kcal += s.kcal ?? 0; d.swings += s.swings; d.sessions += 1 }
       const b = bySport[s.sport]
-      b.sessions += 1; b.activeSeconds += s.activeSeconds; b.kcal += s.kcal; b.swings += s.swings
+      b.sessions += 1; b.activeSeconds += s.activeSeconds; b.kcal += s.kcal ?? 0; b.swings += s.swings
       if (s.swings > 0) { b.romMean += s.romMean; romCount[s.sport] += 1 }
     }
     for (const s of SPORTS) if (romCount[s]) bySport[s].romMean /= romCount[s]
@@ -200,10 +200,11 @@ export class HealthStore {
 
 function toRow(r: Record<string, unknown>): SessionRow {
   const n = (k: string): number => Number(r[k] ?? 0)
+  const weightKg = n('weight_kg') > 0 ? n('weight_kg') : null
   return {
     id: n('id'), sport: String(r.sport) as HealthSport, controller: String(r.controller), source: String(r.source) as SessionSource,
-    startedAt: n('started_at'), endedAt: r.ended_at === null || r.ended_at === undefined ? null : n('ended_at'), durationMs: n('duration_ms'), weightKg: n('weight_kg') > 0 ? n('weight_kg') : null,
-    activeSeconds: n('active_seconds'), activeMinutes: n('active_minutes'), kcal: n('kcal'), meanIntensity: n('mean_intensity'), peakAcceleration: n('peak_accel'),
+    startedAt: n('started_at'), endedAt: r.ended_at === null || r.ended_at === undefined ? null : n('ended_at'), durationMs: n('duration_ms'), weightKg,
+    activeSeconds: n('active_seconds'), activeMinutes: n('active_minutes'), kcal: weightKg === null && n('active_seconds') > 0 ? null : n('kcal'), meanIntensity: n('mean_intensity'), peakAcceleration: n('peak_accel'),
     swings: n('swings'), romMean: n('rom_mean'), romMax: n('rom_max'), fatigue: n('fatigue'), motionLoad: n('motion_load'), energyConfidence: String(r.energy_confidence ?? 'LOW') as EnergyConfidence,
   }
 }
