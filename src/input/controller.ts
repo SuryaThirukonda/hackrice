@@ -1,7 +1,7 @@
 export type ControllerSport = 'boxing' | 'bowling' | 'golf'
 /** One second of phone movement, as the phone summarises it (see src/health/energy.ts). */
 export interface ActivityEpoch { t: number; mean: number; peak: number; swings: number; rotation: number }
-export type ControllerId = 'controller_1' | 'controller_2'
+export type ControllerId = 'controller_1' | 'controller_2' | 'head_tracker'
 
 export interface ControllerStick {
   x: number
@@ -26,7 +26,7 @@ export interface ControllerButton {
   kind: 'action'
   controllerId: ControllerId
   sport: ControllerSport
-  action: 'block_start' | 'block_end' | 'emergency_power' | 'placeholder_primary' | 'placeholder_secondary'
+  action: 'block_start' | 'block_end' | 'emergency_power' | 'placeholder_primary' | 'placeholder_secondary' | 'duck' | 'sway_left' | 'sway_right'
   eventId: string
 }
 
@@ -42,7 +42,7 @@ const finite = (value: unknown, fallback = 0): number => typeof value === 'numbe
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value))
 
 function controllerId(value: unknown): ControllerId | null {
-  return value === 'controller_1' || value === 'controller_2' ? value : null
+  return value === 'controller_1' || value === 'controller_2' || value === 'head_tracker' ? value : null
 }
 
 function sport(value: unknown): ControllerSport | null {
@@ -188,7 +188,7 @@ export class ControllerInput {
         peakAcceleration: Math.max(0, finite(packet.peakAcceleration)),
         peakRotation: Math.max(0, finite(packet.peakRotation)), duration: Math.max(0, finite(packet.duration)), eventId,
       }
-    } else if (packet.type === 'action' && (packet.action === 'block_start' || packet.action === 'block_end' || packet.action === 'emergency_power' || packet.action === 'placeholder_primary' || packet.action === 'placeholder_secondary')) {
+    } else if (packet.type === 'action' && (packet.action === 'block_start' || packet.action === 'block_end' || packet.action === 'emergency_power' || packet.action === 'placeholder_primary' || packet.action === 'placeholder_secondary' || packet.action === 'duck' || packet.action === 'sway_left' || packet.action === 'sway_right')) {
       event = { kind: 'action', controllerId: id, sport: packetSport, action: packet.action, eventId }
     }
     if (!event) return

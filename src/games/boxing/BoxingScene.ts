@@ -22,7 +22,7 @@ import { lerpView } from './render/interp'
 import { BoxingMatch } from './sim/match'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
-import type { BotParams, SimEvent, Snapshot } from './sim/types'
+import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
 
 export interface Persona { name: string; style: string; color: number }
 export interface BoxingSceneData { mode?: '1p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
@@ -181,9 +181,22 @@ export class BoxingScene extends Phaser.Scene {
         sfx.knockdown(); w?.shake(1.4); this.hitStop = 250; w?.knockdownFx(this.curr, e.who); w?.cheer()
         this.hud.showCard(e.who === 'b' ? 'DOWN!' : 'YOU ARE DOWN!', e.who === 'b' ? P.gold : P.red, e.ko ? 'that looks final' : 'get up before ten', 1200)
         break
-      case 'count': sfx.count(); break
-      case 'getup': sfx.bell(1); this.hud.showCard('UP!', P.green, 'back to it', 600); break
-      case 'ko': sfx.ko(); w?.cheer(); this.hud.showCard('K.O.!', P.magenta, e.who === 'b' ? `${this.hud.names[1]} goes down` : `${this.hud.names[0]} goes down`, 0); this.time.delayedCall(1800, () => this.finish()); break
+      case 'count':
+        sfx.count()
+        this.hud.knockdownCount(e.n, e.who)
+        break
+      case 'getup':
+        sfx.bell(1)
+        this.hud.clearKnockdownCount()
+        this.hud.showCard('UP!', P.green, 'back to it', 600)
+        break
+      case 'ko':
+        sfx.ko()
+        w?.cheer()
+        this.hud.clearKnockdownCount()
+        this.hud.showCard('K.O.!', P.magenta, e.who === 'b' ? `${this.hud.names[1]} goes down` : `${this.hud.names[0]} goes down`, 0)
+        this.time.delayedCall(1800, () => this.finish())
+        break
       case 'decision': sfx.bell(3); this.time.delayedCall(600, () => this.finish()); break
       default: break
     }
@@ -194,6 +207,7 @@ export class BoxingScene extends Phaser.Scene {
     this.ended = true
     void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard()
+    this.hud.clearKnockdownCount()
     const r = this.match.getResult()
     const youWin = r?.winner === 'a'
     const m = this.match
@@ -228,21 +242,36 @@ export class BoxingScene extends Phaser.Scene {
     if (!this.ready || !this.world) return
     const keyboard = boxingCommand(this.keys, this.bindings)
     this.keys.endFrame()
-    // Keyboard and phone drive the same match. Every field takes the keyboard first and falls through to the
-    // phone, so either can be used at any moment without one disabling the other.
+    // Keyboard, phone, and head tracker drive the same match. Every field takes the keyboard first,
+    // falls through to the phone, then to the head tracker.
     const remote = controllerBoxingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'boxing'), this.pad, controllerInput.connected('controller_1'))
     this.pad = { blocking: remote.blocking, slipArmed: remote.slipArmed }
+
+    const headEvents = controllerInput.drain('head_tracker', 'boxing')
+    let headDodge: Command['dodge'] = null
+    for (const ev of headEvents) {
+      if (ev.kind === 'action') {
+        if (ev.action === 'duck' || ev.action === 'emergency_power') headDodge = 'duck'
+        else if (ev.action === 'sway_left') headDodge = 'swayL'
+        else if (ev.action === 'sway_right') headDodge = 'swayR'
+      }
+    }
+
     const c = {
       ...keyboard,
       forward: keyboard.forward || remote.command.forward,
       block: keyboard.block || remote.command.block,
       punch: keyboard.punch ?? remote.command.punch,
-      dodge: keyboard.dodge ?? remote.command.dodge,
+      dodge: keyboard.dodge ?? remote.command.dodge ?? headDodge,
       // the power must follow whichever source actually threw, or a keyboard jab inherits the phone's swing
       punchPower: keyboard.punch !== null ? undefined : remote.command.punchPower,
     }
-    // The phone threw this one: say so on the screen the player is actually looking at.
+    // Visual indicators for remote actions
     if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch()
+    if (headDodge !== null && keyboard.dodge === null && remote.command.dodge === null && !this.paused && !this.ended && !this.betting) {
+      const label = headDodge === 'duck' ? 'HEAD DUCK!' : headDodge === 'swayL' ? 'HEAD SLIP ◀' : 'HEAD SLIP ▶'
+      this.hud.burst(label, P.cyan, 44)
+    }
     if (this.paused || this.ended) { this.world.apply(this.curr, deltaMs / 1000, this.match.a.hp <= 0); this.hud.update(this.curr, deltaMs / 1000); return }
     if (this.betting) {
       this.betLeft -= deltaMs / 1000

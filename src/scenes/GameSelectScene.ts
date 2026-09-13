@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { ComicBackdrop, comicPanel, doodles, ensureTextures } from '../ui/widgets'
+import { ComicBackdrop, ComicButton, comicPanel, doodles, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, GAMES, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
@@ -25,6 +25,7 @@ export class GameSelectScene extends Phaser.Scene {
     doodles(this, 8)
     comicPanel(this, W / 2 - 330, H * 0.06, 660, 84, P.paper, -1.5)
     this.add.text(W / 2, H * 0.06 + 42, `CHOOSE A GAME  ·  ${this.mode === '2p' ? '2 PLAYERS' : this.mode === 'card' ? 'FIGHT NIGHT' : '1 PLAYER'}`, { fontFamily: DISPLAY, fontSize: '40px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(-1.5)
+    new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, this.mode === 'card' ? 'menu' : 'mode') }, { color: P.blue, w: 110, h: 42, size: 16 })
     const list = this.mode === 'card' ? GAMES.filter((g) => g.id === 'card' || g.id === 'boxing') : GAMES.filter((g) => g.id !== 'card')
     const cw = Math.min(300, (W - 80) / list.length - 24), ch = H * 0.52
     list.forEach((g, i) => {
@@ -39,7 +40,7 @@ export class GameSelectScene extends Phaser.Scene {
       const name = this.add.text(0, ch * 0.16, g.name.toUpperCase(), { fontFamily: DISPLAY, fontSize: '36px', color: '#fff6e5', stroke: HEX(P.ink), strokeThickness: 8 }).setOrigin(0.5)
       const tag = this.add.text(0, ch * 0.3, g.tagline, { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', wordWrap: { width: cw - 40 }, align: 'center' }).setOrigin(0.5)
       c.add([bg, pv, name, tag])
-      c.setSize(cw, ch).setInteractive(new Phaser.Geom.Rectangle(-cw / 2, -ch / 2, cw, ch), Phaser.Geom.Rectangle.Contains)
+      c.setSize(cw, ch).setInteractive(new Phaser.Geom.Rectangle(0, 0, cw, ch), Phaser.Geom.Rectangle.Contains)
       c.on('pointerover', () => this.focus(i)); c.on('pointerdown', () => this.select(i))
       this.tweens.add({ targets: c, y, duration: 520, delay: 120 + i * 110, ease: 'Back.Out' })
       this.cards.push(c)

@@ -12,7 +12,9 @@
     "agent": "tsx server/agent.ts",
     "typecheck": "tsc --noEmit",
     "tunnel": "node scripts/tunnel.mjs",
-    "fake-phone": "tsx scripts/fakePhone.ts"
+    "fake-phone": "tsx scripts/fakePhone.ts",
+    "head-tracker": "python3 scripts/head_tracker.py",
+    "test:head-tracker": "python3 test/test_head_tracker.py"
   },
   "dependencies": {
     "@smartspectra/node-sdk": "^3.3.0",

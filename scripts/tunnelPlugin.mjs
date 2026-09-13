@@ -22,7 +22,7 @@ export function cloudflareTunnel() {
     // The config route answers from memory. When no tunnel is up it falls through, so a
     // `public/join-config.json` written by the standalone script is still served as a static file.
     server.middlewares.use('/join-config.json', (_req, res, next) => {
-      if (!origin && !lan) return next()
+      if (!origin) return next()
       res.setHeader('content-type', 'application/json')
       res.setHeader('cache-control', 'no-store')
       res.end(JSON.stringify({ origin, lan, port, error: failure || undefined }))

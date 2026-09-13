@@ -101,6 +101,26 @@ npm run fake-phone -- --slot 2 --sport golf --peak 22 --every 2500
 `/controller.html?player=1&fake=1&debug=1` opens the controller page itself with synthetic motion
 buttons, for checking the phone UI in a desktop browser.
 
+## MediaPipe Head Tracker (Boxing)
+
+A Python-based MediaPipe Face Detector tracks webcam head position in real time and sends duck and slip commands to the Boxing match via the WebSocket relay:
+
+```bash
+# Install dependencies if needed:
+pip install mediapipe opencv-python websockets
+
+# Run the tracker:
+npm run head-tracker
+# or: python3 scripts/head_tracker.py
+```
+
+Controls via head movements:
+- **Duck**: Move head downward
+- **Slip Left**: Sway head to the left
+- **Slip Right**: Sway head to the right
+- Press `c` on the camera HUD to recalibrate center neutral position; `q` or `Esc` to quit.
+
+
 ## Controls
 
 | Game | Keys |

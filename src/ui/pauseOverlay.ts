@@ -18,7 +18,8 @@ export function pauseOverlay(scene: Phaser.Scene, rows: PauseRow[], actions: Pau
   const listH = perCol * rowH
   const ph = 110 + listH + 26 + 74
   const px = W / 2 - pw / 2, py = Math.max(16, H / 2 - ph / 2)
-  add(scene.add.rectangle(0, 0, W, H, P.ink, 0.55).setOrigin(0).setDepth(130))
+  const backdrop = add(scene.add.rectangle(0, 0, W, H, P.ink, 0.55).setOrigin(0).setDepth(130).setInteractive())
+  backdrop.on('pointerdown', () => { if (actions[0]) actions[0].cb() })
   add(comicPanel(scene, px, py, pw, ph, P.paper, 0.6).setDepth(131))
   add(scene.add.text(W / 2, py + 52, title, { fontFamily: DISPLAY, fontSize: '50px', color: HEX(P.red), stroke: HEX(P.ink), strokeThickness: 8 }).setOrigin(0.5).setDepth(132))
   const colW = (pw - 40) / cols

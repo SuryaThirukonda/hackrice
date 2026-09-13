@@ -1,34 +1,23 @@
 .controller-page {
-  --controller-accent: #00d8ff;
-  --controller-accent-rgb: 0, 216, 255;
+  --controller-accent: #ffd50a;
+  --controller-accent-rgb: 255, 213, 10;
   min-height: 100%;
   padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
-  color: #f4f8ff;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(var(--controller-accent-rgb), 0.18), transparent 34rem),
-    radial-gradient(circle at 100% 35%, rgba(119, 82, 255, 0.14), transparent 30rem),
-    linear-gradient(155deg, #07111f 0%, #0b1424 46%, #080d17 100%);
-  font-family: "Nunito", ui-rounded, system-ui, sans-serif;
+  color: #141414;
+  background-color: #1f8ff0;
+  background-image:
+    radial-gradient(#141414 10%, transparent 11%),
+    radial-gradient(rgba(255, 255, 255, 0.28) 14%, transparent 15%),
+    linear-gradient(135deg, #3db0ff 0%, #1a83e0 55%, #1064b3 100%);
+  background-size: 24px 24px, 24px 24px, 100% 100%;
+  background-position: 0 0, 12px 12px, 0 0;
+  font-family: "Outfit", ui-monospace, system-ui, sans-serif;
 }
 
 .controller-page.player-2 {
-  --controller-accent: #ff4f9a;
-  --controller-accent-rgb: 255, 79, 154;
-}
-
-.controller-page::before {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  content: "";
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(to bottom, black, transparent 76%);
+  --controller-accent: #ff3a3a;
+  --controller-accent-rgb: 255, 58, 58;
 }
 
 .controller-page > * {
@@ -48,7 +37,7 @@
 
 .controller-eyebrow,
 .controller-page .field-label {
-  color: #8291a9;
+  color: #141414;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.16em;
@@ -57,10 +46,18 @@
 
 .controller-header h1 {
   margin: 2px 0 0;
-  color: #fff;
+  color: #ffd50a;
+  font-family: "Bangers", "Impact", "Arial Black", ui-monospace, sans-serif;
   font-size: clamp(30px, 9vw, 44px);
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow:
+    3px 3px 0 #141414,
+    -1px -1px 0 #141414,
+    1px -1px 0 #141414,
+    -1px 1px 0 #141414,
+    0 3px 0 #141414;
 }
 
 .connection-pill {
@@ -68,12 +65,13 @@
   align-items: center;
   gap: 8px;
   max-width: 48%;
-  padding: 8px 11px;
+  padding: 8px 14px;
   overflow: hidden;
-  color: #a7b3c6;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #141414;
+  border: 3px solid #141414;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.055);
+  background: #fff1cf;
+  box-shadow: 3px 3px 0 #141414;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.05em;
@@ -87,39 +85,39 @@
   height: 8px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #6e7788;
-  box-shadow: 0 0 0 4px rgba(110, 119, 136, 0.12);
+  background: #ff3a3a;
+  box-shadow: 0 0 0 2px #141414;
 }
 
 .connection-pill.state-connected {
-  color: #8dffc0;
-  border-color: rgba(68, 239, 148, 0.3);
-  background: rgba(35, 195, 112, 0.1);
+  color: #141414;
+  background: #35d06b;
 }
 
 .state-connected .status-dot {
-  background: #45f196;
-  box-shadow: 0 0 12px #45f196;
+  background: #141414;
+  box-shadow: 0 0 0 2px #ffffff;
 }
 
 .connection-pill.state-connecting .status-dot,
 .connection-pill.state-awaiting-ack .status-dot,
 .connection-pill.state-reconnecting .status-dot {
-  background: #ffc65b;
+  background: #ffd50a;
   animation: controller-pulse 900ms ease-in-out infinite alternate;
 }
 
 .connection-pill.state-error .status-dot {
-  background: #ff6276;
+  background: #ff3a3a;
 }
 
 .controller-panel,
 .controller-notice,
 .motion-card {
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(16, 27, 45, 0.82);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(14px);
+  border: 3px solid #141414;
+  background: #fff1cf;
+  color: #141414;
+  box-shadow: 4px 6px 0 #141414;
+  border-radius: 18px;
 }
 
 .selector-panel {

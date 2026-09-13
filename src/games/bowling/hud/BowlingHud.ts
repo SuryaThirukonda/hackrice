@@ -72,7 +72,9 @@ export class BowlingHud {
     this.meterLabel = add(s.add.text(W - 52, H * 0.2 - 18, 'POWER', { fontFamily: DISPLAY, fontSize: '18px', color: HEX(P.ink) }).setOrigin(0.5).setDepth(101).setVisible(false))
     this.aimG = add(s.add.graphics().setDepth(100))
     this.aimTxt = add(s.add.text(44, H - 190, '', { fontFamily: FONT, fontSize: '15px', color: HEX(P.ink), fontStyle: '900', lineSpacing: 5 }).setDepth(101).setAngle(-1))
-    this.hint = add(s.add.text(W / 2, H - 26, HINT, { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101))
+    this.hint = add(s.add.text(W / 2, H - 26, HINT, { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 12, y: 5 } }).setOrigin(0.5).setDepth(101).setInteractive({ cursor: 'pointer' }))
+    this.hint.on('pointerdown', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.())
+    add(new ComicButton(s, W - 66, H - 26, '⏸ PAUSE', () => (this.scene as unknown as { togglePause?: () => void }).togglePause?.(), { color: P.gold, w: 104, h: 32, size: 14 }).setDepth(102))
     // re-apply the last known state so a resize does not blank the HUD
     this.sheetKey = ''
     this.aimReadout(this.lastAim, this.lastSway)

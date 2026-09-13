@@ -119,7 +119,7 @@ export class ComicButton extends Phaser.GameObjects.Container {
     if (opts.icon) this.add(scene.add.text(-w / 2 + 34, 0, opts.icon, { fontSize: '34px' }).setOrigin(0.5))
     if (opts.sub) this.add(scene.add.text(0, 18, opts.sub, { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
     this.setSize(w, h).setAngle(this.baseAngle)
-    this.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains)
+    this.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains)
     this.on('pointerover', () => this.setFocus(true)); this.on('pointerout', () => this.setFocus(false))
     this.on('pointerdown', () => { if (opts.enabled === false) { this.shake(); return } this.stamp(); onSelect() })
     this.setData('draw', (f: boolean) => this.draw(w, h, color, f, opts.enabled !== false))

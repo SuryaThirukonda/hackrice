@@ -238,7 +238,12 @@ export default function Controller() {
     }
     if (!fakeMode && !hasDeviceMotion()) {
       setMotionState('unavailable')
-      setMotionError('This browser does not expose DeviceMotion. Use a supported phone browser.')
+      const isHttp = typeof window !== 'undefined' && !window.isSecureContext
+      setMotionError(
+        isHttp
+          ? 'Motion sensors require HTTPS. Open the secure tunnel link or play using the D-pad and buttons.'
+          : 'Motion sensors are not available on this browser/device. You can still use the buttons below.',
+      )
       return false
     }
 
@@ -322,9 +327,12 @@ export default function Controller() {
   const turnOnController = async () => {
     if (motionState === 'requesting') return
     const motionReady = await enableMotion()
-    if (!motionReady) return
     if (connectionState !== 'connected') connect()
-    setLastAction('Controller on · hold still while it calibrates')
+    if (motionReady) {
+      setLastAction('Controller on · hold still while it calibrates')
+    } else {
+      setLastAction('Connected in button/D-pad mode')
+    }
   }
 
   const disconnect = () => {

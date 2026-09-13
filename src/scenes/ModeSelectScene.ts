@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ComicBackdrop, ComicButton, MenuNav, comicPanel, doodles, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
+import { sfx } from '../fx/sfx'
 
 export class ModeSelectScene extends Phaser.Scene {
   private city!: ComicBackdrop
@@ -13,6 +14,7 @@ export class ModeSelectScene extends Phaser.Scene {
     doodles(this, 10)
     comicPanel(this, W / 2 - 300, H * 0.08, 600, 90, P.paper, 1.5)
     this.add.text(W / 2, H * 0.08 + 45, 'CHOOSE A MODE', { fontFamily: DISPLAY, fontSize: '54px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(1.5)
+    new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.blue, w: 110, h: 42, size: 16 })
     const modes: [string, string, string, number, string][] = [
       ['1 PLAYER', 'you vs the House', '🥊', P.red, '1p'],
       ['2 PLAYERS', 'head to head on one keyboard', '👥', P.blue, '2p'],

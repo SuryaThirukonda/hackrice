@@ -5,3 +5,5 @@ dist/
 public/join-config.json
 # local movement history (SQLite), never shared
 data/
+__pycache__/
+*.pyc
