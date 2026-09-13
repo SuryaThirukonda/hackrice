@@ -1,138 +1,138 @@
 {
   "version": 1,
-  "voiceId": "JBFqnCBsd6RMkjVDRZzb",
-  "modelId": "eleven_turbo_v2_5",
+  "voiceId": "pNInz6obpgDQGcFmaJgB",
+  "modelId": "eleven_flash_v2_5",
   "outputFormat": "mp3_44100_128",
-  "generatedAt": "2026-09-13T10:21:33.618Z",
+  "generatedAt": "2026-09-13T09:52:48.771Z",
   "takes": {
     "shared.results": {
       "file": "shared_results_win_you.mp3",
-      "hash": "026c0276dc429c32ea3e7279fd1e011e8d521639",
+      "hash": "3dcaa81dac09052f055cbd60cc960108bd4e9953",
       "seed": 42,
       "stability": 0.5,
       "chars": 382,
-      "bytes": 496971,
-      "requestId": "EkZ7sf3Hq76QznoExeMt",
+      "bytes": 397496,
+      "requestId": "hKN6jZbV2N9fuGQ0TDzT",
       "perLine": true
     },
     "shared.menu": {
       "file": "shared_menu_menu_welcome_1.mp3",
-      "hash": "435ce7ba3930d7cb9dbe016579c5c556c14c7349",
+      "hash": "96db0a11d9cdbf7c549df8055db61b49df4455b2",
       "seed": 42,
       "stability": 0.5,
       "chars": 152,
-      "bytes": 158955,
-      "requestId": "SxS96Hn01NiLs3DwaxeC",
+      "bytes": 140565,
+      "requestId": "UDaHYvjKZfdYIycuDmHJ",
       "perLine": true
     },
     "card.corners": {
       "file": "card_corners_corner_blue_knuckles.mp3",
-      "hash": "290c3f2f864be44a15646db9d6ac03ad1c38381d",
+      "hash": "b35e4e79e8962c676501d712a6945e2be7c0b4ff",
       "seed": 42,
       "stability": 0.5,
       "chars": 292,
-      "bytes": 315909,
-      "requestId": "5XtilAQh1v39iNFIIVVA",
+      "bytes": 290412,
+      "requestId": "NZ7xleT3buA8Lp5NXEGs",
       "perLine": true
     },
     "card.betting": {
       "file": "card_betting_card_bets_open.mp3",
-      "hash": "d19b57d6ebd6fd2411ae63b06fada147e8822524",
+      "hash": "1b008e03a9c3ce7a112150625079bff8f9fe5817",
       "seed": 42,
       "stability": 0.5,
       "chars": 158,
-      "bytes": 182865,
-      "requestId": "0pjoOQOSL64AHgrFOf1G",
+      "bytes": 144832,
+      "requestId": "iJUwrlwQSAMCvaCOMtgG",
       "perLine": true
     },
     "boxing.rounds": {
       "file": "boxing_rounds_boxing_round_1.mp3",
-      "hash": "306e7a7336325db68c120547a81586717e6cca77",
+      "hash": "bde7048d138092c84a50ef2b58f108f172c6f639",
       "seed": 42,
       "stability": 0.5,
       "chars": 197,
-      "bytes": 237332,
-      "requestId": "n9wBrnrHTeLtU8M58zIa",
+      "bytes": 189683,
+      "requestId": "RFHM3qBGcq6lK13NgYEI",
       "perLine": true
     },
     "boxing.verdicts": {
       "file": "boxing_verdicts_round_won_you.mp3",
-      "hash": "db6d71fa8d15aca14b68683ec26bd8f69ebdb036",
+      "hash": "be24c3060848b569e8e67f1b8fb66a9bcc4ef34b",
       "seed": 42,
       "stability": 0.5,
       "chars": 357,
-      "bytes": 407244,
-      "requestId": "UTHYuwOuOcEJLKEIRaWd",
+      "bytes": 317379,
+      "requestId": "0p8P8QaR6LWkEvVhW3E3",
       "perLine": true
     },
     "boxing.knockdowns": {
       "file": "boxing_knockdowns_down_you.mp3",
-      "hash": "6d61cf8e12899507f4325827d7fedd7ce21b5cdd",
+      "hash": "bcc75c67205150c3e0bb8a62f938fff10526e9b5",
       "seed": 42,
       "stability": 0.5,
       "chars": 318,
-      "bytes": 486076,
-      "requestId": "rbEeVQWIXG0Jh6IjyjXy",
+      "bytes": 400814,
+      "requestId": "Fq4un3sdldif84zZ1DNq",
       "perLine": true
     },
     "boxing.finish": {
       "file": "boxing_finish_boxing_getup_1.mp3",
-      "hash": "c9e57ab3c051388758a892576dc3141f291e1b5c",
+      "hash": "e33e0bff8f8a9f40fbda9c9700b886bba2283d97",
       "seed": 42,
       "stability": 0.5,
       "chars": 154,
-      "bytes": 168656,
-      "requestId": "auOjn4LSCaT0nsABVt1U",
+      "bytes": 134383,
+      "requestId": "TANwoeG3WtQwAygTXlVg",
       "perLine": true
     },
     "boxing.action": {
       "file": "boxing_action_boxing_guardbreak_1.mp3",
-      "hash": "072e579cdb7ae755dd97921e1b229df25bf69c1e",
+      "hash": "ad3337a2a4d104340b92f319dc4fa3ffe13f47b2",
       "seed": 42,
       "stability": 0.5,
       "chars": 249,
-      "bytes": 293470,
-      "requestId": "dTJMj6CI9b2dXTS7mHza",
+      "bytes": 260452,
+      "requestId": "CbZjLsAVJcl86QN5YJri",
       "perLine": true
     },
     "bowling.calls": {
       "file": "bowling_calls_bowling_intro_1.mp3",
-      "hash": "94389b5bfb3d453711214d695f26e1d06f752c11",
+      "hash": "a9c0a0e36ef988afb4fbe3ab5e48e21a23952b5b",
       "seed": 42,
       "stability": 0.5,
       "chars": 567,
-      "bytes": 709818,
-      "requestId": "aHOEesoiTbOa0ZXNhCJs",
+      "bytes": 542218,
+      "requestId": "4VgW2MX6qPLe68Y41dKj",
       "perLine": true
     },
     "golf.holes": {
       "file": "golf_holes_golf_hole_1.mp3",
-      "hash": "aed9b43b9127d550f43a9b54bd7428c44eb799d9",
+      "hash": "da2d01e8bec59c62990969bc07aaf4a8928b1ae2",
       "seed": 42,
       "stability": 0.5,
       "chars": 174,
-      "bytes": 244567,
-      "requestId": "U5YLKBVXaFT8SFS6kjUA",
+      "bytes": 204862,
+      "requestId": "a1FdXS88akl3aputl5Or",
       "perLine": true
     },
     "golf.shots": {
       "file": "golf_shots_golf_water_1.mp3",
-      "hash": "621abdc9cd5d2077f4dc1ab9f1e4808b38e6ccb4",
+      "hash": "170a8f2cd25b0186ff6a9489134762504a78fa78",
       "seed": 42,
       "stability": 0.5,
       "chars": 308,
-      "bytes": 350313,
-      "requestId": "Nq3BcGdhkpTMsFe1W8ex",
+      "bytes": 294722,
+      "requestId": "TQ1gnb77uW0uWFxn13Ig",
       "perLine": true
     },
     "golf.scores": {
       "file": "golf_scores_golf_ace.mp3",
-      "hash": "c98cc898424608347cb43c638e7eb7e2b9e8a1d2",
+      "hash": "46bb9b5ecb5f509f77f8af82f2a4dce85e04e239",
       "seed": 42,
       "stability": 0.5,
       "chars": 347,
-      "bytes": 445824,
-      "requestId": "LHdvDPC4CgNwHc6Cdjqv",
+      "bytes": 368918,
+      "requestId": "FpDwdmskDeoygaFyygUZ",
       "perLine": true
     }
   },
@@ -141,995 +141,853 @@
       "take": "shared.results",
       "file": "shared_results_win_you.mp3",
       "start": null,
-      "end": null,
-      "hash": "112b03dc84356d5b4c32498eba60c822fc13c04b"
+      "end": null
     },
     "win.house": {
       "take": "shared.results",
       "file": "shared_results_win_house.mp3",
       "start": null,
-      "end": null,
-      "hash": "20194d44e5d39738c5c952fc29229bde17a66e67"
+      "end": null
     },
     "win.p1": {
       "take": "shared.results",
       "file": "shared_results_win_p1.mp3",
       "start": null,
-      "end": null,
-      "hash": "e71fccef46104d8f3bc0d0d0e7a9a6232d6aab23"
+      "end": null
     },
     "win.p2": {
       "take": "shared.results",
       "file": "shared_results_win_p2.mp3",
       "start": null,
-      "end": null,
-      "hash": "58df13bfd2a7817e7526401a8f519ca95581064e"
+      "end": null
     },
     "win.knuckles": {
       "take": "shared.results",
       "file": "shared_results_win_knuckles.mp3",
       "start": null,
-      "end": null,
-      "hash": "d8c70e4c6300184e8cb1c147d72f2aab6bf13866"
+      "end": null
     },
     "win.professor": {
       "take": "shared.results",
       "file": "shared_results_win_professor.mp3",
       "start": null,
-      "end": null,
-      "hash": "ab51b982e288580a36585910ba2d514ddb2e6298"
+      "end": null
     },
     "win.lou": {
       "take": "shared.results",
       "file": "shared_results_win_lou.mp3",
       "start": null,
-      "end": null,
-      "hash": "8b0d93c46139a2d868f62aad4a4029f67f4b28de"
+      "end": null
     },
     "win.maggie": {
       "take": "shared.results",
       "file": "shared_results_win_maggie.mp3",
       "start": null,
-      "end": null,
-      "hash": "cf22dc4638733d32309bdb64b00eb214ff9c674f"
+      "end": null
     },
     "win.generic": {
       "take": "shared.results",
       "file": "shared_results_win_generic.mp3",
       "start": null,
-      "end": null,
-      "hash": "e93a84d739088eb511ec7c193432ffd155c71c0a"
+      "end": null
     },
     "draw": {
       "take": "shared.results",
       "file": "shared_results_draw.mp3",
       "start": null,
-      "end": null,
-      "hash": "026c0276dc429c32ea3e7279fd1e011e8d521639"
+      "end": null
     },
     "menu.welcome#1": {
       "take": "shared.menu",
       "file": "shared_menu_menu_welcome_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "f3a46c075c72657ef083fe0f5ed4ab205b3e825b"
+      "end": null
     },
     "menu.welcome#2": {
       "take": "shared.menu",
       "file": "shared_menu_menu_welcome_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "8d199d8e02c57ec6cc126c8f1980dccb563dd115"
+      "end": null
     },
     "card.lobby": {
       "take": "shared.menu",
       "file": "shared_menu_card_lobby.mp3",
       "start": null,
-      "end": null,
-      "hash": "435ce7ba3930d7cb9dbe016579c5c556c14c7349"
+      "end": null
     },
     "corner.blue.knuckles": {
       "take": "card.corners",
       "file": "card_corners_corner_blue_knuckles.mp3",
       "start": null,
-      "end": null,
-      "hash": "b707813fcb32fcb500259218c5b41e59cff97b21"
+      "end": null
     },
     "corner.blue.professor": {
       "take": "card.corners",
       "file": "card_corners_corner_blue_professor.mp3",
       "start": null,
-      "end": null,
-      "hash": "727de62b4f905fa8fb6fe2ea29b9e3958fee4283"
+      "end": null
     },
     "corner.blue.lou": {
       "take": "card.corners",
       "file": "card_corners_corner_blue_lou.mp3",
       "start": null,
-      "end": null,
-      "hash": "a0ec9264f6d1fde5df37242a29cc2f6c2f358daa"
+      "end": null
     },
     "corner.blue.maggie": {
       "take": "card.corners",
       "file": "card_corners_corner_blue_maggie.mp3",
       "start": null,
-      "end": null,
-      "hash": "14f619a4c4ca25bd0de4f6203900f5a13f70b4d8"
+      "end": null
     },
     "corner.red.knuckles": {
       "take": "card.corners",
       "file": "card_corners_corner_red_knuckles.mp3",
       "start": null,
-      "end": null,
-      "hash": "e4856885e52840f0a30932800f6b24a3d2b228bd"
+      "end": null
     },
     "corner.red.professor": {
       "take": "card.corners",
       "file": "card_corners_corner_red_professor.mp3",
       "start": null,
-      "end": null,
-      "hash": "7d867f8d3bdab77dc0d2f72018d4ff3a4c689d1c"
+      "end": null
     },
     "corner.red.lou": {
       "take": "card.corners",
       "file": "card_corners_corner_red_lou.mp3",
       "start": null,
-      "end": null,
-      "hash": "b77fb658ce1d405f504c908a3762a9d4451c850b"
+      "end": null
     },
     "corner.red.maggie": {
       "take": "card.corners",
       "file": "card_corners_corner_red_maggie.mp3",
       "start": null,
-      "end": null,
-      "hash": "290c3f2f864be44a15646db9d6ac03ad1c38381d"
+      "end": null
     },
     "card.bets.open": {
       "take": "card.betting",
       "file": "card_betting_card_bets_open.mp3",
       "start": null,
-      "end": null,
-      "hash": "0a35585d64c7a1a870231dc1854698d6b7678c06"
+      "end": null
     },
     "card.bets.next": {
       "take": "card.betting",
       "file": "card_betting_card_bets_next.mp3",
       "start": null,
-      "end": null,
-      "hash": "12ef21266e7b248ecd9bcee31f2ef2a91719ea61"
+      "end": null
     },
     "card.bets.closing": {
       "take": "card.betting",
       "file": "card_betting_card_bets_closing.mp3",
       "start": null,
-      "end": null,
-      "hash": "86453c7f3799779c800219e6c95f0357a0274a4e"
+      "end": null
     },
     "card.payout.won": {
       "take": "card.betting",
       "file": "card_betting_card_payout_won.mp3",
       "start": null,
-      "end": null,
-      "hash": "feb781924782175fc1434fc85a97a6627caeb9f2"
+      "end": null
     },
     "card.payout.lost": {
       "take": "card.betting",
       "file": "card_betting_card_payout_lost.mp3",
       "start": null,
-      "end": null,
-      "hash": "d19b57d6ebd6fd2411ae63b06fada147e8822524"
+      "end": null
     },
     "boxing.round.1": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_round_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "e67f2c0c5d9168232c129b50f73779de29131797"
+      "end": null
     },
     "boxing.round.2": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_round_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "fd5a82acf2c2e2ba29e4ffcd7243272b2d3aa512"
+      "end": null
     },
     "boxing.round.3": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_round_3.mp3",
       "start": null,
-      "end": null,
-      "hash": "d37b8664c31c49e9e73d0abbe5c04b44f917d25c"
+      "end": null
     },
     "boxing.fight#1": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_fight_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "3bbc57e7f0dbc7d3b8d7c63b3f94a6e0dcb3fe1a"
+      "end": null
     },
     "boxing.fight#2": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_fight_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "96f2e8a0c6d5c63d95888c22d20a852f159fe4aa"
+      "end": null
     },
     "boxing.last10": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_last10.mp3",
       "start": null,
-      "end": null,
-      "hash": "275388e10074c9e8c10194b8a53952f7310c10c5"
+      "end": null
     },
     "boxing.round.end#1": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_round_end_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "dfa698a7b105c615e939218cb3eac6b52023b1c8"
+      "end": null
     },
     "boxing.round.end#2": {
       "take": "boxing.rounds",
       "file": "boxing_rounds_boxing_round_end_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "306e7a7336325db68c120547a81586717e6cca77"
+      "end": null
     },
     "round.won.you": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_you.mp3",
       "start": null,
-      "end": null,
-      "hash": "5c80eee3aec59d62df07c79940cfc18050b67bb0"
+      "end": null
     },
     "round.won.house": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_house.mp3",
       "start": null,
-      "end": null,
-      "hash": "bf6c1ab27bc45f00a5f8a683dd56b6d1b054d4b8"
+      "end": null
     },
     "round.won.p1": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_p1.mp3",
       "start": null,
-      "end": null,
-      "hash": "021057b8f480b2e13db1a7ba21d72cf3fa0f9cb3"
+      "end": null
     },
     "round.won.p2": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_p2.mp3",
       "start": null,
-      "end": null,
-      "hash": "3329d81432973cd78151fb876bc26c9cc6df2222"
+      "end": null
     },
     "round.won.knuckles": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_knuckles.mp3",
       "start": null,
-      "end": null,
-      "hash": "21eb7060a716d448490fbeac30f26f1fb07f2935"
+      "end": null
     },
     "round.won.professor": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_professor.mp3",
       "start": null,
-      "end": null,
-      "hash": "9e7d214aaaa52eeb5d4a679fbfa5a3957dcf3d42"
+      "end": null
     },
     "round.won.lou": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_lou.mp3",
       "start": null,
-      "end": null,
-      "hash": "c6cd22d3da1055e4b25a06d2f150c984dc27a4f7"
+      "end": null
     },
     "round.won.maggie": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_won_maggie.mp3",
       "start": null,
-      "end": null,
-      "hash": "d28ef2649f4fdda69efd5fd994c751849d9209af"
+      "end": null
     },
     "round.even": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_round_even.mp3",
       "start": null,
-      "end": null,
-      "hash": "f331f921c187997da93b34e9b281bf6bb7806d78"
+      "end": null
     },
     "boxing.colour#1": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_boxing_colour_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "ac82e6e62a05ebcfec3634f3e6528fdd2d969fbd"
+      "end": null
     },
     "boxing.colour#2": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_boxing_colour_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "09cb46b63ed090c1bd9d6ec153640ac43529a6a8"
+      "end": null
     },
     "boxing.colour#3": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_boxing_colour_3.mp3",
       "start": null,
-      "end": null,
-      "hash": "e19d6183dcd95118c50e0a48ca3766b3b6a3affa"
+      "end": null
     },
     "boxing.colour#4": {
       "take": "boxing.verdicts",
       "file": "boxing_verdicts_boxing_colour_4.mp3",
       "start": null,
-      "end": null,
-      "hash": "db6d71fa8d15aca14b68683ec26bd8f69ebdb036"
+      "end": null
     },
     "down.you": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_you.mp3",
       "start": null,
-      "end": null,
-      "hash": "214cbfcf269b202ed4dc4aecef73aa5bee199166"
+      "end": null
     },
     "down.house": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_house.mp3",
       "start": null,
-      "end": null,
-      "hash": "95c7dd8d3e5356b156e59a96490c541286c9edcf"
+      "end": null
     },
     "down.p1": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_p1.mp3",
       "start": null,
-      "end": null,
-      "hash": "b6d0bd47d7f4893029c4908f4ff808c55cc2fa66"
+      "end": null
     },
     "down.p2": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_p2.mp3",
       "start": null,
-      "end": null,
-      "hash": "13380eb2c4f25a59fb3884d0d8f872c37dd1ac54"
+      "end": null
     },
     "down.knuckles": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_knuckles.mp3",
       "start": null,
-      "end": null,
-      "hash": "b9180cddb6c41f319a2d492fabc289980e4df50d"
+      "end": null
     },
     "down.professor": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_professor.mp3",
       "start": null,
-      "end": null,
-      "hash": "0f143b94b7afb842d4053d8598c8d354811fc842"
+      "end": null
     },
     "down.lou": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_lou.mp3",
       "start": null,
-      "end": null,
-      "hash": "f4c0fc6c6f13a00b6e051ffa292f5b8433e9aea8"
+      "end": null
     },
     "down.maggie": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_maggie.mp3",
       "start": null,
-      "end": null,
-      "hash": "5b1fb159cdea54a710df69be1fb3264d2e06c364"
+      "end": null
     },
     "down.generic": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_down_generic.mp3",
       "start": null,
-      "end": null,
-      "hash": "76760b0117928f622a13ec423cd3742805825c64"
+      "end": null
     },
     "count.1": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "a1b4fd5f6ce829790ae043a16d0765e72897a8a2"
+      "end": null
     },
     "count.2": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "d1df5f7dc21473db1012c02ee7b7fb17c96c3ca2"
+      "end": null
     },
     "count.3": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_3.mp3",
       "start": null,
-      "end": null,
-      "hash": "b17e3dff8e20b25987c28d2c2785feab4613bda6"
+      "end": null
     },
     "count.4": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_4.mp3",
       "start": null,
-      "end": null,
-      "hash": "f3e10dff40a629cecf8a93e1bfeda933718c39fa"
+      "end": null
     },
     "count.5": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_5.mp3",
       "start": null,
-      "end": null,
-      "hash": "54f512d4cc02e40ab81a904f1673a672cdc67eca"
+      "end": null
     },
     "count.6": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_6.mp3",
       "start": null,
-      "end": null,
-      "hash": "adac53c91e5715d91e5d49a9e3eea59b3ac3e6f0"
+      "end": null
     },
     "count.7": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_7.mp3",
       "start": null,
-      "end": null,
-      "hash": "1e9dcf590f185ecdac6605ad48ba9158c1add8e1"
+      "end": null
     },
     "count.8": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_8.mp3",
       "start": null,
-      "end": null,
-      "hash": "a459b14218b5ca58884cf1b51943b4deaa6af617"
+      "end": null
     },
     "count.9": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_9.mp3",
       "start": null,
-      "end": null,
-      "hash": "0d32bbabf921554aeafa22b721bc48cf4e25939f"
+      "end": null
     },
     "count.10": {
       "take": "boxing.knockdowns",
       "file": "boxing_knockdowns_count_10.mp3",
       "start": null,
-      "end": null,
-      "hash": "6d61cf8e12899507f4325827d7fedd7ce21b5cdd"
+      "end": null
     },
     "boxing.getup#1": {
       "take": "boxing.finish",
       "file": "boxing_finish_boxing_getup_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "b3ac0d14bc97ea7ac77ebc31961913ae2ba15711"
+      "end": null
     },
     "boxing.getup#2": {
       "take": "boxing.finish",
       "file": "boxing_finish_boxing_getup_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "c2bf77d7fd876d7e88ce2c1c30ffaddf93baa817"
+      "end": null
     },
     "boxing.ko#1": {
       "take": "boxing.finish",
       "file": "boxing_finish_boxing_ko_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "ee1728ef1a9792b19bb30638eba155bfe004d50b"
+      "end": null
     },
     "boxing.ko#2": {
       "take": "boxing.finish",
       "file": "boxing_finish_boxing_ko_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "a76850595b644b5894a1e4f866a55c9cf581370f"
+      "end": null
     },
     "boxing.decision": {
       "take": "boxing.finish",
       "file": "boxing_finish_boxing_decision.mp3",
       "start": null,
-      "end": null,
-      "hash": "c9e57ab3c051388758a892576dc3141f291e1b5c"
+      "end": null
     },
     "boxing.guardbreak#1": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_guardbreak_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "854975cc929cd5d379af113de28848f4be912aa0"
+      "end": null
     },
     "boxing.guardbreak#2": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_guardbreak_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "f28be94577d97b2be363f4ba520b62c5712f148c"
+      "end": null
     },
     "boxing.stagger#1": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_stagger_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "277b681fb63dab8f76a9931937c4081a9d222570"
+      "end": null
     },
     "boxing.stagger#2": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_stagger_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "b4b3f196e778b85c6a84f36b62c50ce00b83e48e"
+      "end": null
     },
     "boxing.cross#1": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_cross_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "3370a905755c1c12d4481e21d105680f6fd1c25a"
+      "end": null
     },
     "boxing.cross#2": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_cross_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "890b3295aeac1409a8484ef31080095961453299"
+      "end": null
     },
     "boxing.combo#1": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_combo_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "a5cd5f44877fb21f5714c754389321158ae113d5"
+      "end": null
     },
     "boxing.combo#2": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_combo_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "c0582a48647381922f9a208af0d832df2275ca71"
+      "end": null
     },
     "boxing.defense": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_defense.mp3",
       "start": null,
-      "end": null,
-      "hash": "cfdb3ac432fe651c20613210d2e79cbf1195b83e"
+      "end": null
     },
     "boxing.gassed#1": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_gassed_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "6c440ecc263ff2b6b856624914c309a3b6eb0973"
+      "end": null
     },
     "boxing.gassed#2": {
       "take": "boxing.action",
       "file": "boxing_action_boxing_gassed_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "072e579cdb7ae755dd97921e1b229df25bf69c1e"
+      "end": null
     },
     "bowling.intro#1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_intro_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "a0fb2f0e42d70a7352bb99a8e86db4d142dfa7be"
+      "end": null
     },
     "bowling.intro#2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_intro_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "35dc98f8e8e7022054815911a49f25275104ae62"
+      "end": null
     },
     "bowling.tenth": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_tenth.mp3",
       "start": null,
-      "end": null,
-      "hash": "4b83d86b40cf623a34f43a3bdc64d4d7cec31f65"
+      "end": null
     },
     "bowling.up.p1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_up_p1.mp3",
       "start": null,
-      "end": null,
-      "hash": "c1934a9c25d9958808153eb3775de21e84edb31b"
+      "end": null
     },
     "bowling.up.p2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_up_p2.mp3",
       "start": null,
-      "end": null,
-      "hash": "314780062bdf1657678d8bd1ea91610640e82231"
+      "end": null
     },
     "bowling.strike#1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_strike_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "e3d54bd6a3109d32b51627cdee510b330054af7e"
+      "end": null
     },
     "bowling.strike#2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_strike_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "1b56269bd7f4f5ac9c18bd424acb2cc011ed9d8d"
+      "end": null
     },
     "bowling.strike#3": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_strike_3.mp3",
       "start": null,
-      "end": null,
-      "hash": "aba1b64c8cb53b54045108fa4b0852eec03a53a2"
+      "end": null
     },
     "bowling.double": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_double.mp3",
       "start": null,
-      "end": null,
-      "hash": "57a47c533627a0e41ad2927fb27550083fa688b6"
+      "end": null
     },
     "bowling.turkey": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_turkey.mp3",
       "start": null,
-      "end": null,
-      "hash": "aecac51318cd2bcff38959a63474a476082d733b"
+      "end": null
     },
     "bowling.hot": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_hot.mp3",
       "start": null,
-      "end": null,
-      "hash": "c38b7107c7db8ea7a60f470416c115c334da71a5"
+      "end": null
     },
     "bowling.spare#1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_spare_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "922f1459350838bea7dc97817c93100a2b267570"
+      "end": null
     },
     "bowling.spare#2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_spare_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "baa11875e1c747c7e86c23c3155431d839c5aadd"
+      "end": null
     },
     "bowling.split#1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_split_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "795ac6381a566e6c7007a552fb791e65b2ba340b"
+      "end": null
     },
     "bowling.split#2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_split_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "971f3071ad323d5a6a1ac413fb1a1d9a0a1c702e"
+      "end": null
     },
     "bowling.split.made": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_split_made.mp3",
       "start": null,
-      "end": null,
-      "hash": "f9f21f5e55a0dfa79bfac667986e2dea77327d11"
+      "end": null
     },
     "bowling.gutter#1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_gutter_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "16fb4cbd510d0c4474232a95ca7a326d508673c5"
+      "end": null
     },
     "bowling.gutter#2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_gutter_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "10643eeb2f34cb5ef26410134fa9d1311e21861c"
+      "end": null
     },
     "bowling.onepin": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_onepin.mp3",
       "start": null,
-      "end": null,
-      "hash": "a60b9ec4e2d36e330e6a31b2430af26457973e61"
+      "end": null
     },
     "bowling.final": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_final.mp3",
       "start": null,
-      "end": null,
-      "hash": "96b6036666ecafab021db8fcf725b994d5c1aaf8"
+      "end": null
     },
     "bowling.colour#1": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_colour_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "71ba35077a119dfc40f3df272f36ac9536c55d5a"
+      "end": null
     },
     "bowling.colour#2": {
       "take": "bowling.calls",
       "file": "bowling_calls_bowling_colour_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "94389b5bfb3d453711214d695f26e1d06f752c11"
+      "end": null
     },
     "golf.hole.1": {
       "take": "golf.holes",
       "file": "golf_holes_golf_hole_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "eb60b12df663711f4bebfff453d6687fdc51452d"
+      "end": null
     },
     "golf.hole.2": {
       "take": "golf.holes",
       "file": "golf_holes_golf_hole_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "a80749bd2da3969a6644057247486b850adafe2f"
+      "end": null
     },
     "golf.hole.3": {
       "take": "golf.holes",
       "file": "golf_holes_golf_hole_3.mp3",
       "start": null,
-      "end": null,
-      "hash": "df2488ce239471630b052b51131c856ec0581b09"
+      "end": null
     },
     "golf.hole.last": {
       "take": "golf.holes",
       "file": "golf_holes_golf_hole_last.mp3",
       "start": null,
-      "end": null,
-      "hash": "86641d1d160a8d99c6bc87b20fefc85e2fb91503"
+      "end": null
     },
     "golf.par.3": {
       "take": "golf.holes",
       "file": "golf_holes_golf_par_3.mp3",
       "start": null,
-      "end": null,
-      "hash": "9acf2274b49f42c15aa65633ce0b537ba793135e"
+      "end": null
     },
     "golf.par.4": {
       "take": "golf.holes",
       "file": "golf_holes_golf_par_4.mp3",
       "start": null,
-      "end": null,
-      "hash": "0a5824453e37c1f88976f989ac832593201700a4"
+      "end": null
     },
     "golf.par.5": {
       "take": "golf.holes",
       "file": "golf_holes_golf_par_5.mp3",
       "start": null,
-      "end": null,
-      "hash": "97dce07dc25f0cf52c9d53b6b934f627ca5fcfda"
+      "end": null
     },
     "golf.wind": {
       "take": "golf.holes",
       "file": "golf_holes_golf_wind.mp3",
       "start": null,
-      "end": null,
-      "hash": "912bca4bcaf13676753532faa2523611ba6078ad"
+      "end": null
     },
     "golf.final": {
       "take": "golf.holes",
       "file": "golf_holes_golf_final.mp3",
       "start": null,
-      "end": null,
-      "hash": "bd702839b1ac5d11ba1a851c031fb3d40f2f049b"
+      "end": null
     },
     "golf.colour#1": {
       "take": "golf.holes",
       "file": "golf_holes_golf_colour_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "4e32d66c947c98418d04b694fb577d1fc910bb3c"
+      "end": null
     },
     "golf.colour#2": {
       "take": "golf.holes",
       "file": "golf_holes_golf_colour_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "aed9b43b9127d550f43a9b54bd7428c44eb799d9"
+      "end": null
     },
     "golf.water#1": {
       "take": "golf.shots",
       "file": "golf_shots_golf_water_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "15a3300624ac29b5c71ea4876c36314ea6308b3f"
+      "end": null
     },
     "golf.water#2": {
       "take": "golf.shots",
       "file": "golf_shots_golf_water_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "bf8db1e897a899609dbfe2a12bd195e5a084c5c2"
+      "end": null
     },
     "golf.ob#1": {
       "take": "golf.shots",
       "file": "golf_shots_golf_ob_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "9a3589ad3ee6ffe4b29f94a385b76ae9b0bd2522"
+      "end": null
     },
     "golf.ob#2": {
       "take": "golf.shots",
       "file": "golf_shots_golf_ob_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "d6198bf6fb700eb9aa5a310b7e2d7944adaaf9eb"
+      "end": null
     },
     "golf.bunker#1": {
       "take": "golf.shots",
       "file": "golf_shots_golf_bunker_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "a71709ace8b9d9f2e2de2013f364bb9af7f38f55"
+      "end": null
     },
     "golf.bunker#2": {
       "take": "golf.shots",
       "file": "golf_shots_golf_bunker_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "40afa87d5596cb0194913129534f63b84cb15196"
+      "end": null
     },
     "golf.green#1": {
       "take": "golf.shots",
       "file": "golf_shots_golf_green_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "3706999d4ec4630fa6f95ddd05242cd01a67f2cc"
+      "end": null
     },
     "golf.green#2": {
       "take": "golf.shots",
       "file": "golf_shots_golf_green_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "5f9320f5690b6834c5693cd962e08089e59e78e4"
+      "end": null
     },
     "golf.putt.eagle": {
       "take": "golf.shots",
       "file": "golf_shots_golf_putt_eagle.mp3",
       "start": null,
-      "end": null,
-      "hash": "6a8150df81541dbfbcc20a864bef04a311bc0581"
+      "end": null
     },
     "golf.putt.birdie": {
       "take": "golf.shots",
       "file": "golf_shots_golf_putt_birdie.mp3",
       "start": null,
-      "end": null,
-      "hash": "5fc94c03d3e862bc69c8d6cf479c2569938168d6"
+      "end": null
     },
     "golf.pickup": {
       "take": "golf.shots",
       "file": "golf_shots_golf_pickup.mp3",
       "start": null,
-      "end": null,
-      "hash": "621abdc9cd5d2077f4dc1ab9f1e4808b38e6ccb4"
+      "end": null
     },
     "golf.ace": {
       "take": "golf.scores",
       "file": "golf_scores_golf_ace.mp3",
       "start": null,
-      "end": null,
-      "hash": "c0630f3f05153a65e081bac46a343ca45ce7fd63"
+      "end": null
     },
     "golf.eagle": {
       "take": "golf.scores",
       "file": "golf_scores_golf_eagle.mp3",
       "start": null,
-      "end": null,
-      "hash": "57254348b2aa400b13b1ee4c53f85c258e6d3baf"
+      "end": null
     },
     "golf.birdie#1": {
       "take": "golf.scores",
       "file": "golf_scores_golf_birdie_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "83993f738485e77f766393da409b5bc11f22529e"
+      "end": null
     },
     "golf.birdie#2": {
       "take": "golf.scores",
       "file": "golf_scores_golf_birdie_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "a2baaaf82ae6ce4236f35e480f6ac3f375a9be36"
+      "end": null
     },
     "golf.par#1": {
       "take": "golf.scores",
       "file": "golf_scores_golf_par_1.mp3",
       "start": null,
-      "end": null,
-      "hash": "0a2e6df24d0cd14f3c4acfb3c4ce0bc653e09740"
+      "end": null
     },
     "golf.par#2": {
       "take": "golf.scores",
       "file": "golf_scores_golf_par_2.mp3",
       "start": null,
-      "end": null,
-      "hash": "251a1dec686809d5538eca9d963592f82a00c087"
+      "end": null
     },
     "golf.bogey": {
       "take": "golf.scores",
       "file": "golf_scores_golf_bogey.mp3",
       "start": null,
-      "end": null,
-      "hash": "3644b5bdeacc0de4a04252780eb0a6843f6e85fd"
+      "end": null
     },
     "golf.double": {
       "take": "golf.scores",
       "file": "golf_scores_golf_double.mp3",
       "start": null,
-      "end": null,
-      "hash": "6e53eb5b528fe45607bf624c15d58f67173f37cb"
+      "end": null
     },
     "golf.worse": {
       "take": "golf.scores",
       "file": "golf_scores_golf_worse.mp3",
       "start": null,
-      "end": null,
-      "hash": "a1043d60602be973a17fd5848d6fb9c012e99582"
+      "end": null
     },
     "golf.won.you": {
       "take": "golf.scores",
       "file": "golf_scores_golf_won_you.mp3",
       "start": null,
-      "end": null,
-      "hash": "0c33d718db85043cd59af27c8681457363d0868b"
+      "end": null
     },
     "golf.won.house": {
       "take": "golf.scores",
       "file": "golf_scores_golf_won_house.mp3",
       "start": null,
-      "end": null,
-      "hash": "0f6dd17a775e4eaf0f3a0ef18d5a5a8dc541d964"
+      "end": null
     },
     "golf.won.p1": {
       "take": "golf.scores",
       "file": "golf_scores_golf_won_p1.mp3",
       "start": null,
-      "end": null,
-      "hash": "994ae591d2f7d7baeb574fe2ab83452b9629b39b"
+      "end": null
     },
     "golf.won.p2": {
       "take": "golf.scores",
       "file": "golf_scores_golf_won_p2.mp3",
       "start": null,
-      "end": null,
-      "hash": "109efead11cdcf665199c03cc4d975d5e6795d34"
+      "end": null
     },
     "golf.halved": {
       "take": "golf.scores",
       "file": "golf_scores_golf_halved.mp3",
       "start": null,
-      "end": null,
-      "hash": "2b5b38d98845213b2f04532cbbc4675ff97c0f1c"
+      "end": null
     },
     "golf.away.p1": {
       "take": "golf.scores",
       "file": "golf_scores_golf_away_p1.mp3",
       "start": null,
-      "end": null,
-      "hash": "2b273ae2bed0f120de464459f494035233bd6a8f"
+      "end": null
     },
     "golf.away.p2": {
       "take": "golf.scores",
       "file": "golf_scores_golf_away_p2.mp3",
       "start": null,
-      "end": null,
-      "hash": "c98cc898424608347cb43c638e7eb7e2b9e8a1d2"
+      "end": null
     }
   }
 }

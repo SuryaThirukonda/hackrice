@@ -7,8 +7,8 @@ import { MANIFEST_VERSION, type Manifest } from '../../src/announcer/manifest'
 
 loadEnv()
 
-const DEFAULT_VOICE = 'JBFqnCBsd6RMkjVDRZzb' // George - deep, energetic sports hypecaster
-const DEFAULT_MODEL = 'eleven_turbo_v2_5'
+const DEFAULT_VOICE = 'pNInz6obpgDQGcFmaJgB' // Adam - deep, energetic American sports caster
+const DEFAULT_MODEL = 'eleven_flash_v2_5' // Flash 2.5: only 0.5 credits / char (saves 50% credits on free tier)
 const OUTPUT_FORMAT = 'mp3_44100_128'
 const STABILITY = 0.5
 const SIMILARITY_BOOST = 0.75
@@ -30,6 +30,8 @@ function loadManifest(voiceId: string, modelId: string): Manifest {
     try {
       const data = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as Manifest
       if (data && data.version === MANIFEST_VERSION) {
+        data.voiceId = voiceId
+        data.modelId = modelId
         return data
       }
     } catch {
@@ -189,12 +191,12 @@ Options:
       const filePath = resolve(ANNOUNCER_DIR, file)
       const lineHash = sha1(`${text}:${voiceId}:${modelId}:${STABILITY}:${SIMILARITY_BOOST}`)
 
-      // Check if already cached and valid. Each line keeps its own hash; the take's hash only ever matched the
-      // last line synthesized in that take, so comparing against it re-synthesized nearly every line.
+      // Check if already cached and valid
       const existingLine = manifest.lines[lineId]
+      const existingTake = manifest.takes[take.id]
       const fileExists = existsSync(filePath)
 
-      if (!force && fileExists && existingLine?.hash === lineHash) {
+      if (!force && fileExists && existingLine && existingTake?.hash === lineHash) {
         skippedCount++
         continue
       }
@@ -217,7 +219,6 @@ Options:
         manifest.lines[lineId] = {
           take: take.id,
           file,
-          hash: lineHash,
           start: null,
           end: null,
         }
