@@ -21,6 +21,7 @@ export default function VitalsLab(): React.ReactElement {
   const [busy, setBusy] = useState(false)
   const [movement, setMovement] = useState<Movement>(blankMovement())
   const [linked, setLinked] = useState(false)
+  const [devices, setDevices] = useState<{ checked: boolean; devices: string[] } | null>(null)
   const epochsRef = useRef<{ at: number; mean: number; swings: number }[]>([])
 
   // The reading itself: poll the service twice a second while it runs.
@@ -30,6 +31,7 @@ export default function VitalsLab(): React.ReactElement {
       try { const r = await fetch('/vitals', { cache: 'no-store' }); if (r.ok && alive) setState(await r.json() as VitalsState) } catch { if (alive) setState(null) }
     }
     void tick()
+    fetch('/vitals/devices', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((d) => setDevices(d as { checked: boolean; devices: string[] } | null)).catch(() => setDevices(null))
     const timer = window.setInterval(() => void tick(), 500)
     return () => { alive = false; window.clearInterval(timer) }
   }, [])
@@ -105,8 +107,10 @@ export default function VitalsLab(): React.ReactElement {
         <li><strong>What it is not:</strong> a medical device, a diagnosis, or advice. The vendor states these readings are for general wellness and information only.</li>
       </ul>
       <label className="consent-check"><input type="checkbox" checked={consented} onChange={(e) => setConsented(e.target.checked)} /> I understand, and I am the person in front of the camera.</label>
+      {devices?.checked && devices.devices.length === 0 && <p className="hint error">No camera device is present on this machine. Plug in a USB webcam, or check the camera privacy key and BIOS setting. The demo below runs the whole pipeline without one.</p>}
+      {devices?.checked && devices.devices.length > 0 && <p className="hint">Camera device{devices.devices.length === 1 ? '' : 's'} found: {devices.devices.join(', ')}</p>}
       <div className="consent-actions">
-        <button type="button" className="primary" disabled={!consented || busy} onClick={() => void start(false)}>Start camera</button>
+        <button type="button" className="primary" disabled={!consented || busy || (devices?.checked === true && devices.devices.length === 0)} onClick={() => void start(false)}>Start camera</button>
         <button type="button" disabled={busy} onClick={() => void start(true)}>Demo without a camera</button>
       </div>
       {state?.error && <p className="hint error">{state.error}</p>}

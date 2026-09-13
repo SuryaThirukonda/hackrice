@@ -13,6 +13,8 @@
  * `applyMetrics` is a pure reducer over the decoded metrics message so it can be tested without a
  * camera, and a synthetic source drives the same reducer for demos on machines without one.
  */
+import { readdirSync } from 'node:fs'
+
 export interface Reading { value: number; confidence: number; stable: boolean; at: number }
 export interface HrvReading { rmssd: number; sdnn: number; confidence: number; at: number }
 export type VitalsStatus = 'off' | 'starting' | 'running' | 'error' | 'unavailable'
@@ -45,6 +47,13 @@ export interface VitalsState {
 }
 
 export const MIN_CONFIDENCE = 60
+
+/** Video devices the OS exposes. Only Linux enumerates them as files; elsewhere the SDK is the only way to know. */
+export function listCameras(): { checked: boolean; devices: string[] } {
+  if (process.platform !== 'linux') return { checked: false, devices: [] }
+  try { return { checked: true, devices: readdirSync('/dev').filter((n) => /^video\d+$/.test(n)).sort().map((n) => `/dev/${n}`) } }
+  catch { return { checked: true, devices: [] } }
+}
 const HISTORY_MS = 10 * 60_000
 const TRACE_MS = 15_000
 const BASELINE_READINGS = 12
@@ -181,13 +190,23 @@ export class VitalsBridge {
     }
     const key = this.apiKey()
     if (!key) { this.state.status = 'error'; this.state.error = 'no Presage key in .env (PRESSAGE_KEY)'; this.state.guidance = this.state.error; return this.state }
+    // Do not spin up the native runtime when there is plainly nothing to open: each failed attempt would
+    // otherwise leave the SDK's thread pool behind and fill the log with its start-up chatter.
+    const cams = listCameras()
+    if (cams.checked && cams.devices.length === 0) {
+      this.state.status = 'error'
+      this.state.error = 'No camera device is present on this machine (nothing under /dev/video*). Plug in a USB webcam, check the camera privacy key or BIOS setting, or use the demo.'
+      this.state.guidance = this.state.error
+      return this.state
+    }
     let mod: SdkModule
     try { mod = await import('@smartspectra/node-sdk') as unknown as SdkModule }
     catch (e) { this.state.status = 'unavailable'; this.state.error = `SmartSpectra SDK not available: ${(e as Error).message.slice(0, 160)}`; this.state.guidance = this.state.error; return this.state }
     const validationNames = Object.fromEntries(Object.entries(mod.ValidationCode).map(([k, v]) => [v, k.replace(/^k/, '')]))
     const statusNames = Object.fromEntries(Object.entries(mod.ProcessingStatus).map(([k, v]) => [v, k.replace(/^k/, '').toLowerCase()]))
+    let sdk: Sdk | null = null
     try {
-      const sdk = new mod.SmartSpectraSDK({ apiKey: key, requestedMetrics: [...new Set([...mod.breathingMetrics, ...mod.cardioMetrics])], enableTelemetry: false, enableAccumulatedOutput: false })
+      sdk = new mod.SmartSpectraSDK({ apiKey: key, requestedMetrics: [...new Set([...mod.breathingMetrics, ...mod.cardioMetrics])], enableTelemetry: false, enableAccumulatedOutput: false })
       sdk.on('processingStatus', ((status: number) => { const name = statusNames[status] ?? `status ${status}`; this.state.status = name === 'running' ? 'running' : this.state.status === 'error' ? 'error' : 'starting'; this.state.validation = name }) as never)
       sdk.on('validationStatus', ((code: number, _ts: number, hint: string) => { this.state.validation = validationNames[code] ?? `code ${code}`; this.state.guidance = hint || (this.state.validation === 'Ok' ? 'Good measurement' : this.state.validation) }) as never)
       sdk.on('metrics', ((buf: Buffer) => { try { this.ingest(mod.decodeMetrics(buf) as DecodedMetrics) } catch (e) { this.state.guidance = `could not decode metrics: ${(e as Error).message}` } }) as never)
@@ -196,6 +215,8 @@ export class VitalsBridge {
       sdk.start()
       this.sdk = sdk
     } catch (e) {
+      // A failed start must not leave a live native instance behind.
+      if (sdk) { try { await sdk.destroy() } catch { /* never started */ } }
       const message = (e as Error).message.slice(0, 200)
       // "input is unavailable" is what the SDK says when it cannot open any camera at all.
       this.state.status = 'error'

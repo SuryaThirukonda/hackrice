@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyMetrics, demoMetrics, emptyVitals, toMs, VitalsBridge } from './vitals'
+import { applyMetrics, demoMetrics, emptyVitals, listCameras, toMs, VitalsBridge } from './vitals'
 
 const us = (ms: number): number => ms * 1000
 const pulse = (value: number, at: number, stable = true, confidence = 90) => ({ cardio: { pulseRate: [{ value, stable, confidence, timestamp: us(at) }] } })
@@ -60,5 +60,15 @@ describe('VitalsBridge', () => {
     const s = await b.start({})
     expect(s.status).toBe('error'); expect(s.error).toContain('PRESSAGE_KEY')
     await b.stop()
+  })
+  it('lists what the OS exposes, and on a machine with no device refuses to start the native runtime', async () => {
+    const cams = listCameras()
+    expect(typeof cams.checked).toBe('boolean')
+    if (cams.checked && cams.devices.length === 0) {
+      const b = new VitalsBridge(() => 'a-key')
+      const s = await b.start({})
+      expect(s.status).toBe('error'); expect(s.error).toContain('No camera device')
+      await b.stop()
+    }
   })
 })
