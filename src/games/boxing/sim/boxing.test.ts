@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BoxingMatch } from './match'
-import { BODY_GAP, BLOCK_DMG_MUL, DODGE_COOLDOWN, DT, FRAME, FRICTION, GUARD_RECOVER_STAMINA, HZ, RING_HALF, START_DIST, STAGGER_DMG, STAMINA_MAX } from './constants'
+import { REGEN_IDLE, REGEN_GUARD_MUL, BODY_GAP, BLOCK_DMG_MUL, DODGE_COOLDOWN, DT, FRAME, FRICTION, GUARD_RECOVER_STAMINA, HZ, RING_HALF, START_DIST, STAGGER_DMG, STAMINA_MAX } from './constants'
 import { TIERS } from './tiers'
 import { Rng } from './rng'
 import { cmd, IDLE, type Command, type SimEvent } from './types'
@@ -132,21 +132,25 @@ describe('block and guard', () => {
     const open = fighting(); place(open, 1.0)
     const dOpen = punches(run(open, 60, once(cmd({ punch: 'cross' }))))[0].dmg
     const m = fighting(); place(m, 1.0)
+    m.b.stamina = 50 // below the cap, so the refill on both runs is comparable
     const st0 = m.b.stamina, hp0 = m.b.hp
     const ev = run(m, 60, once(cmd({ punch: 'cross' })), cmd({ block: true }))
     const p = punches(ev)[0]
     expect(p.result).toBe('blocked')
     expect(p.dmg).toBeLessThanOrEqual(dOpen * BLOCK_DMG_MUL + 1e-9)
     expect(hp0 - m.b.hp).toBeLessThan(dOpen * 0.2)
-    expect(st0 - m.b.stamina).toBeGreaterThanOrEqual(FRAME.cross.blockCost)
+    // the refill runs while guarding, so isolate the block's cost against a guard held with nothing thrown
+    const idle = fighting(); place(idle, 1.0); idle.b.stamina = st0
+    run(idle, 60, null, cmd({ block: true }))
+    expect(idle.b.stamina - m.b.stamina).toBeCloseTo(FRAME.cross.blockCost, 0)
     expect(m.a.stamina).toBeLessThanOrEqual(STAMINA_MAX - FRAME.cross.stamina + 5)
   })
   it('the guard breaks at zero stamina, the next punch lands even with block held, and recovers at 15 stamina', () => {
     const m = fighting(); place(m, 0.9)
-    m.b.stamina = 6
+    m.b.stamina = 1 // a held guard refills, so it has to be nearly empty to break
     const ev = run(m, IMPACT('cross'), once(cmd({ punch: 'cross' })), cmd({ block: true }))
     expect(ev.some((e) => e.kind === 'guard_break')).toBe(true)
-    expect(m.b.stamina).toBe(0)
+    expect(m.b.stamina).toBeLessThan(1) // broken at zero, then the refill starts again
     expect(m.b.state).toBe('stagger')
     expect(m.b.guard).toBe(false)
     run(m, 48, IDLE, cmd({ block: true })) // a finishes recovering while b is still staggered / guard-broken
@@ -187,7 +191,7 @@ describe('stagger, hitstun, stamina', () => {
     expect(ps.some((p) => p.who === 'a' && p.result === 'hit')).toBe(true)
     expect(ps.some((p) => p.who === 'b')).toBe(false)
   })
-  it('stamina: punches cost, idle regen is 18/s, gassed fighters cannot punch, tired punches are slow and weak', () => {
+  it('stamina: punches cost, idle regen is 40/s, gassed fighters cannot punch, tired punches are slow and weak', () => {
     const m = fighting(); place(m, 1.0)
     run(m, 2, once(cmd({ punch: 'jab' })))
     expect(m.a.stamina).toBeCloseTo(STAMINA_MAX - FRAME.jab.stamina, 5)
@@ -195,7 +199,7 @@ describe('stagger, hitstun, stamina', () => {
     m.a.stamina = 50
     const s0 = m.a.stamina
     run(m, HZ)
-    expect(m.a.stamina - s0).toBeCloseTo(18, 1)
+    expect(m.a.stamina - s0).toBeCloseTo(REGEN_IDLE, 0)
     m.a.stamina = 3
     const ev = run(m, 5, once(cmd({ punch: 'jab' })))
     expect(ev.some((e) => e.kind === 'gassed')).toBe(true)
@@ -300,16 +304,13 @@ describe('bots', () => {
     }
     expect(defended('champ')).toBeGreaterThan(defended('rookie'))
   })
-  it('a tired bot steps back briefly, guards only against a windup, then comes forward again', () => {
-    const m = new BoxingMatch({ seed: 2, botA: null, botB: TIERS.pro })
-    while (m.phase === 'countdown') m.step(IDLE)
+  it('a bot never retreats: low stamina never produces a step back, only guard, dodges and punches', () => {
+    const m = new BoxingMatch({ seed: 5, botA: null, botB: TIERS.pro })
+    while (m.phase !== 'fighting') m.step(null, null)
     m.b.stamina = 10
-    const c = m.botB!.decide(m.b, m.a, m.distance(), m.tick, m.rng)
-    expect(c.forward).toBe(-1)
-    expect(c.block).toBe(false)
-    expect(m.botB!.mode).toBe('retreat')
-    for (let i = 0; i < TIERS.pro.retreatTicks + 2; i++) m.botB!.decide(m.b, m.a, m.distance(), m.tick + i, m.rng)
-    expect(m.botB!.mode).toBe('approach')
+    let backSteps = 0
+    for (let i = 0; i < 600; i++) { const c = m.botB!.decide(m.b, m.a, m.distance(), m.tick + i, m.rng); if (c.forward < 0) backSteps++ }
+    expect(backSteps).toBe(0)
   })
   it('bot vs bot completes 20 seeded matches with all invariants intact', () => {
     for (let seed = 1; seed <= 20; seed++) {
@@ -330,7 +331,7 @@ describe('bots', () => {
 
 describe('fight feel: bot pressure, cadence, stamina economy', () => {
   const perMinute = (tier: keyof typeof TIERS, seeds = [1, 2, 3, 4]) => {
-    let punches = 0, ticks = 0, retreat = 0, closeBy = 0, bells = 0
+    let punches = 0, ticks = 0, closeBy = 0, bells = 0
     for (const seed of seeds) {
       const m = new BoxingMatch({ seed, botA: null, botB: TIERS[tier], roundS: 60, restS: 1 })
       let sinceBell = -1
@@ -338,14 +339,13 @@ describe('fight feel: bot pressure, cadence, stamina economy', () => {
         m.step(cmd({ forward: m.distance() > 1.05 ? 1 : 0, block: m.b.state === 'windup', punch: m.tick % 150 === 0 ? 'jab' : null }))
         ticks++
         for (const e of m.events) { if (e.kind === 'windup' && e.who === 'b') punches++; if (e.kind === 'bell' && !e.end) { bells++; sinceBell = 0 } }
-        if (m.phase === 'fighting') { if (m.botB!.mode === 'retreat') retreat++; if (sinceBell >= 0) { sinceBell++; if (sinceBell === 120 * 3 && m.distance() <= FRAME.jab.reach + 0.05) closeBy++ } }
+        if (m.phase === 'fighting') { if (sinceBell >= 0) { sinceBell++; if (sinceBell === 120 * 3 && m.distance() <= FRAME.jab.reach + 0.05) closeBy++ } }
       }
     }
-    return { ppm: (punches / (ticks / 120)) * 60, retreatShare: retreat / ticks, closeRate: closeBy / bells }
+    return { ppm: (punches / (ticks / 120)) * 60, closeRate: closeBy / bells }
   }
-  it('the bot comes forward: little time retreating and in reach shortly after each bell', () => {
+  it('the bot comes forward: in reach shortly after each bell', () => {
     const r = perMinute('rookie')
-    expect(r.retreatShare).toBeLessThan(0.3)
     expect(r.closeRate).toBeGreaterThan(0.6)
   })
   it('punches per minute sit in the tier bands', () => {
@@ -353,21 +353,18 @@ describe('fight feel: bot pressure, cadence, stamina economy', () => {
     expect(perMinute('champ').ppm).toBeGreaterThan(perMinute('rookie').ppm)
     expect(perMinute('champ').ppm).toBeLessThan(36) // refill is 18/s and footwork is free, so a champ boxes at pace
   })
-  it('stamina is a real limiter: a long run of jabs is refused, and a long guard drains the bar slowly', () => {
+  it('stamina is a real limiter: a long run of jabs is refused, and a held guard refills at half rate', () => {
     const m = fighting(); place(m, 2.5) // out of reach so nothing lands; only costs matter
-    let refused = 0, thrown = 0
-    // Refill is quick between exchanges but pauses while a punch is in flight, so a fighter who never
-    // stops jabbing still runs dry: thirty attempts at 9 stamina each cannot all be paid for.
-    for (let i = 0; i < 30; i++) {
-      const ev = run(m, 42, once(cmd({ punch: 'jab' }))) // one jab per 42 ticks (its full windup + active + recover)
-      if (ev.some((e) => e.kind === 'gassed')) refused++
-      if (ev.some((e) => e.kind === 'windup')) thrown++
-    }
+    // Refill is quick between exchanges but pauses for the whole punch (windup, active, recover), so a
+    // fighter holding the jab button down still runs dry: the next jab starts the moment the arm is free.
+    const ev = run(m, 42 * 30, cmd({ punch: 'jab' }))
+    const thrown = ev.filter((e) => e.kind === 'windup').length
+    const refused = ev.filter((e) => e.kind === 'gassed').length
     expect(thrown).toBeLessThanOrEqual(24)
     expect(refused).toBeGreaterThanOrEqual(1)
     const g = fighting(); place(g, 2.5)
-    const s0 = g.a.stamina
-    run(g, HZ * 10, cmd({ block: true }))
-    expect(s0 - g.a.stamina).toBeCloseTo(10, 0) // net 1 per second while guarding
+    g.a.stamina = 40
+    run(g, HZ, cmd({ block: true }))
+    expect(g.a.stamina - 40).toBeCloseTo(REGEN_IDLE * REGEN_GUARD_MUL, 0) // a held guard still refills, at half rate
   })
 })

@@ -66,9 +66,7 @@ export type Phase = 'countdown' | 'fighting' | 'count' | 'rest' | 'decision' | '
 export interface BotParams {
   reactionTicks: number; reactionJitter: number
   blockP: number; dodgeP: number; duckP: number; counterP: number
-  aggression: number; comboGap: number; patterns: PunchKind[][]
-  retreatStamina: number; circleP: number; stepInP: number
-  retreatTicks: number; comboRest: number
+  aggression: number; comboGap: number; patterns: PunchKind[][]; circleP: number; stepInP: number; comboRest: number
 }
 
 export interface MatchConfig { seed: number; rounds?: number; roundS?: number; restS?: number; botA?: BotParams | null; botB?: BotParams | null }

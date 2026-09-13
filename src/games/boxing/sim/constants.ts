@@ -32,8 +32,9 @@ export const MOMENTUM_KNOCK = 0.6
 export const STAGGER_BONUS = 1.25
 export const BLOCK_DMG_MUL = 0.15
 export const BLOCK_KNOCK_MUL = 0.35
-export const BLOCK_HOLD_DRAIN = 4 // stamina per second while guard is up
-export const REGEN_GUARD = 3 // stamina per second regained while guarding (net -1/s with the hold drain)
+/** A held guard still refills, at this fraction of the resting rate. Blocking a punch is what costs
+ *  stamina (each absorbed punch's blockCost), holding the guard up is not. */
+export const REGEN_GUARD_MUL = 0.5
 export const GUARD_BREAK_STAGGER = 60
 export const GUARD_RECOVER_STAMINA = 15
 export const STAGGER_DMG = 11
@@ -54,8 +55,9 @@ export const HEAD_LERP = 0.25
 
 // stamina
 export const STAMINA_MAX = 100
-/** Per second at rest or while moving. Moving costs nothing: only punches, blocks and dodges spend stamina. */
-export const REGEN_IDLE = 18
+/** Per second, in every state except the punch itself (windup, active, recover) and being down. Moving costs
+ *  nothing; only punches, absorbed blocks and dodges spend stamina. Empty to full in two and a half seconds. */
+export const REGEN_IDLE = 40
 export const FATIGUE_KNEE = 30
 export const GETUP_STAMINA = 40
 export const REST_STAMINA = 45

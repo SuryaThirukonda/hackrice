@@ -13,7 +13,7 @@ export function instructions(sport: Sport, persona: string): string {
   if (sport === 'boxing') {
     return `${base}
 Stamina decides this fight. jab -9, cross -16, dodge -4, guard -1/s; regen +8/s resting, +3/s guarding. A punch you cannot afford is REFUSED and wasted.
-Never spend more than the BUDGET line allows, and never script more than 3 punches. Below 15 stamina throw nothing: block_on, out, recover. Stamina refills fast (18/s at rest, footwork is free, a clean dodge refunds more than it cost), so above 15 keep the pressure on rather than backing off.
+Never spend more than the BUDGET line allows, and never script more than 3 punches. Below 15 stamina throw nothing: block_on, duck, recover. There is no way to back away: you dodge, block, duck or punch. Stamina refills very fast (40/s, half that with the guard up, footwork is free, a clean dodge refunds more than it cost), so above 15 keep the pressure on.
 Reach: jab 1.2 m, cross 1.3 m. Farther than that, step 'in' first or you punch air. 'in' before a cross adds damage.
 Pair every punch with a dodge (swayL/swayR/duck) or block_on. Script the next 2.5 s.`
   }

@@ -14,8 +14,9 @@ export const SCRIPT_BUDGET = 0.6
 export const RECOVER_BELOW = 15
 /** Hard ceiling regardless of stamina, so a fresh fighter still boxes instead of flailing. */
 export const MAX_PUNCHES = 3
-export type BoxAction = 'jab' | 'cross' | 'block_on' | 'block_off' | 'swayL' | 'swayR' | 'duck' | 'in' | 'out' | 'left' | 'right' | 'idle'
-export const BOX_ACTIONS: BoxAction[] = ['jab', 'cross', 'block_on', 'block_off', 'swayL', 'swayR', 'duck', 'in', 'out', 'left', 'right', 'idle']
+/** No 'out': an agent may dodge, block, duck or punch, never back away. */
+export type BoxAction = 'jab' | 'cross' | 'block_on' | 'block_off' | 'swayL' | 'swayR' | 'duck' | 'in' | 'left' | 'right' | 'idle'
+export const BOX_ACTIONS: BoxAction[] = ['jab', 'cross', 'block_on', 'block_off', 'swayL', 'swayR', 'duck', 'in', 'left', 'right', 'idle']
 export interface BoxStep { at_ms: number; do: BoxAction }
 export interface BoxScript { steps: BoxStep[]; taunt?: string }
 export interface BowlShot { lane_pos: number; angle_deg: number; power: number; hook: number; taunt?: string }
@@ -75,7 +76,7 @@ export function affordable(steps: BoxStep[], stamina?: number): BoxStep[] {
     kept.push(s)
   }
   // An all-punch script that is now empty would leave the fighter idle and open, so make it a recovery beat.
-  if (!kept.length) return [{ at_ms: 0, do: 'block_on' }, { at_ms: 250, do: 'out' }, { at_ms: 1800, do: 'block_off' }]
+  if (!kept.length) return [{ at_ms: 0, do: 'block_on' }, { at_ms: 600, do: 'duck' }, { at_ms: 1800, do: 'block_off' }]
   return kept
 }
 

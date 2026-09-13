@@ -27,10 +27,8 @@ export function boxingParams(d: Difficulty): BotParams {
     counterP: lerp(0.05, 0.85, d.accuracy),
     aggression: lerp(0.2, 0.65, d.aggression),
     comboGap: Math.round(lerp(44, 16, d.aggression)),
-    retreatTicks: Math.round(lerp(200, 100, d.accuracy)),
     comboRest: Math.round(lerp(260, 100, d.aggression)),
     patterns: d.power > 0.66 ? TIERS.champ.patterns : d.power > 0.33 ? TIERS.pro.patterns : base.patterns,
-    retreatStamina: Math.round(lerp(22, 36, d.accuracy)),
     circleP: lerp(0.05, 0.5, d.accuracy),
     stepInP: lerp(0.2, 0.9, d.power),
   }

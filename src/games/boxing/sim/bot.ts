@@ -3,7 +3,7 @@ import type { Rng } from './rng'
 import type { BotParams, Command, DodgeKind, Fighter, PunchKind } from './types'
 import { cmd } from './types'
 
-type Mode = 'approach' | 'engage' | 'retreat' | 'react'
+type Mode = 'approach' | 'engage' | 'react'
 
 /** Deterministic opponent. Reads public fighter state and emits the same Command a human would. */
 export class Bot {
@@ -18,8 +18,6 @@ export class Bot {
   strafeDir: -1 | 1 = 1
   holdBlockT = 0
   dodged = false
-  retreatT = 0      // ticks left in the current retreat
-  retreatCd = 0     // ticks until another retreat is allowed
   restT = 0         // ticks of rest after a combo before planning the next
   constructor(p: BotParams) { this.p = p }
   setParams(p: BotParams): void { this.p = p }
@@ -47,17 +45,12 @@ export class Bot {
     }
     if (this.holdBlockT > 0) { c.block = true; this.holdBlockT-- }
 
-    if (this.retreatCd > 0) this.retreatCd--
     if (this.restT > 0) this.restT--
-    // retreat is a short breather, not a state to live in: bounded, with a cooldown, and the guard only comes up against a windup
-    if (this.mode !== 'retreat' && this.retreatCd === 0 && me.stamina < p.retreatStamina) { this.mode = 'retreat'; this.retreatT = p.retreatTicks; this.retreatCd = p.retreatTicks + 480 }
+    // There is no retreat mode: a bot dodges, blocks, ducks or punches. Stamina refills fast enough that
+    // a breather never needs to be a place to stand.
 
     const reach = FRAME.jab.reach
     switch (this.mode) {
-      case 'retreat':
-        c.forward = -1; c.strafe = this.strafeDir; c.block = opp.state === 'windup'
-        if (--this.retreatT <= 0) this.mode = 'approach'
-        return c
       case 'approach':
         c.forward = dist > reach - 0.12 ? 1 : 0
         if (rng.next() < p.circleP * 0.05) this.strafeDir = this.strafeDir === 1 ? -1 : 1

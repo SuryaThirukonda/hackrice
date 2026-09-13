@@ -1,4 +1,4 @@
-import { BLOCK_HOLD_DRAIN, REGEN_GUARD, CANCEL_WINDOW, COUNTDOWN_STEP, COUNT_TICKS, DODGE_COOLDOWN, DODGE_STAMINA, DODGE_TICKS, DT, FRAME, GETUP_COUNT, GETUP_STAMINA, GETUP_TICKS, GUARD_MOVE_MUL, GUARD_RECOVER_STAMINA, HEAD_DUCK, HEAD_SWAY, KD_LIMIT_ROUND, MOVE_BACK, MOVE_FWD, MOVE_STRAFE, PUNCH_CARRY, REGEN_IDLE, REST_S, REST_STAMINA, ROUNDS, ROUND_S, STAMINA_MAX, START_DIST, SWAY_SLIDE, ticks } from './constants'
+import { CANCEL_WINDOW, COUNTDOWN_STEP, COUNT_TICKS, DODGE_COOLDOWN, DODGE_STAMINA, DODGE_TICKS, DT, FRAME, GETUP_COUNT, GETUP_STAMINA, GETUP_TICKS, GUARD_MOVE_MUL, GUARD_RECOVER_STAMINA, HEAD_DUCK, HEAD_SWAY, KD_LIMIT_ROUND, MOVE_BACK, MOVE_FWD, MOVE_STRAFE, PUNCH_CARRY, REGEN_GUARD_MUL, REGEN_IDLE, REST_S, REST_STAMINA, ROUNDS, ROUND_S, STAMINA_MAX, START_DIST, SWAY_SLIDE, ticks } from './constants'
 import { Bot } from './bot'
 import { canMove, createFighter, setState } from './fighter'
 import { clampRopes, dist, facing, integrate, rightOf, separate } from './physics'
@@ -8,6 +8,13 @@ import type { Command, Fighter, FighterView, Flags, MatchConfig, MatchResult, Ph
 import { IDLE } from './types'
 
 /** Deterministic boxing match: fixed 120 Hz steps, integer-tick timers, one seeded RNG. */
+/** Two fighters may not back away in the same tick: the fight would drift apart and stall. The one with
+ *  less stamina keeps the step (they need the room more); on a tie, A does. Deterministic and replayable. */
+export function resolveBackSteps(ca: Command, cb: Command, staminaA: number, staminaB: number): [Command, Command] {
+  if (ca.forward >= 0 || cb.forward >= 0) return [ca, cb]
+  return staminaB < staminaA ? [{ ...ca, forward: 0 }, cb] : [ca, { ...cb, forward: 0 }]
+}
+
 export class BoxingMatch {
   readonly a: Fighter
   readonly b: Fighter
@@ -79,8 +86,9 @@ export class BoxingMatch {
     const cb = cmdB ?? (this.botB ? this.botB.decide(this.b, this.a, d, this.tick, this.rng) : IDLE)
     const dirA = this.dir, dirB = { x: -this.dir.x, z: -this.dir.z }
     const hpA = this.a.hp, hpB = this.b.hp
-    this.applyCommand(this.a, ca, dirA)
-    this.applyCommand(this.b, cb, dirB)
+    const [ra, rb] = resolveBackSteps(ca, cb, this.a.stamina, this.b.stamina)
+    this.applyCommand(this.a, ra, dirA)
+    this.applyCommand(this.b, rb, dirB)
     this.advanceState(this.a); this.advanceState(this.b)
     const sa = snapDefender(this.a), sb = snapDefender(this.b)
     this.tryResolve(this.a, this.b, sb, dirA)
@@ -152,8 +160,10 @@ export class BoxingMatch {
   }
 
   private stamina(f: Fighter): void {
-    if (f.guard) f.stamina = Math.max(1, f.stamina - (BLOCK_HOLD_DRAIN - REGEN_GUARD) * DT)
-    else if (f.state === 'idle') f.stamina = Math.min(STAMINA_MAX, f.stamina + REGEN_IDLE * DT) // footwork is free
+    // Refill runs whenever the fighter is not mid-punch (windup, active, recover) or on the canvas; footwork is free, a held guard
+    // refills at half rate. Only punches, absorbed blocks and dodges take stamina away.
+    const busy = f.state === 'windup' || f.state === 'active' || f.state === 'recover' || f.state === 'down' || f.state === 'getup'
+    if (!busy) f.stamina = Math.min(STAMINA_MAX, f.stamina + REGEN_IDLE * (f.guard ? REGEN_GUARD_MUL : 1) * DT)
     if (f.guardBroken && f.stamina >= GUARD_RECOVER_STAMINA) f.guardBroken = false
   }
 

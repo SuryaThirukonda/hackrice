@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BoxingMatch } from './match'
+import { BoxingMatch, resolveBackSteps } from './match'
 import { DODGE_REWARD, DODGE_STAMINA, HZ, REGEN_IDLE, STAMINA_MAX } from './constants'
 import { cmd } from './types'
 
@@ -30,10 +30,21 @@ describe('pace: stamina rules that keep a fight moving', () => {
     expect(m.a.landed).toBe(0) // the jab whiffed
     // net effect of the evading dodge: paid the cost, got the reward, plus a little regen once idle again
     expect(m.b.stamina).toBeGreaterThan(startedAt - DODGE_STAMINA + DODGE_REWARD - 1)
-    // a dodge with nobody punching is just the cost; a dodging fighter is not idle, so no refill that tick
+    // a dodge with nobody punching is just the cost, plus the refill that never stops outside a punch
     const n = inReach(); n.b.stamina = 50
     n.step(null, cmd({ dodge: 'swayR' }))
-    expect(n.b.stamina).toBeCloseTo(50 - DODGE_STAMINA, 5)
+    expect(n.b.stamina).toBeCloseTo(50 - DODGE_STAMINA + REGEN_IDLE / HZ, 1)
     expect(Math.min(STAMINA_MAX, 50 + DODGE_REWARD)).toBeGreaterThan(50)
+  })
+  it('two fighters cannot both back away in the same tick: the lower-stamina one keeps the step, ties go to A', () => {
+    const back = cmd({ forward: -1 }), fwd = cmd({ forward: 1 })
+    const [a1, b1] = resolveBackSteps(back, back, 80, 30)
+    expect(a1.forward).toBe(0); expect(b1.forward).toBe(-1)
+    const [a2, b2] = resolveBackSteps(back, back, 30, 80)
+    expect(a2.forward).toBe(-1); expect(b2.forward).toBe(0)
+    const [a3, b3] = resolveBackSteps(back, back, 50, 50)
+    expect(a3.forward).toBe(-1); expect(b3.forward).toBe(0)
+    const [a4, b4] = resolveBackSteps(back, fwd, 50, 50)
+    expect(a4).toBe(back); expect(b4).toBe(fwd); expect(back.forward).toBe(-1)
   })
 })

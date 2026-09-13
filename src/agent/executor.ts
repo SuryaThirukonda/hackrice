@@ -30,7 +30,6 @@ export class ScriptExecutor {
         case 'block_on': this.block = true; break
         case 'block_off': this.block = false; break
         case 'in': this.forward = 1; break
-        case 'out': this.forward = -1; break
         case 'left': this.strafe = -1; break
         case 'right': this.strafe = 1; break
         case 'idle': this.forward = 0; this.strafe = 0; this.block = false; break
