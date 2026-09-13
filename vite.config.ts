@@ -6,7 +6,9 @@ import { cloudflareTunnel } from './scripts/tunnelPlugin.mjs'
 /** The agent service on :8790 owns the OpenAI bot and the phone relay; the browser never sees its key. */
 const PROXY = {
   '/agent': { target: 'http://localhost:8790', ws: true, changeOrigin: true },
-  '/health': { target: 'http://localhost:8790', changeOrigin: true },
+  // Anchored: a bare prefix would also capture the lab pages (/vitals.html) and send them to the service.
+  '^/health(/|$)': { target: 'http://localhost:8790', changeOrigin: true },
+  '^/vitals(/|$)': { target: 'http://localhost:8790', changeOrigin: true },
   '/controller-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
   '/controller-game-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
 }
@@ -30,6 +32,7 @@ export default defineConfig({
         controller: resolve(__dirname, 'controller.html'),
         join: resolve(__dirname, 'join.html'),
         motion: resolve(__dirname, 'motion.html'),
+        vitals: resolve(__dirname, 'vitals.html'),
       },
     },
   } })

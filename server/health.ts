@@ -58,6 +58,8 @@ export class HealthStore {
       );
       create index if not exists epochs_session on epochs(session_id, t);
       create table if not exists swings (session_id integer not null references sessions(id) on delete cascade, rom real not null);
+      create table if not exists vitals (at integer not null, pulse real, breathing real, hrv_rmssd real, confidence real not null);
+      create index if not exists vitals_at on vitals(at);
     `)
   }
 
@@ -137,7 +139,15 @@ export class HealthStore {
     }
   }
 
-  clear(): void { this.db.exec('delete from swings; delete from epochs; delete from sessions;') }
+  /** A camera reading that passed the stability gate. */
+  addVital(r: { at: number; pulse: number | null; breathing: number | null; hrvRmssd: number | null; confidence: number }): void {
+    this.db.prepare('insert into vitals (at, pulse, breathing, hrv_rmssd, confidence) values (?, ?, ?, ?, ?)').run(r.at, r.pulse, r.breathing, r.hrvRmssd, r.confidence)
+  }
+  vitalsHistory(sinceMs: number): { at: number; pulse: number | null; breathing: number | null; hrvRmssd: number | null }[] {
+    return this.db.prepare('select at, pulse, breathing, hrv_rmssd from vitals where at >= ? order by at').all(sinceMs)
+      .map((r) => { const x = r as Record<string, number | null>; return { at: Number(x.at), pulse: x.pulse, breathing: x.breathing, hrvRmssd: x.hrv_rmssd } })
+  }
+  clear(): void { this.db.exec('delete from vitals; delete from swings; delete from epochs; delete from sessions;') }
   close(): void { this.db.close() }
 }
 

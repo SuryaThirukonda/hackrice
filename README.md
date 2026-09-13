@@ -64,6 +64,21 @@ the agent service and never shared). Keyboard-only matches are recorded as such,
 Active minutes and swings are measured. Calories use the standard MET-based formula with a body weight
 set on the tab (70 kg by default) and are estimates. Nothing here is a medical measurement.
 
+## Camera vitals (Presage)
+
+<http://localhost:5174/vitals.html> is a test page for the camera reading: pulse rate, breathing rate
+with a live waveform, heart-rate variability labelled as uncleared, a resting baseline with exertion
+and recovery derived from it, and the phone's movement beside them. It starts nothing until the person
+in front of the camera ticks the consent box; a demo source runs the same pipeline without a camera.
+
+The reading runs inside the agent service through Presage's SmartSpectra Node SDK, a native binding
+that opens the laptop camera itself and runs headless. The key is `PRESSAGE_KEY` in `.env` and never
+reaches the browser. Frames are not stored; the SDK sends preprocessed signal data to Presage's service.
+Note that `npm install` fetches the SDK's native runtime for every platform, a few hundred megabytes.
+
+The subject must be still, so this is for the lobby and the breaks between rounds, never mid-swing.
+These are wellness readings by the vendor's own terms, not measurements for diagnosis or treatment.
+
 ## Testing the controller
 
 <http://localhost:5174/motion.html> is a motion lab for the big screen, because you cannot read a

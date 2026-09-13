@@ -2,6 +2,7 @@
 import { createServer, type IncomingMessage } from 'node:http'
 import { mkdirSync } from 'node:fs'
 import { HealthStore } from './health'
+import { VitalsBridge } from './vitals'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import OpenAI from 'openai'
@@ -40,6 +41,9 @@ const json = (res: import('node:http').ServerResponse, code: number, body: unkno
 // Local movement history for the health tab. Lives beside the repo in data/, which is git-ignored.
 mkdirSync('data', { recursive: true })
 const health = new HealthStore('data/health.sqlite')
+// Camera vitals. Off until the test page or the game turns it on; readings that pass the gate are kept locally.
+const vitals = new VitalsBridge(() => process.env.PRESSAGE_KEY || process.env.PRESAGE_KEY || process.env.PRESAGE_API_KEY || '')
+vitals.onReading = (r) => health.addVital(r)
 const readJson = (req: IncomingMessage): Promise<Record<string, unknown>> => new Promise((resolve) => {
   let raw = ''
   req.on('data', (chunk: Buffer) => { raw += chunk.toString('utf8'); if (raw.length > 1_000_000) req.destroy() })
@@ -50,6 +54,16 @@ const sportOf = (v: unknown): 'boxing' | 'bowling' | 'golf' | null => (v === 'bo
 
 const server = createServer(async (req, res) => {
   const url = req.url ?? '/'
+  if (url.startsWith('/vitals')) {
+    const path = new URL(url, 'http://localhost').pathname
+    const q = new URL(url, 'http://localhost').searchParams
+    if (req.method === 'GET' && path === '/vitals') return json(res, 200, vitals.state)
+    if (req.method === 'GET' && path === '/vitals/history') return json(res, 200, health.vitalsHistory(Date.now() - Math.max(1, Math.min(24 * 60, Number(q.get('minutes') ?? 30))) * 60_000))
+    if (req.method === 'POST' && path === '/vitals/start') { const b = await readJson(req); return json(res, 200, await vitals.start({ cameraIndex: Number.isFinite(Number(b.cameraIndex)) ? Number(b.cameraIndex) : 0, demo: b.demo === true })) }
+    if (req.method === 'POST' && path === '/vitals/stop') return json(res, 200, await vitals.stop())
+    if (req.method === 'OPTIONS') return json(res, 204, {})
+    return json(res, 404, { error: 'not_found' })
+  }
   if (url.startsWith('/health')) {
     const path = new URL(url, 'http://localhost').pathname
     const q = new URL(url, 'http://localhost').searchParams

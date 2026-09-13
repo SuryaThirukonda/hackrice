@@ -306,6 +306,7 @@ export default function MotionLab(): React.ReactElement {
     <footer>
       <a href="/">Big screen</a>
       <a href="/join.html">Join page</a>
+      <a href="/vitals.html">Vitals lab</a>
       <button type="button" onClick={() => setLog([])}>Clear events</button>
     </footer>
   </main>
