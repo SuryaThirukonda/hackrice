@@ -30,20 +30,20 @@ export class BoxingWorld {
   private stepPhase = 0
   private t = 0
   private engine: Engine3D
-  constructor(engine: Engine3D, oppColor = P.red, spectator = false, model: BoxerModel = 'beginner') {
+  constructor(engine: Engine3D, oppColor = P.red, spectator = false, model: BoxerModel = 'beginner', fighters?: [{ model?: BoxerModel; color: number }, { model?: BoxerModel; color: number }]) {
     this.engine = engine
     this.spectator = spectator
     this.root = engine.newWorld('boxing')
     const batch = { stat: engine.batchGroup('ring-static', false, 60), crowd: engine.batchGroup('ring-crowd', true, 60) }
     this.ring = new RingScene(this.root, engine.app.graphicsDevice, batch)
     this.fx = new Fx(this.root)
-    this.opp = new OpponentRig(this.root, oppColor, P.red, engine.app.graphicsDevice, model)
+    this.opp = new OpponentRig(this.root, fighters?.[1].color ?? oppColor, fighters?.[1].color ?? P.red, engine.app.graphicsDevice, fighters?.[1].model ?? model)
     engine.camera.parent?.removeChild(engine.camera)
     this.cam = new CameraRig(this.root, engine.camera, EYE_H)
     this.arms = new PlayerArms(engine.camera, P.blue, engine.app.graphicsDevice)
     if (spectator) {
       this.arms.root.enabled = false
-      this.rigA = new OpponentRig(this.root, P.blue, P.red, engine.app.graphicsDevice)
+      this.rigA = new OpponentRig(this.root, fighters?.[0].color ?? P.blue, fighters?.[0].color ?? P.red, engine.app.graphicsDevice, fighters?.[0].model ?? 'pro')
       engine.camera.parent?.removeChild(engine.camera)
       this.ringside = new Entity('ringside')
       this.root.addChild(this.ringside)

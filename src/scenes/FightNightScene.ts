@@ -6,11 +6,11 @@ import { sfx } from '../fx/sfx'
 import { Book, START_CHIPS } from '../betting/book'
 import { fetchChipSummary, startingChips } from '../betting/ledger'
 
-export const PERSONAS: { name: string; style: string; color: number }[] = [
-  { name: 'Knuckles McGraw', style: 'a relentless brawler who walks forward and throws heavy crosses', color: P.red },
-  { name: 'The Professor', style: 'a patient counter-puncher who blocks, dodges, and punishes mistakes', color: P.blue },
-  { name: 'Lucky Lou', style: 'a flashy showboat who sways a lot and taunts constantly', color: P.gold },
-  { name: 'Iron Maggie', style: 'a stamina monster who never stops jabbing', color: P.green },
+export const PERSONAS: import('../games/boxing/BoxingScene').Persona[] = [
+  { name: 'Knuckles McGraw', model: 'pro', style: 'a relentless brawler who walks forward and throws heavy crosses', color: P.red },
+  { name: 'The Professor', model: 'alien', style: 'a patient counter-puncher who blocks, dodges, and punishes mistakes', color: P.blue },
+  { name: 'Lucky Lou', model: 'lizard', style: 'a flashy showboat who sways a lot and taunts constantly', color: P.gold },
+  { name: 'Iron Maggie', model: 'robot', style: 'a stamina monster who never stops jabbing', color: P.green },
 ]
 export const CHIPS_KEY = 'hap.v2.chips'
 export function loadChips(): number { try { const v = Number(localStorage.getItem(CHIPS_KEY)); return Number.isFinite(v) && v > 0 ? v : START_CHIPS } catch { return START_CHIPS } }

@@ -1,16 +1,17 @@
 import Phaser from 'phaser'
+import { TIERS } from '../games/boxing/sim/tiers'
 import { ComicBackdrop, ComicButton, comicPanel, ensureTextures } from '../ui/widgets'
 import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
-import { bowlingParams, boxingParams, golfParams, loadSettings, PRESETS, randomSeed, saveSettings, SLIDER_KEYS, type Difficulty, type GameSettings, type Preset } from '../agent/sliders'
+import { bowlingParams, golfParams, loadSettings, PRESETS, randomSeed, saveSettings, SLIDER_KEYS, type Difficulty, type GameSettings, type Preset } from '../agent/sliders'
 import { COURSES, courseById, type CourseId } from '../games/golf/sim/courses'
 import { controllerInput } from '../input/controller'
 import { openControllerConnect } from './ControllerScene'
 
 export interface PreFightData { game: 'boxing' | 'bowling' | 'golf'; mode?: '1p' | 'card' }
 /** Settings plus the golf course pick; it rides along in the same saved blob (loadSettings spreads unknown keys through). */
-type PreSettings = GameSettings & { course?: CourseId }
+type PreSettings = GameSettings & { course?: CourseId; boxingTier?: keyof typeof TIERS }
 
 /** Difficulty presets, sliders, seed. Deterministic: the same seed and inputs replay the same match. */
 export class PreFightScene extends Phaser.Scene {
@@ -23,8 +24,12 @@ export class PreFightScene extends Phaser.Scene {
   private phonePromptOpen = false
   private seed = 0
   constructor() { super('prefight') }
-  init(d: PreFightData): void { this.d = d; this.s = loadSettings(); this.seed = this.s.seed ?? randomSeed(); this.row = this.startRow }
+  init(d: PreFightData): void { this.d = d; this.s = loadSettings(); this.seed = this.s.seed ?? randomSeed(); this.row = this.startRow; if (this.d.game === 'boxing' && !this.s.boxingTier) this.s.boxingTier = this.s.preset === 'custom' ? 'rookie' : this.s.preset }
 
+  private get boxing(): boolean { return this.d.game === 'boxing' }
+  private get boxingTier(): keyof typeof TIERS { return this.s.boxingTier ?? 'rookie' }
+  private get presets(): (Preset | 'boss')[] { return this.boxing ? ['rookie', 'pro', 'champ', 'boss'] : ['rookie', 'pro', 'champ', 'custom'] }
+  private get selectedPreset(): Preset | 'boss' { return this.boxing ? this.boxingTier : this.s.preset }
   private get golf(): boolean { return this.d.game === 'golf' }
   private get courseRow(): number { return this.golf ? 6 : -1 }
   private get seedRow(): number { return this.golf ? 7 : 6 }
@@ -77,11 +82,11 @@ export class PreFightScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closePhonePrompt())
     this.draw()
   }
-  private move(d: number): void { const n = this.nRows; this.row = (this.row + d + n) % n; sfx.hover(); this.draw() }
-  private setPreset(p: Preset): void { this.s.preset = p; if (p !== 'custom') this.s.difficulty = { ...PRESETS[p] }; this.save() }
+  private move(d: number): void { const n = this.nRows; this.row = (this.row + d + n) % n; if (this.boxing && this.row >= 1 && this.row <= 5) this.row = d > 0 ? this.seedRow : 0; sfx.hover(); this.draw() }
+  private setPreset(p: Preset | 'boss'): void { if (this.boxing) { if (p !== 'custom') this.s.boxingTier = p; this.save(); return }; if (p === 'boss') return; this.s.preset = p; if (p !== 'custom') this.s.difficulty = { ...PRESETS[p] }; this.save() }
   private adjust(d: number): void {
-    if (this.row === 0) { const ps: Preset[] = ['rookie', 'pro', 'champ', 'custom']; this.setPreset(ps[(ps.indexOf(this.s.preset) + d + 4) % 4]) }
-    else if (this.row <= 5) { const k = SLIDER_KEYS[this.row - 1]; this.s.difficulty[k] = Math.round(Math.min(1, Math.max(0, this.s.difficulty[k] + d * 0.1)) * 10) / 10; this.s.preset = 'custom'; this.save() }
+    if (this.row === 0) { const ps = this.presets; this.setPreset(ps[(ps.indexOf(this.selectedPreset) + d + ps.length) % ps.length]) }
+    else if (this.row <= 5 && !this.boxing) { const k = SLIDER_KEYS[this.row - 1]; this.s.difficulty[k] = Math.round(Math.min(1, Math.max(0, this.s.difficulty[k] + d * 0.1)) * 10) / 10; this.s.preset = 'custom'; this.save() }
     else if (this.row === this.courseRow) this.cycleCourse(d)
     else if (this.row === this.seedRow) { this.seed = randomSeed() }
     sfx.hover(); this.draw()
@@ -103,7 +108,7 @@ export class PreFightScene extends Phaser.Scene {
   private launchGame(): void {
     sfx.select()
     const diff: Difficulty = this.s.difficulty
-    if (this.d.game === 'boxing') wipeTo(this, 'boxing', { mode: this.d.mode ?? '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: boxingParams(diff), seed: this.seed })
+    if (this.d.game === 'boxing') wipeTo(this, 'boxing', { mode: this.d.mode ?? '1p', tier: this.boxingTier, bot: TIERS[this.boxingTier], seed: this.seed })
     else if (this.d.game === 'bowling') wipeTo(this, 'bowling', { mode: '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: bowlingParams(diff), seed: this.seed })
     else wipeTo(this, 'golf', { mode: '1p', tier: this.s.preset === 'custom' ? 'pro' : this.s.preset, bot: golfParams(diff), seed: this.seed, course: this.course.id })
   }
@@ -155,23 +160,26 @@ export class PreFightScene extends Phaser.Scene {
     const title = add(this.add.text(W / 2, 78, `${this.d.game.toUpperCase()} · CHOOSE YOUR OPPONENT`, { fontFamily: DISPLAY, fontSize: '26px', color: HEX(P.ink) }).setOrigin(0.5))
     this.fit(title, 450)
     add(new ComicButton(this, W / 2 + 335, 78, 'HELP', () => wipeTo(this, 'tutorial', { game: this.d.game, from: 'prefight' }), { color: P.gold, w: 86, h: 38, size: 16 }))
-    const rowY = (i: number) => 150 + i * (this.golf ? 55 : 62) // golf fits one more row (the course) in the same panel
+    const rowY = (i: number) => 150 + i * (this.boxing ? Math.min(62, Math.max(28, (H - 350) / 6)) : this.golf ? 55 : 62) // golf fits one more row (the course) in the same panel
     const focus = (i: number) => (this.row === i ? P.gold : P.paper)
     const seedRow = this.seedRow, startRow = this.startRow
     // presets row
     add(this.add.text(W / 2 - 340, rowY(0), 'PRESET', { fontFamily: DISPLAY, fontSize: '24px', color: HEX(P.ink) }).setOrigin(0, 0.5))
-    ;(['rookie', 'pro', 'champ', 'custom'] as Preset[]).forEach((p, i) => {
-      const b = add(new ComicButton(this, W / 2 - 110 + i * 130, rowY(0), p.toUpperCase(), () => { this.row = 0; this.setPreset(p); this.draw() }, { color: this.s.preset === p ? P.red : focus(0), w: 120, h: 44, size: 18 }))
-      if (this.s.preset === p) b.setScale(1.05)
+    this.presets.forEach((p, i) => {
+      const b = add(new ComicButton(this, W / 2 - 110 + i * 130, rowY(0), p.toUpperCase(), () => { this.row = 0; this.setPreset(p); this.draw() }, { color: this.selectedPreset === p ? P.red : focus(0), w: 120, h: 44, size: 18 }))
+      if (this.selectedPreset === p) b.setScale(1.05)
     })
     SLIDER_KEYS.forEach((k, i) => {
-      const y = rowY(i + 1), v = this.s.difficulty[k]
-      add(this.add.text(W / 2 - 340, y, k.toUpperCase(), { fontFamily: DISPLAY, fontSize: '22px', color: HEX(this.row === i + 1 ? P.red : P.ink) }).setOrigin(0, 0.5))
+      const tier = TIERS[this.boxingTier]
+      const ratings = { reaction: 1 - tier.reactionTicks / 60, aggression: tier.aggression, defense: tier.blockP, accuracy: tier.dodgeP, power: tier.counterP }
+      const y = rowY(i + 1), v = this.boxing ? ratings[k] : this.s.difficulty[k]
+      add(this.add.text(W / 2 - 340, y, (this.boxing ? { reaction: 'REACTION', aggression: 'AGGRESSION', defense: 'BLOCKING', accuracy: 'DODGING', power: 'COUNTERING' }[k] : k.toUpperCase()), { fontFamily: DISPLAY, fontSize: '22px', color: HEX(this.row === i + 1 ? P.red : P.ink) }).setOrigin(0, 0.5))
       const g = add(this.add.graphics())
       g.fillStyle(P.ink).fillRoundedRect(W / 2 - 150, y - 8, 460, 16, 8)
       g.fillStyle(this.row === i + 1 ? P.red : P.blue).fillRoundedRect(W / 2 - 147, y - 5, 454 * v, 10, 5)
       g.fillStyle(P.gold).fillCircle(W / 2 - 147 + 454 * v, y, 13); g.lineStyle(3, P.ink).strokeCircle(W / 2 - 147 + 454 * v, y, 13)
       add(this.add.text(W / 2 + 330, y, `${Math.round(v * 100)}`, { fontFamily: FONT, fontSize: '18px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+      if (this.boxing) return // Fixed boxing classes: ratings are informational.
       const hit = add(this.add.zone(W / 2 + 80, y, 480, 32).setInteractive({ cursor: 'pointer' }))
       const setVal = (px: number) => {
         const frac = Math.max(0, Math.min(1, (px - (W / 2 - 147)) / 454))

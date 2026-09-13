@@ -24,7 +24,7 @@ import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
 
-export interface Persona { name: string; style: string; color: number }
+export interface Persona { model?: import('./render/OpponentRig').BoxerModel; name: string; style: string; color: number }
 export interface BoxingSceneData { model?: import('./render/OpponentRig').BoxerModel; mode?: '1p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
 
 const STEP_MS = 1000 / HZ
@@ -119,7 +119,7 @@ export class BoxingScene extends Phaser.Scene {
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
       engine.setQuality(loadSettings().quality)
-      this.world = new BoxingWorld(engine, P.red, this.card, d.model ?? (d.tier === 'champ' ? 'pro' : d.tier === 'pro' ? 'intermediate' : 'beginner'))
+      this.world = new BoxingWorld(engine, P.red, this.card, d.model ?? (d.tier === 'boss' ? 'boss' : d.tier === 'champ' ? 'pro' : d.tier === 'pro' ? 'intermediate' : 'beginner'), this.card ? d.personas : undefined)
       this.world.show(this.scale.width, this.scale.height)
       this.hud.clearCard()
       this.ready = true
