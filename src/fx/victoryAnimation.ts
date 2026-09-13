@@ -267,6 +267,9 @@ export function playVictoryAnimation(opts: VictoryAnimationOpts): { destroy: () 
     strokeThickness: 14,
     align: 'center',
   }).setOrigin(0.5)
+  // Long names (Fight Night personas) would run past the banner, so the headline shrinks to fit inside it.
+  const maxTitleW = bannerW - 70
+  if (titleText.width > maxTitleW) titleText.setScale(maxTitleW / titleText.width)
   banner.add(titleText)
 
   // Subheader badge / method
