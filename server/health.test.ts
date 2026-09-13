@@ -17,9 +17,26 @@ describe('HealthStore', () => {
     expect(row!.kcal).toBeGreaterThan(0)
     const s = db.summary(t0 + 3_600_000, 7)
     expect(s.today.sessions).toBe(1); expect(s.today.activeSeconds).toBe(60)
+    expect(s.todayActiveSeconds).toBe(60)
     expect(s.bySport.boxing.sessions).toBe(1); expect(s.bySport.golf.sessions).toBe(0)
     expect(s.days).toHaveLength(7); expect(s.streakDays).toBe(1)
     expect(s.lastSession?.epochs).toHaveLength(120)
+    db.close()
+  })
+  it('aggregates known active epochs into todayActiveSeconds for the daily goal', () => {
+    const db = new HealthStore(':memory:')
+    const t0 = Date.parse('2026-09-13T18:00:00')
+    const id = db.start({ sport: 'boxing', controller: 'controller_1', startedAt: t0, weightKg: null, source: 'phone' })
+    // 90 one-second epochs with motionLoad above the active threshold
+    const epochs: Epoch[] = Array.from({ length: 90 }, (_, i) => ({
+      t: i * 1000, mean: 3, peak: 6, swings: 1, rotation: 40, motionLoad: 0.5,
+    }))
+    db.add(id, epochs, [90])
+    const row = db.finish(id, t0 + 90_000)!
+    expect(row.activeSeconds).toBe(90)
+    const s = db.summary(t0 + 90_000, 1)
+    expect(s.todayActiveSeconds).toBeGreaterThanOrEqual(90)
+    expect(s.today.activeSeconds).toBe(90)
     db.close()
   })
   it('ignores a duplicate epoch delivered twice, so a retried post cannot double the calories', () => {

@@ -31,6 +31,8 @@ export interface SessionRow extends SessionStart {
 export interface DaySummary { day: string; activeSeconds: number; kcal: number; swings: number; sessions: number }
 export interface HealthSummary {
   today: DaySummary
+  /** Alias for today.activeSeconds — consumer ACTIVE TIME toward the daily goal. */
+  todayActiveSeconds: number
   days: DaySummary[]
   bySport: Record<HealthSport, { sessions: number; activeSeconds: number; kcal: number; swings: number; romMean: number }>
   romTrend: { id: number; sport: HealthSport; endedAt: number; romMean: number; romMax: number }[]
@@ -162,8 +164,10 @@ export class HealthStore {
     let streak = 0
     for (let i = daysOut.length - 1; i >= 0 && daysOut[i].activeSeconds > 0; i--) streak += 1
     const last = finished[0] ?? null
+    const today = daysOut[daysOut.length - 1]
     return {
-      today: daysOut[daysOut.length - 1],
+      today,
+      todayActiveSeconds: today.activeSeconds,
       days: daysOut,
       bySport,
       romTrend: finished.filter((s) => s.swings > 0).slice(0, 20).reverse().map((s) => ({ id: s.id, sport: s.sport, endedAt: s.endedAt ?? s.startedAt, romMean: s.romMean, romMax: s.romMax })),

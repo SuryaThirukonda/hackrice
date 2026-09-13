@@ -74,9 +74,21 @@ export function summarize(sport: HealthSport, epochs: readonly Epoch[], swingRom
 }
 
 export function formatActive(seconds: number): string { const s = Math.max(0, Math.round(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
-export function praise(_kcal: number | null, swings: number, activeSeconds: number, goalMinutes = DEFAULT_GOAL_MINUTES): string {
+
+/** Consumer "active minutes" toward the daily goal: moving seconds / 60. Not the ≥20s clock-minute qualifier. */
+export const activeMinutesFromSeconds = (activeSeconds: number): number => Math.max(0, activeSeconds) / 60
+
+/** Home / Health goal label, e.g. 90s → "1.5 / 30". */
+export function formatGoalProgress(activeSeconds: number, goalMinutes = DEFAULT_GOAL_MINUTES): string {
+  const minutes = activeMinutesFromSeconds(activeSeconds)
+  const shown = minutes >= 10 ? String(Math.round(minutes)) : (Math.round(minutes * 10) / 10).toFixed(1).replace(/\.0$/, '')
+  return `${shown} / ${goalMinutes}`
+}
+
+export function praise(_kcal: number | null, swings: number, activeSeconds: number, goalMinutes = DEFAULT_GOAL_MINUTES, todayActiveSeconds = activeSeconds): string {
   if (!swings && !activeSeconds) return `No movement recorded yet. Start a Tempo Session to work toward ${goalMinutes} active minutes.`
-  const active = Math.ceil(activeSeconds / 60), left = Math.max(0, goalMinutes - active)
-  const lead = active >= goalMinutes ? 'Active-minute goal hit.' : activeSeconds >= 600 ? 'Strong session.' : activeSeconds >= 120 || swings >= 20 ? 'Good movement.' : 'Nice start.'
+  const todayMin = activeMinutesFromSeconds(todayActiveSeconds)
+  const left = Math.max(0, Math.ceil(goalMinutes - todayMin))
+  const lead = todayMin >= goalMinutes ? 'Active-minute goal hit.' : activeSeconds >= 600 ? 'Strong session.' : activeSeconds >= 120 || swings >= 20 ? 'Good movement.' : 'Nice start.'
   return left ? `${lead} ${formatActive(activeSeconds)} active · ${swings} actions · ${left} min to today's goal.` : `${lead} ${formatActive(activeSeconds)} active · ${swings} actions.`
 }

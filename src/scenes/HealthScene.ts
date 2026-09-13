@@ -4,11 +4,17 @@ import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { loadSettings } from '../agent/sliders'
 import type { HealthSummary } from '../../server/health'
-import { formatActive, type HealthSport } from '../health/energy'
+import { formatActive, formatGoalProgress, type HealthSport } from '../health/energy'
 import { adaptationCopy, type AdaptationReason } from '../wellness/adaptation'
 
 const SPORT_COLOR: Record<HealthSport, number> = { boxing: P.red, bowling: P.blue, golf: P.green }
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+/** Local calendar weekday from a YYYY-MM-DD day key (avoids UTC midnight shift). */
+const weekday = (day: string, fallbackIndex: number): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+  if (!m) return DAYS[fallbackIndex] ?? '·'
+  return DAYS[new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay()] ?? DAYS[fallbackIndex]
+}
 
 /** Consumer wellness history: one strong summary, then body response, adaptation and useful trends. */
 export class HealthScene extends Phaser.Scene {
@@ -50,8 +56,10 @@ export class HealthScene extends Phaser.Scene {
     const pad = 24 * k, top = 112 * k, summaryH = 138 * k
     panel(pad, top, W - pad * 2, summaryH, .25, true)
     const today = s?.today, last = s?.lastSession, settings = loadSettings()
+    const todaySec = s?.todayActiveSeconds ?? today?.activeSeconds ?? 0
+    const goal = settings.dailyGoalMinutes
     const primary: readonly (readonly [string, string, string, number])[] = [
-      ['ACTIVE TIME', formatActive(today?.activeSeconds ?? 0), 'MOTION MEASURED', P.teal],
+      ['ACTIVE TIME', formatActive(todaySec), `${formatGoalProgress(todaySec, goal)} MIN GOAL`, P.teal],
       ['MOVEMENT', String(today?.swings ?? 0), 'ACTIONS', P.teal],
       settings.weightKg ? ['ACTIVE ENERGY', `~${Math.round(today?.kcal ?? 0)}`, 'KCAL · ESTIMATED', P.orange] : ['ACTIVITY LOAD', `${Math.round((last?.motionLoad ?? 0) * 100)}%`, 'PHONE MOTION', P.teal],
       ['RECOVERY', s?.latestVitals?.pulse ? 'MEASURED' : '—', s?.latestVitals?.pulse ? `${Math.round(s.latestVitals.pulse)} BPM LATEST` : 'NOT MEASURED', s?.latestVitals?.pulse ? P.purple : 0x7a6b58],
@@ -99,12 +107,12 @@ export class HealthScene extends Phaser.Scene {
     }
 
     panel(rightX, lowerY + half + gap, rightW, half, -.2); section(rightX + 20 * k, lowerY + half + gap + 16 * k, 'ACTIVE MINUTES · THIS WEEK', P.teal)
-    const days = s?.days ?? Array.from({ length: 7 }, () => ({ activeSeconds: 0 }))
-    const chartY = lowerY + lowerH - 30 * k, chartTop = lowerY + half + gap + 58 * k, max = Math.max(30, ...days.map((d) => d.activeSeconds / 60))
+    const days = s?.days ?? Array.from({ length: 7 }, () => ({ day: '', activeSeconds: 0 }))
+    const chartY = lowerY + lowerH - 30 * k, chartTop = lowerY + half + gap + 58 * k, max = Math.max(goal, ...days.map((d) => d.activeSeconds / 60))
     days.forEach((d, i) => {
       const cell = (rightW - 42 * k) / 7, x = rightX + 22 * k + i * cell, h = Math.max(3 * k, (chartY - chartTop) * (d.activeSeconds / 60) / max)
       add(this.add.rectangle(x + cell * .18, chartY - h, cell * .55, h, d.activeSeconds ? P.teal : 0xcfc3a7).setOrigin(0).setDepth(12))
-      txt(x + cell * .45, chartY + 4 * k, DAYS[new Date((d as { day?: string }).day ?? Date.now()).getDay()] ?? DAYS[i], 10, 0x5a4632, false, .5)
+      txt(x + cell * .45, chartY + 4 * k, weekday((d as { day?: string }).day ?? '', i), 10, 0x5a4632, false, .5)
     })
     txt(W - pad, H - 22 * k, 'S  SETTINGS   ·   R  REFRESH   ·   Activity energy is estimated. Physiology is wellness-only.', 10, P.ink, false, 1)
   }

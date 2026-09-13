@@ -4,7 +4,7 @@ import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { openControllerConnect } from './ControllerScene'
 import { loadSettings } from '../agent/sliders'
-import { formatActive } from '../health/energy'
+import { activeMinutesFromSeconds, formatActive, formatGoalProgress } from '../health/energy'
 
 /** Home menu: big playful logo on a tilted comic panel, a mascot chip bouncing, stacked comic buttons that slide in. */
 export class MainMenuScene extends Phaser.Scene {
@@ -53,20 +53,27 @@ export class MainMenuScene extends Phaser.Scene {
   }
   /** Today's activity goal, read from the local health service. Silent when that service is off. */
   private async goalCard(W: number, H: number): Promise<void> {
-    let today: { kcal: number; swings: number; activeSeconds: number } | null = null
-    try { const r = await fetch('/health/summary?days=1', { cache: 'no-store' }); if (r.ok) today = (await r.json() as { today: { kcal: number; swings: number; activeSeconds: number } }).today } catch { /* service off */ }
-    if (!today || !this.scene.isActive()) return
-    const goal = loadSettings().dailyGoalMinutes, minutes = today.activeSeconds / 60, done = Math.min(1, minutes / goal)
+    let todayActiveSeconds: number | null = null, swings = 0
+    try {
+      const r = await fetch('/health/summary?days=1', { cache: 'no-store' })
+      if (r.ok) {
+        const s = await r.json() as { todayActiveSeconds?: number; today: { kcal: number; swings: number; activeSeconds: number } }
+        todayActiveSeconds = typeof s.todayActiveSeconds === 'number' ? s.todayActiveSeconds : s.today.activeSeconds
+        swings = s.today.swings
+      }
+    } catch { /* service off */ }
+    if (todayActiveSeconds === null || !this.scene.isActive()) return
+    const goal = loadSettings().dailyGoalMinutes, minutes = activeMinutesFromSeconds(todayActiveSeconds), done = Math.min(1, minutes / goal)
     const compact = H < 700 || W < 1100, x = W * 0.06, y = H * (compact ? .43 : .47), w = W * (compact ? .38 : .42), h = compact ? 86 : 92
     comicPanel(this, x, y, w, h, P.paper, 1).setDepth(5)
-    this.add.text(x + 22, y + 18, done >= 1 ? 'GOAL HIT' : "TODAY", { fontFamily: DISPLAY, fontSize: compact ? '18px' : '22px', color: HEX(done >= 1 ? P.green : P.teal), stroke: HEX(P.ink), strokeThickness: 4 }).setDepth(6)
-    this.add.text(x + w - 22, y + 21, `${Math.floor(minutes)} / ${goal} ACTIVE MIN`, { fontFamily: DISPLAY, fontSize: compact ? '14px' : '20px', color: HEX(P.ink) }).setOrigin(1, 0).setDepth(6)
+    this.add.text(x + 22, y + 18, done >= 1 ? 'GOAL HIT' : 'TODAY', { fontFamily: DISPLAY, fontSize: compact ? '18px' : '22px', color: HEX(done >= 1 ? P.green : P.teal), stroke: HEX(P.ink), strokeThickness: 4 }).setDepth(6)
+    this.add.text(x + w - 22, y + 21, `${formatGoalProgress(todayActiveSeconds, goal)} ACTIVE MIN`, { fontFamily: DISPLAY, fontSize: compact ? '14px' : '20px', color: HEX(P.ink) }).setOrigin(1, 0).setDepth(6)
     const g = this.add.graphics().setDepth(6)
     const barY = y + (compact ? 46 : 54)
     g.fillStyle(P.ink, 0.9).fillRoundedRect(x + 26, barY + 4, w - 44, 16, 8).fillStyle(P.paper).fillRoundedRect(x + 22, barY, w - 44, 16, 8)
     if (done > 0) g.fillStyle(done >= 1 ? P.green : P.teal).fillRoundedRect(x + 22, barY, Math.max(16, (w - 44) * done), 16, 8)
     g.lineStyle(3, P.ink).strokeRoundedRect(x + 22, barY, w - 44, 16, 8)
-    const hint = done >= 1 ? `${today.swings} actions and ${formatActive(today.activeSeconds)} active. Great work.` : `${Math.ceil(goal - minutes)} active minutes to go · energy is secondary and estimated`
+    const hint = done >= 1 ? `${swings} actions and ${formatActive(todayActiveSeconds)} active. Great work.` : `${Math.ceil(goal - minutes)} active minutes to go · energy is secondary and estimated`
     this.add.text(x + 22, y + (compact ? 70 : 76), hint, { fontFamily: FONT, fontSize: compact ? '9px' : '12px', color: HEX(0x5a4632), fontStyle: '900', wordWrap: { width: w - 44 } }).setOrigin(0, 0.5).setDepth(6)
   }
 

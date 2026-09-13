@@ -10,6 +10,8 @@ import { formatActive, praise, summarize, type ActivitySummary, type Epoch, type
  */
 export interface SessionSummaryLine { id: number; activeMinutes: number; activeSeconds: number; kcal: number | null; motionLoad: number; energyConfidence: string; swings: number; romMean: number; romMax: number; source: 'phone' | 'keyboard' }
 const FLUSH_MS = 2000
+/** Phone activity reports every ~5s; keep a short window so trailing epochs still count. */
+const LATE_FLUSH_MS = 6000
 
 const post = async <T>(url: string, body: unknown): Promise<T | null> => {
   try {
@@ -18,9 +20,28 @@ const post = async <T>(url: string, body: unknown): Promise<T | null> => {
   } catch { return null }
 }
 
+/** Trailing phone epochs that arrive after finish() still belong to the match that just ended. */
+type LateFlush = { id: number; controller: ControllerId; source: 'phone' | 'keyboard'; until: number; timer: ReturnType<typeof setTimeout> | null }
+let lateFlush: LateFlush | null = null
+
+const clearLateFlush = (): void => {
+  if (lateFlush?.timer) clearTimeout(lateFlush.timer)
+  lateFlush = null
+}
+
+const flushLateActivity = async (target: LateFlush): Promise<void> => {
+  const { epochs, roms } = controllerInput.drainActivity(target.controller)
+  if (!epochs.length && !roms.length) return
+  await post(`/health/session/${target.id}/add`, { epochs, roms })
+  await post(`/health/session/${target.id}/finish`, { endedAt: Date.now(), source: target.source })
+}
+
+/** Test helper: cancel pending late flush timers. */
+export const resetHealthTrackerLateFlush = (): void => { clearLateFlush() }
+
 export class HealthTracker {
   private id: number | null = null
-  private pending: { epochs: { t: number; mean: number; peak: number; swings: number; rotation: number }[]; roms: number[] } = { epochs: [], roms: [] }
+  private pending: { epochs: Epoch[]; roms: number[] } = { epochs: [], roms: [] }
   private lastFlush = 0
   private sawMovement = false
   private ended = false
@@ -32,9 +53,16 @@ export class HealthTracker {
 
   constructor(sport: HealthSport, controller: ControllerId = 'controller_1') {
     this.controller = controller; this.sport = sport
-    // The phone may have been reporting for minutes before this match: drop that backlog so the record
-    // starts at the bell, not in the lobby.
-    controllerInput.drainActivity(controller)
+    // Prefer attributing near-end backlog to the previous match instead of throwing it away.
+    const prev = lateFlush
+    if (prev && prev.controller === controller && Date.now() <= prev.until) {
+      clearLateFlush()
+      void flushLateActivity(prev)
+    } else {
+      clearLateFlush()
+      // Drop lobby backlog so the record starts at the bell, not in the menu.
+      controllerInput.drainActivity(controller)
+    }
     this.starting = post<{ id: number }>('/health/session', { sport, controller, startedAt: Date.now(), weightKg: loadSettings().weightKg, source: 'keyboard' })
       // The session can finish before the create request resolves. Keep the id in that case so
       // `end()` can still flush and close the record instead of silently dropping a short match.
@@ -73,8 +101,19 @@ export class HealthTracker {
     await this.starting
     if (this.id === null) return null
     if (this.pending.epochs.length || this.pending.roms.length) await post(`/health/session/${this.id}/add`, this.pending)
+    const source = this.sawMovement ? 'phone' as const : 'keyboard' as const
     const row = await post<{ id: number; activeSeconds: number; activeMinutes: number; kcal: number | null; motionLoad: number; energyConfidence: string; swings: number; romMean: number; romMax: number; source: 'phone' | 'keyboard' }>(
-      `/health/session/${this.id}/finish`, { endedAt: Date.now(), source: this.sawMovement ? 'phone' : 'keyboard' })
+      `/health/session/${this.id}/finish`, { endedAt: Date.now(), source })
+    // Schedule a late flush for phone epochs still in flight when the bell rings.
+    const id = this.id
+    clearLateFlush()
+    const target: LateFlush = { id, controller: this.controller, source, until: Date.now() + LATE_FLUSH_MS, timer: null }
+    target.timer = setTimeout(() => {
+      if (lateFlush !== target) return
+      lateFlush = null
+      void flushLateActivity(target)
+    }, LATE_FLUSH_MS)
+    lateFlush = target
     return row ? { id: row.id, activeMinutes: row.activeMinutes, activeSeconds: row.activeSeconds, kcal: row.kcal, motionLoad: row.motionLoad, energyConfidence: row.energyConfidence, swings: row.swings, romMean: row.romMean, romMax: row.romMax, source: row.source } : null
   }
 }

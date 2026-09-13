@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACTIVE_LOAD, formatActive, kcalPerMinute, metForLoad, praise, summarize, type Epoch } from './energy'
+import { ACTIVE_LOAD, activeMinutesFromSeconds, formatActive, formatGoalProgress, kcalPerMinute, metForLoad, praise, summarize, type Epoch } from './energy'
 
 const sec = (t: number, mean: number, motionLoad?: number, swings = 0): Epoch => ({ t: t * 1000, mean, peak: mean * 3, swings, rotation: 0, motionLoad })
 const seconds = (n: number, mean: number, load: number, from = 0): Epoch[] => Array.from({ length: n }, (_, i) => sec(from + i, mean, load))
@@ -35,5 +35,8 @@ describe('activity-epoch energy model', () => {
   it('formats active time and speaks to the active-minute goal', () => {
     expect(formatActive(754)).toBe('12:34'); expect(praise(null, 0, 0, 30)).toContain('active minutes')
     expect(praise(2, 20, 120, 30)).toContain('28 min')
+    expect(formatGoalProgress(90, 30)).toBe('1.5 / 30')
+    expect(formatGoalProgress(60, 30)).toBe('1 / 30')
+    expect(activeMinutesFromSeconds(90)).toBe(1.5)
   })
 })
