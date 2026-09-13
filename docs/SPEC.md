@@ -82,14 +82,14 @@ These hold everywhere. Break one and something already written stops being true.
 | `controller.html`, `join.html`, `motion.html`, `vitals.html` | React phone controller, join page, motion lab, vitals lab (entries in `vite.config.ts` `build.rollupOptions.input`). `controller.html` loads the Bangers and Outfit faces from Google Fonts for the comic theme. |
 | `environment-preview.html` | Dev-only static 3D review page (`?sport=boxing|bowling|golf`), loads `src/dev/environmentPreview.ts`. Not part of the production build. |
 | `announcer-review.html` | Dev-only listening page for the announcer clips, loads `src/announcer/review.ts`. Not part of the production build. See part 17. |
-| `public/announcer/` | Generated announcer clips (`<take>.mp3`) and `manifest.json`, committed; served by Vite and copied into `dist/`. Empty until the clips are generated. |
-| `vite.config.ts` | React plugin + `cloudflareTunnel()` plugin; `PROXY` map to :8790 (`/agent` ws, `^/health(/|$)`, `^/vitals(/|$)`, `^/chips(/|$)`, `/controller-ws`, `/controller-game-ws`); `allowedHosts: true`; same proxy for `preview`. |
+| `public/announcer/` | One committed clip per announcer line (`<take>_<line>.mp3`, 142 files) and `manifest.json`; served by Vite and copied into `dist/`. |
+| `vite.config.ts` | React plugin + `cloudflareTunnel()` plugin; `PROXY` map to :8790 (`/agent` ws, `^/health(/|$)`, `^/vitals(/|$)`, `^/chips(/|$)`, `/vitals-frames-ws` ws, `/controller-ws`, `/controller-game-ws`); `allowedHosts: true`; same proxy for `preview`. |
 | `vitest.config.ts` | `src/**/*.test.ts`, `server/**/*.test.ts`, `test/**/*.test.ts`, node environment. |
 | `tsconfig.json` | See section 1. Includes `src`, `server`, `test`, `scripts/announcer`. |
 | `package.json` | Scripts: `dev`, `build`, `preview`, `test`, `test:watch`, `agent`, `announcer` (the ElevenLabs CLI, part 17), `typecheck`, `tunnel`, `fake-phone`, `head-tracker`, `test:head-tracker` (both `python3`). |
-| `README.md` | Run sheet: phone controller, health, camera vitals, testing the controller, controls, architecture, 3D renderer, verification. |
-| `docs/` | `HANDOFF.md`, `NEXT_PHASE.md`, `ENVIRONMENT_LAYER.md`, this file. |
-| `.env` | `OPENAI_KEY`, `PRESSAGE_KEY` (double S; the loader also accepts `PRESAGE_KEY` and `PRESAGE_API_KEY`), `ELEVENLABS_KEY`, and `ELEVENLABS_ANNOUNCER_VOICE` (the announcer's voice id, added by `npm run announcer -- create` or by hand). Values may have a space before `=`; `server/env.ts` trims them. |
+| `README.md` | Run sheet: phone controller, Tempo wellness, camera vitals, testing the controller, head tracker, announcer, controls, two players, architecture, 3D renderer, verification. |
+| `docs/` | `HANDOFF.md`, this file, `NEXT_PHASE.md`, `ENVIRONMENT_LAYER.md`, `boxing-models.md`, `WELLNESS_ARCHITECTURE.md`, `WELLNESS_METRIC_AUDIT.md`, `WELLNESS_REPAIR_PLAN.md`. |
+| `.env` | `OPENAI_KEY`, `PRESSAGE_KEY` (double S; the loader also accepts `PRESAGE_KEY` and `PRESAGE_API_KEY`), `ELEVENLABS_KEY` (read only by `npm run announcer`), optional `PRESAGE_MODE` (`live`, `mock` or `off`; default `live`). Values may have a space before `=`; `server/env.ts` trims them. |
 | `data/health.sqlite` | Created by the agent service on first run (`mkdirSync('data')`). |
 | `.env.example` | The keys above with empty values, plus `AGENT_MODEL` and `AGENT_PORT`. |
 | `test/` | `phoneSwing.test.ts` (accelerometer samples to opponent damage), `smoke.test.ts`, `joinConfig.test.ts` (vitest), and `test_head_tracker.py` (synthetic faces through the real MediaPipe detector). |
@@ -915,32 +915,57 @@ the preview pane visible, and for renderer changes a before/after frame-time rea
 
 ## 17. Announcer (`src/announcer/`, `scripts/announcer/`)
 
-Every spoken line is a preset. An offline CLI generates the catalogue with ElevenLabs into committed MP3s, and the
-game plays them with no key and no service. Without clips, or with `?voice=captions` in dev, every call shows as a
-caption only, under the same rules. The event maps are in `src/announcer/maps/`, and every line is in `lines.ts`.
+The announcer is `treys`' implementation (`feced77`, merged in `57c042b`). Every spoken line is a preset with its own
+committed clip, so the game plays them with no key and no service. Without a clip, or with `?voice=captions` in dev,
+a call shows as a caption only, under the same rules. The event maps are in `src/announcer/maps/`, and every line is
+in `lines.ts`.
 
 | File | Exports / role |
 |---|---|
-| `lines.ts` | `TAKES` (18 takes, 237 lines; one take is one generation request; the five `*.more` takes add variants to the busiest cues), `CUES` (cue id to `{ priority 1..5, lines, cooldownS?, staleS?, beat? }`; variants are `<cue>#n`), `NAME_KEYS` (`you`, `house`, `p1`, `p2`, `knuckles`, `professor`, `lou`, `maggie`), `cueOf`, `lineText`, `captionText`, `allLineIds`, `AUDIO_TAGS` |
+| `lines.ts` | `TAKES` (13 takes, 142 lines), `CUES` (cue id to `{ priority 1..5, lines, cooldownS?, staleS?, beat? }`; variants are `<cue>#n`), `NAME_KEYS` (`you`, `house`, `p1`, `p2`, `knuckles`, `professor`, `lou`, `maggie`), `cueOf`, `lineText`, `captionText`, `allLineIds`, `AUDIO_TAGS` |
 | `maps/shared.ts` | `Perspective` (`1p`, `2p`, or `card` with persona keys), `SportMap` (`start`, `event(e, ctx)`, `frame(view)`, `live(view)`, `colour`), `personaKey(name)`, `nameKey`, `sideKey`, `winnerCue` |
 | `maps/boxing.ts`, `maps/bowling.ts`, `maps/golf.ts` | Pure event maps with per-match memory; `BoxingCtx`, `BowlingCtx` and `isSplit(standing)`, `GolfCtx` |
 | `director.ts` | `createMap(sport, perspective)`, `SportTypes` |
-| `rules.ts` | `SpeechRules`: one voice; a higher priority interrupts with an 80 ms fade; one pending slot; stale after 2 s (4 s at priority 5); beats never queue, cut lower calls and each other, are skipped under a priority-5 line, and yield to an equal call; priority 2 waits for 1.2 s of silence and has a 15 s cooldown; colour after 12 s of silence, 30 s apart, four per match; pause clears everything. Also `requestFor(cues)` and `VariantPicker` |
-| `voice.ts` | `voice` singleton: `load(groups)`, `status(line)` (`ready`, `loading`, `missing`), `play(line, onEnd)` returning `{ stop(fadeMs) }`, `setVolume`, `duration`. Decodes after `sfx` unlocks, moves each cut between a take's lines into a real pause, trims silence, fades the last 20 ms, ducks game sound while it speaks |
-| `segments.ts` | `frameLevels` (10 ms loudness), `findPauses`, `assignCuts` (one pause per cut, in order, nearest the timestamp estimate, longer pauses preferred), `lineWindows`, `audibleSpan` (trim below −55 dBFS with 30 ms padding). The generation timestamps can run most of a second early, so cuts come from the audio |
-| `manifest.ts` | `Manifest` (`public/announcer/manifest.json`: `takes[id] { file, hash, seed, stability, chars, bytes, perLine? }`, `lines[id] { take, file?, start, end }`), `lineFile`, `takeFiles` |
+| `rules.ts` | `SpeechRules`: one voice; a higher priority interrupts with an 80 ms fade; one pending slot; stale after 2 s (4 s at priority 5); beats never queue, cut lower calls and each other, and are skipped under a priority-5 line; priority 2 waits for 1.2 s of silence and has a 15 s cooldown; colour after 12 s of silence, 30 s apart, four per match; pause clears everything. Also `requestFor(cues)` and `VariantPicker` (never the same variant twice in a row) |
+| `voice.ts` | `voice` singleton: `load(groups)`, `status(line)` (`ready`, `loading`, `missing`), `play(line, onEnd)` returning `{ stop(fadeMs) }`, `setVolume`, `duration`. Decodes after `sfx` unlocks, plays each line's own clip trimmed of silence below −45 dBFS, ducks game sound while it speaks |
+| `manifest.ts` | `Manifest` (`public/announcer/manifest.json`: `voiceId`, `modelId`, `takes[id] { file, hash, seed, stability, chars, bytes, perLine }`, `lines[id] { take, file, hash, start: null, end: null }`), `lineFile`, `takeFiles` |
 | `index.ts` | `Announcer<S>(scene, { sport, perspective?, practice?, place?, captions? })`: `start`, `event`, `frame`, `say`, `pause`, `layout`, `destroy`; follows the scene's UPDATE, PAUSE, RESUME and SHUTDOWN events. `Announcer.once(scene, cue, place)` and `Announcer.sample(scene, cue)`. Dev hook `window.__announcer { log, say, status }` |
 | `review.ts` | The `announcer-review.html` listening page |
-| `scripts/announcer/cli.ts` | `npm run announcer -- budget`, `design`, `create <id>`, `generate [--dry-run] [--only] [--force] [--seed] [--stability] [--per-line] [--max-chars]`; `main(argv, deps)` takes fetch, env and the file system as arguments for tests |
-| `scripts/announcer/elevenlabs.ts` | `call` (429 retried after 1, 2, 4, 8 and 16 s; 5xx and network errors twice; 401, 402 and 403 stop the run), `subscription`, `designVoice`, `createVoice`, `speak` (`/v1/text-to-speech/{voice}/with-timestamps`, `eleven_v3`, `mp3_44100_96`) |
-| `scripts/announcer/takes.ts` | `takeText`, `takeHash`, `defaultSeed`, `priorityOrder`, `alignIndices`, `segmentsFor` |
-| `scripts/announcer/voice.ts` | `DEFAULT_VOICE_ID` (the stock voice used unless `ELEVENLABS_ANNOUNCER_VOICE` is set), voice description, preview text, models, output format, `DEFAULT_MAX_CHARS = 4500` |
+| `scripts/announcer/cli.ts` | `npm run announcer -- generate` (default) or `status`; `--dry-run`, `--force`, `--group`, `--take`, `--line`, `--voice` (default `JBFqnCBsd6RMkjVDRZzb`, George), `--model` (default `eleven_turbo_v2_5`), `--limit`. One `POST /v1/text-to-speech/{voice}` per line (`mp3_44100_128`, stability 0.5, similarity boost 0.75), saved as `<take>_<line>.mp3`, 180 ms apart. A line is skipped while its file exists and its stored hash of text, voice, model and settings still matches |
 
-Scene hooks: each sport scene creates an `Announcer` in `create()` (inert in practice), calls `start()` when its 3D
-world is ready, `event(e, ctx)` at the top of `onEvent`, `frame(this.curr)` after its step loop, `pause(this.paused)`
-in `togglePause`, and `layout` in `onResize`. Boxing also says `card.bets.next` when a round market opens,
-`card.bets.closing` at five seconds and the payout cue in `settle()`. `MainMenuScene` and `FightNightScene` say one
-line per page load, `BootScene` starts loading the shared takes, and `CreditsScene` credits ElevenLabs.
+Scene hooks: boxing, bowling and golf create an `Announcer` in `create()` (inert in practice), call `start()` when
+the 3D world is ready, `event(e, ctx)` at the top of `onEvent`, `frame(this.curr)` at the top of `update`,
+`pause(this.paused)` in `togglePause`, and `layout` in `onResize`. `MainMenuScene` and `FightNightScene` say one line
+per page load, and `CreditsScene` credits ElevenLabs.
 
-Account limits found on 2026-09-13: the key lacks the `user_read` and `voices_read` permissions, and Voice Design
-through the API is refused on the free plan (`feature_not_available`).
+## 18. Tempo wellness (`src/wellness/`, `src/camera/`; merged from `cursor-wellness-review` in `cd870b8`)
+
+The product flow, the metric decisions and the repair plan are in `docs/WELLNESS_ARCHITECTURE.md`,
+`docs/WELLNESS_METRIC_AUDIT.md` and `docs/WELLNESS_REPAIR_PLAN.md`.
+
+| Scene (key) | Role |
+|---|---|
+| `TempoSessionScene` (`tempo-session`) | Pick BOXING, BOWLING, GOLF or ADAPTIVE MIX (`tempoFlow.startSport` or `tempoFlow.start('just-play', 10)`), then Ready-Up |
+| `ReadyUpScene` (`ready-up`) | The phone QR and connection state beside an optional live camera (`sensingSession.enable`); starts the sport with `{ mode: '1p', bot, tempo: true }` |
+| `RecoveryScene` (`recovery`) | From a sport's RECOVER button: reads `/vitals`, builds `PlayerState`, runs `AdaptationEngine`, posts the decision, then the next sport or the summary |
+| `SessionSummaryScene` (`session-summary`) | Movement, estimated energy, body response, expressions, sport results and Tempo's response; DONE stops sensing |
+| `BaselineScene` (`baseline`) | Superseded by Ready-Up; reachable only through `?wellnessPreview=baseline` |
+| `HealthScene` (`health`) | The WELLNESS dashboard: active time against the minute goal, movement, estimated energy, last session, Tempo and body response, ROM and the week |
+
+| Module | Role |
+|---|---|
+| `src/wellness/tempoFlow.ts` | The session singleton: plan, cursor, completed segments, difficulty, controller and camera modes |
+| `src/wellness/{motionLoad,physiology,playerState,adaptation,recovery,presageQuality,expressions,headMotion,sessionPlanner}.ts` | Per-sport motion load and MET bands, pulse validity, player state, the deterministic adaptation engine, recovery, Presage quality gates, expression summaries |
+| `src/wellness/devPreview.ts` | `?wellnessPreview=tempo-session|baseline|recovery|session-summary|health` in dev |
+| `src/camera/{browserCamera,framePump,sensingSession}.ts` | `getUserMedia`, RGB frames over `/vitals-frames-ws`, and the sensing session shared by Ready-Up, play and the summary |
+| `src/ui/TempoSenseHud.ts`, `src/ui/SafeArea.ts` | The Tempo sense chip in every sport, placed clear of each HUD (`?layoutDebug=1` draws the areas) |
+| `src/ui/weightEditor.ts`, `src/health/weightInput.ts`, `src/health/display.ts` | The Settings weight editor and the dashboard's formatting |
+| `server/vitalsFrames.ts` | The `TPF1` frame header and `handleFrameMessage` behind `/vitals-frames-ws` |
+
+Server additions: `POST /vitals/start` takes `input` (`custom`, `camera` or `demo`); `GET /health/summary` takes
+`weightKg`; `POST /health/session/:id/adaptation` stores a decision; `PRESAGE_MODE` is `live`, `mock` or `off`. The
+store adds motion load and energy confidence to sessions and epochs, phase, validation and stability to vitals, and the
+`adaptation_decisions` table; `ensureColumn` adds the columns to existing databases.
+
+Sport scenes: `tempoSenseHud(this, sport, this.health)` replaces the live badge. With `tempo: true` the result panel's
+buttons are RECOVER and END SESSION, which record the segment in `tempoFlow` and go to `recovery` or `session-summary`.

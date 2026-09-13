@@ -61,9 +61,8 @@ and the buttons but not the swings, and the controller page itself explains that
 
 ## Tempo wellness
 
-**Tempo Session** is the primary loop: choose an intent and duration, optionally consent to a camera
-check-in, play a planned sport segment, recover, see why Tempo adjusted, and continue or review the
-session story. Free Play and Fight Night remain available as separate arcade modes.
+**Tempo Session** is the primary loop: pick one sport or an adaptive mix, ready up with the phone QR and
+an optional camera, play, recover, see why Tempo adjusted, and continue or review the session story. Free Play and Fight Night remain available as separate arcade modes.
 
 The **WELLNESS** dashboard leads with active time, movement actions, activity load, and recovery. It
 also shows the last session, the latest adaptation, and a weekly active-minute trend. Phone data is
@@ -142,22 +141,22 @@ ignored and each snap produces the right action. Both commands download MediaPip
 ## Announcer
 
 Every game has a spoken announcer: round, frame and hole calls, big moments, results, and a few colour lines in
-quiet stretches. Every line is a preset in `src/announcer/lines.ts`. The clips are generated once with ElevenLabs
-and committed to `public/announcer/`, so the game needs no key and no service to announce. Settings has ANNOUNCER,
-ANNOUNCER VOLUME and CAPTIONS rows. Without clips, every line still shows as a caption.
+quiet stretches. Every line is a preset in `src/announcer/lines.ts` and has its own committed clip in
+`public/announcer/`, voiced with ElevenLabs' George voice (`JBFqnCBsd6RMkjVDRZzb`, model `eleven_turbo_v2_5`). The
+game needs no key and no service to announce. Settings has ANNOUNCER, ANNOUNCER VOLUME and CAPTIONS rows, and a line
+without a clip still shows as a caption.
 
-Regenerating needs `ELEVENLABS_KEY` in `.env`. The lines use a stock ElevenLabs voice; set
-`ELEVENLABS_ANNOUNCER_VOICE` in `.env` to use a different one. The whole catalogue costs about 7,000 of the free
-plan's 10,000 monthly credits; new lines go in new takes, so only they are generated.
+Regenerating needs `ELEVENLABS_KEY` in `.env`. A line whose clip already matches its text, voice and model is skipped.
 
 ```bash
-npm run announcer -- generate --dry-run   # what would be generated, and its cost
-npm run announcer -- generate             # only takes whose text, voice or seed changed
+npm run announcer -- status                            # how many lines have a clip on disk
+npm run announcer -- generate --dry-run                # the lines that would be synthesized
+npm run announcer -- generate                          # synthesize missing or changed lines
+npm run announcer -- generate --line win.you --force   # redo one line
 ```
 
-Listen at `/announcer-review.html` on the dev server. A bad line is retaken with its whole take:
-`npm run announcer -- generate --only <take> --seed <n>`. The credits screen names ElevenLabs as the source of the
-announcer voice, which the free plan requires for published work.
+`--group`, `--take`, `--line` and `--limit` narrow a run; `--voice` and `--model` override the defaults. Listen at
+`/announcer-review.html` on the dev server. The credits screen names ElevenLabs as the source of the announcer voice.
 
 ## Controls
 

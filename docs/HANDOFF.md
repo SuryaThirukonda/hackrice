@@ -22,7 +22,7 @@ the opponent is still called "The House".
 | Phone pages and lab pages | React 19, separate Vite entries |
 | Server | Node 24, `tsx`, one process (`server/agent.ts`) on port 8790 |
 | Build | Vite 8, TypeScript strict with `erasableSyntaxOnly`, `noUnusedLocals`, `noUnusedParameters` |
-| Tests | vitest, 37 files, 323 tests, all deterministic (three check the committed announcer clips against the line catalogue); one Python test for the webcam head tracker |
+| Tests | vitest, 39 files, 331 tests, all deterministic; one Python test for the webcam head tracker |
 | Local data | SQLite through Node's built-in `node:sqlite`, file `data/health.sqlite` (git-ignored) |
 
 Rules that everything else depends on:
@@ -31,7 +31,8 @@ Rules that everything else depends on:
   Renderers and HUDs consume snapshots and events; they never resolve hits, scores or bot choices. A renderer
   change cannot change gameplay or replay determinism.
 - **Keys never reach the browser.** `.env` holds `OPENAI_KEY`, `PRESSAGE_KEY` (double S, read under either
-  spelling) and `ELEVENLABS_KEY`. All are read only by the server process.
+  spelling) and `ELEVENLABS_KEY`. The server process reads the first two; only the announcer generation script
+  (`npm run announcer`) reads the ElevenLabs key. `PRESAGE_MODE` (`live`, `mock` or `off`) picks the Presage source.
 - **No enums, no constructor parameter properties** (TypeScript `erasableSyntaxOnly`). Unused locals fail the build.
 - **Do not commit or push unless asked.** The owner commits and pushes from their own terminal; this machine has
   no GitHub credentials.
@@ -272,9 +273,8 @@ a real camera reading, the head tracker's thresholds on a real webcam (this mach
 2. **Slot security.** A per-match token in the QR URL checked at `hello`, before any public demo.
 3. **Real camera run** on a machine with a webcam, then decide how vitals feed play (the owner's decision:
    adapt bot difficulty from exertion, with a safe default when the camera is off).
-4. **Announcer listening pass.** Every line is generated with a stock ElevenLabs voice (README "Announcer", SPEC
-   part 17). Listen at `/announcer-review.html` and retake a bad take with
-   `npm run announcer -- generate --only <take> --seed <n>`.
+4. **Wellness follow-ups** (section 15): stop the camera when a Tempo Session sport is quit partway, check the frame
+   rate while camera frames stream during play, and run Ready-Up with a real webcam and `PRESAGE_MODE=live`.
 5. **The visual fix list** (three-quarter cameras, bowling backdrop and pins, golf sky and horizon, crowd
    push-back). Only the golf green window and the HUD tier were built; boxing is still first-person.
 6. **Health follow-ons from phone motion**: reaction time from a game cue to the swing, an accessibility mode
@@ -295,24 +295,29 @@ a real camera reading, the head tracker's thresholds on a real webcam (this mach
 index.html, controller.html, join.html, motion.html, vitals.html   Vite entries
 src/main.ts                    Phaser game, scene list, dev hooks
 src/scenes/                    title, menu, mode and game select, settings, tutorial, Fight Night,
-                               ControllerScene (QR), HealthScene, CreditsScene
+                               ControllerScene (QR), Wellness dashboard (HealthScene), CreditsScene, Tempo Session,
+                               Ready-Up, Baseline, Recovery, Session Summary
 src/games/<sport>/             Scene.ts, keymap.ts (+phone mapping), sim/, render/, hud/, tutorial.ts
 src/engine3d/                  shared PlayCanvas device, camera rig, materials, textures, effects
-src/fx/, src/ui/               transitions, sound, cursor trail, victory animation; comic widgets, pause overlay
+src/fx/, src/ui/               transitions, sound, cursor trail, victory animation; comic widgets, pause overlay,
+                               announcer captions, Tempo sense chip and safe areas, weight editor
 src/input/                     keys, controller client (relay), joinLink (tunnel address)
-src/health/                    energy model, phone activity tracker, game-side tracker, live badge
+src/health/                    energy model, display and weight helpers, phone activity tracker, game-side tracker
 src/phone/                     React controller and join pages, motion processing, socket
 src/lab/                       motion lab, vitals lab, Trace chart
 src/agent/, src/betting/       AI corner link and executor, settings, betting book, chip ledger client
 src/announcer/                 preset lines, event maps, speaking rules, voice player, review page (section 15)
+src/wellness/                  motion load, physiology, player state, adaptation, Tempo Session flow (section 15)
+src/camera/                    browser camera, frame pump to the agent service, sensing session
 server/                        agent.ts, env.ts (.env loader), service and tools (AI corners), controllerRelay,
-                               health, vitals
+                               health, vitals, vitalsFrames (camera frames)
 scripts/                       tunnel plugin (+joinConfig), standalone tunnel, quickTunnel helper, fake phone,
                                head_tracker.py (webcam dodges), announcer/ (ElevenLabs generation CLI)
-public/announcer/              generated announcer clips and manifest.json (committed once generated)
+public/announcer/              one committed clip per announcer line (treys' ElevenLabs voice) and manifest.json
 test/                          end-to-end phone swing, smoke, joinConfig, head tracker (Python)
 docs/                          this file, SPEC.md (code-level spec sheet, PlayCanvas guide, new-boxer recipe),
-                               boxing-models.md (the seven builds), NEXT_PHASE.md, ENVIRONMENT_LAYER.md
+                               boxing-models.md (the seven builds), NEXT_PHASE.md, ENVIRONMENT_LAYER.md,
+                               WELLNESS_ARCHITECTURE.md, WELLNESS_METRIC_AUDIT.md, WELLNESS_REPAIR_PLAN.md
 legacy/2d/                     the archived Phaser-only pixel renderer
 data/                          health.sqlite (git-ignored)
 ```
@@ -409,3 +414,48 @@ Follow-ups committed after the merge:
 
 For the owner to confirm: golf's arm moved from A to B with the new phone buttons (arming and then swinging for power
 works as before), and both two-player fighters use the intermediate build.
+
+## 15. Announcer from `treys` and the wellness branch (`57c042b`, `cd870b8`, 2026-09-13)
+
+**The announcer is `treys`' implementation** (`feced77`). It was built on this repository's first announcer commit
+(`d260934`) and replaces the later version from `d0ddbfd`:
+
+- 142 preset lines in `src/announcer/lines.ts`, each with its own clip in `public/announcer/`, voiced by ElevenLabs'
+  George voice (`JBFqnCBsd6RMkjVDRZzb`, `eleven_turbo_v2_5`, `mp3_44100_128`).
+- `scripts/announcer/cli.ts`: `npm run announcer -- generate|status` with `--dry-run`, `--force`, `--group`,
+  `--take`, `--line`, `--voice`, `--model` and `--limit`.
+- Wiring in boxing, bowling, golf, the main menu and the Fight Night lobby: rounds, knockdown counts, strikes, golf
+  scores, corner introductions, winners and colour lines. There are no betting or payout calls.
+- Removed with the replacement: the budget, design and create commands, the take-based stock-voice clips, the extra
+  line variants, the pause-snapped segments and their tests. The ElevenLabs credit on the credits screen stays.
+- Follow-up: the generator compared every line with one hash stored per take, so a plain `generate` would have
+  re-synthesized 129 of the 142 clips. Each line now keeps its own hash, backfilled for the committed clips.
+
+**The wellness branch** (`cursor-wellness-review`, 10 commits by Gaurav Yadav) brings Tempo Session:
+
+- Main menu: TEMPO SESSION and FREE PLAY replace PLAY, WELLNESS replaces HEALTH, and HOST A GAME is gone.
+- Tempo Session picks one sport or an adaptive mix. Ready-Up shows the phone QR and an optional camera. The sport
+  runs with `tempo: true`, and its result offers RECOVER (a recovery check that adapts difficulty between sports) or
+  END SESSION (a session summary). Session state lives in `tempoFlow` (`src/wellness/tempoFlow.ts`).
+- Browser camera frames go over `/vitals-frames-ws` into Presage custom input (`server/vitalsFrames.ts`).
+- The health store adds motion load and energy confidence to sessions and epochs, phase and validation to vitals, and
+  an `adaptation_decisions` table; `ensureColumn` adds them to existing databases. New route
+  `POST /health/session/:id/adaptation`; `/health/summary` takes `weightKg`.
+- Settings: a nullable body weight, weight unit and an active-minute goal. The Wellness dashboard is redesigned, and
+  every sport shows a Tempo sense chip in place of the old live badge.
+
+Conflicts were resolved keeping both sides; the merge commit lists each file. Checked after the merges: typecheck,
+39 test files and 331 tests, the production build, and the merged health store opened on a copy of an existing
+database (new columns and table added, 33 sessions and the chip history intact). In the browser, treys' clips played
+in the menu, boxing 1P, 2P, Fight Night and golf, the sense chip stayed clear of each HUD, and the Tempo Session
+picker, Settings and the Wellness dashboard rendered without errors.
+
+After pulling, restart `npm run agent`: the frames socket, the adaptation route and the schema additions live in the
+agent service.
+
+Known issues from the wellness branch, not fixed here:
+
+- Quitting a sport partway through a Tempo Session leaves the camera and frame pump running.
+- Camera frames keep streaming during play (640×360 at 30 fps), which may cost frame rate.
+- A weight saved in the browser before this merge (the old default was 70 kg) reads as a weight you set.
+- Recovery adapts after 6 seconds while Presage's pulse needs about 12, so a real recovery reading is usually missing.
