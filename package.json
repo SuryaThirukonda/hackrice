@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "agent": "tsx server/agent.ts",
+    "announcer": "tsx scripts/announcer/cli.ts",
     "typecheck": "tsc --noEmit",
     "tunnel": "node scripts/tunnel.mjs",
     "fake-phone": "tsx scripts/fakePhone.ts",

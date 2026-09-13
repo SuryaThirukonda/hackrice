@@ -23,7 +23,16 @@ function allRows(bindings: Record<string, Record<string, string[]>>): Row[] {
   return rows
 }
 
-/** Sound toggle, key rebinding for boxing (Enter on a row, then press the new key), reset. */
+/** The fixed rows at the top of the list, in display order. The key bindings follow them, then RESET KEYS. */
+const FIXED_ROWS = ['sound', 'announcer', 'announcerVolume', 'captions', 'quality'] as const
+type FixedRow = typeof FIXED_ROWS[number]
+/** Row index of the first key binding. */
+const BIND0 = FIXED_ROWS.length
+const fixedRow = (name: FixedRow): number => FIXED_ROWS.indexOf(name)
+/** The announcer volume steps the row cycles through. */
+const VOLUMES = [0.3, 0.6, 0.9, 1]
+
+/** Sound, announcer and caption toggles, 3D quality, key rebinding (Enter on a row, then press the new key), reset. */
 export class SettingsScene extends Phaser.Scene {
   private city!: ComicBackdrop
   private s!: GameSettings
@@ -36,11 +45,11 @@ export class SettingsScene extends Phaser.Scene {
     ensureTextures(this)
     this.city = new ComicBackdrop(this, 44)
     const kb = this.input.keyboard!
-    const rows = allRows(this.s.bindings).length + 3 // sound, quality, bindings..., reset
+    const rows = allRows(this.s.bindings).length + BIND0 + 1 // fixed rows, bindings, reset
     kb.on('keydown', (e: KeyboardEvent) => {
       if (this.waiting) {
         if (e.code !== 'Escape') {
-          const r = allRows(this.s.bindings)[this.row - 2]
+          const r = allRows(this.s.bindings)[this.row - BIND0]
           this.s.bindings[r.game] = { ...(this.s.bindings[r.game] ?? {}), [r.action]: [e.code] }
           saveSettings(this.s); sfx.select()
         }
@@ -54,9 +63,16 @@ export class SettingsScene extends Phaser.Scene {
     this.draw()
   }
   private activate(): void {
-    if (this.row === 0) { this.s.sound = !this.s.sound; saveSettings(this.s); sfx.select() }
-    else if (this.row === 1) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }
-    else if (this.row === allRows(this.s.bindings).length + 2) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
+    const resetRow = allRows(this.s.bindings).length + BIND0
+    if (this.row === fixedRow('sound')) { this.s.sound = !this.s.sound; saveSettings(this.s); sfx.select() }
+    else if (this.row === fixedRow('announcer')) { this.s.announcer = !this.s.announcer; saveSettings(this.s); sfx.select() }
+    else if (this.row === fixedRow('announcerVolume')) {
+      const i = VOLUMES.findIndex((v) => Math.abs(v - this.s.announcerVolume) < 0.01)
+      this.s.announcerVolume = VOLUMES[(i + 1) % VOLUMES.length]; saveSettings(this.s); sfx.select()
+    }
+    else if (this.row === fixedRow('captions')) { this.s.captions = !this.s.captions; saveSettings(this.s); sfx.select() }
+    else if (this.row === fixedRow('quality')) { const q: Quality[] = ['low', 'medium', 'high']; this.s.quality = q[(q.indexOf(this.s.quality) + 1) % 3]; saveSettings(this.s); Engine3D.peek()?.setQuality(this.s.quality); sfx.select() }
+    else if (this.row === resetRow) { this.s.bindings = {}; saveSettings(this.s); sfx.back() }
     else { this.waiting = true }
     this.draw()
   }
@@ -69,7 +85,7 @@ export class SettingsScene extends Phaser.Scene {
     add(new ComicButton(this, 90, 48, '◀ BACK', () => { sfx.back(); wipeTo(this, 'menu') }, { color: P.blue, w: 110, h: 42, size: 16 }))
     add(this.add.text(W / 2, 64, 'SETTINGS', { fontFamily: DISPLAY, fontSize: '44px', color: HEX(P.ink) }).setOrigin(0.5).setAngle(-1))
     const rows = allRows(this.s.bindings)
-    const total = rows.length + 3
+    const total = rows.length + BIND0 + 1
     // scroll so the focused row stays visible
     const dy = 30, maxVisible = Math.floor((H - 170) / dy)
     const first = Math.max(0, Math.min(this.row - Math.floor(maxVisible / 2), total - maxVisible))
@@ -81,10 +97,13 @@ export class SettingsScene extends Phaser.Scene {
       add(this.add.text(W / 2 - 320, y, label, { fontFamily: DISPLAY, fontSize: '19px', color: HEX(this.row === i ? P.red : P.ink) }).setOrigin(0, 0.5))
       add(new ComicButton(this, W / 2 + 250, y, value, () => { this.row = i; this.activate() }, { color: this.row === i ? P.gold : P.paper, w: 300, h: 26, size: 14 }))
     }
-    line(0, 'SOUND', this.s.sound ? 'ON' : 'OFF')
-    line(1, '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
-    rows.forEach((r, i) => line(i + 2, r.label.toUpperCase(), this.waiting && this.row === i + 1 ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
-    line(rows.length + 2, 'RESET KEYS', 'defaults')
+    line(fixedRow('sound'), 'SOUND', this.s.sound ? 'ON' : 'OFF')
+    line(fixedRow('announcer'), 'ANNOUNCER', this.s.announcer ? 'ON' : 'OFF')
+    line(fixedRow('announcerVolume'), 'ANNOUNCER VOLUME', `${Math.round(this.s.announcerVolume * 100)}%`)
+    line(fixedRow('captions'), 'CAPTIONS', this.s.captions ? 'ON' : 'OFF')
+    line(fixedRow('quality'), '3D QUALITY', this.s.quality.toUpperCase() + (this.s.quality === 'medium' ? ' (laptop)' : this.s.quality === 'high' ? ' (SSAO, 2K shadows)' : ' (no post, no shadows)'))
+    rows.forEach((r, i) => line(BIND0 + i, r.label.toUpperCase(), this.waiting && this.row === BIND0 + i ? 'press a key…' : r.keys.map(keyLabel).join(' / '), r.game.toUpperCase()))
+    line(rows.length + BIND0, 'RESET KEYS', 'defaults')
     add(this.add.text(W / 2, H - 46, '↑↓ rows · Enter change · Esc back', { fontFamily: FONT, fontSize: '14px', color: HEX(P.ink), fontStyle: '900', backgroundColor: HEX(P.paper), padding: { x: 10, y: 4 } }).setOrigin(0.5))
   }
   update(_t: number, dt: number): void { this.city.update(dt) }

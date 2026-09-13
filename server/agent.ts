@@ -4,23 +4,12 @@ import { mkdirSync } from 'node:fs'
 import { HealthStore } from './health'
 import { VitalsBridge, listCameras } from './vitals'
 import { START_CHIPS } from '../src/betting/book'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import OpenAI from 'openai'
 import { WebSocketServer } from 'ws'
 import { ControllerRelay } from './controllerRelay'
 import { AgentService, type ActRequest, type LlmClient } from './service'
+import { loadEnv } from './env'
 
-function loadEnv(): void {
-  for (const p of [resolve(process.cwd(), '.env'), resolve(process.cwd(), '..', '.env')]) {
-    try {
-      for (const line of readFileSync(p, 'utf8').split('\n')) {
-        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
-        if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
-      }
-    } catch { /* no file */ }
-  }
-}
 loadEnv()
 const key = process.env.OPENAI_KEY || process.env.OPENAI_API_KEY || ''
 const model = process.env.AGENT_MODEL || 'gpt-5.6-luna'

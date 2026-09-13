@@ -19,6 +19,7 @@
   "include": [
     "src",
     "server",
-    "test"
+    "test",
+    "scripts/announcer"
   ]
 }

@@ -1,14 +1,36 @@
 // Tiny synthesized UI sounds (no asset files). Unlocked on the first pointer or key event.
+// Every sound goes through one game-sound bus, so the announcer can duck it while it speaks.
 class Sfx {
   private ctx: AudioContext | null = null
+  private bus: GainNode | null = null
+  private unlockListeners: ((ctx: AudioContext) => void)[] = []
   enabled = true
-  unlock(): void { if (this.ctx) return; try { this.ctx = new AudioContext(); void this.ctx.resume() } catch { /* silent */ } }
+  unlock(): void {
+    if (this.ctx) return
+    try {
+      const ctx = new AudioContext(); void ctx.resume()
+      const bus = ctx.createGain(); bus.connect(ctx.destination)
+      this.ctx = ctx; this.bus = bus
+    } catch { return /* silent */ }
+    const listeners = this.unlockListeners; this.unlockListeners = []
+    for (const cb of listeners) { try { cb(this.ctx) } catch { /* a listener must not break unlocking */ } }
+  }
+  /** The shared audio context, or null until the first user gesture unlocks audio. */
+  context(): AudioContext | null { return this.ctx }
+  /** Run `cb` with the audio context now if audio is unlocked, otherwise as soon as it is. */
+  onUnlock(cb: (ctx: AudioContext) => void): void { if (this.ctx) cb(this.ctx); else this.unlockListeners.push(cb) }
+  /** Lower game sounds under the announcer (to 45 % over 120 ms) or bring them back (over 250 ms). */
+  duck(on: boolean): void {
+    if (!this.ctx || !this.bus) return
+    const g = this.bus.gain, t = this.ctx.currentTime
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(on ? 0.45 : 1, t + (on ? 0.12 : 0.25))
+  }
   private tone(f: number, d: number, type: OscillatorType = 'square', g = 0.08, slide?: number, at = 0): void {
     if (!this.ctx || !this.enabled) return
     const t0 = this.ctx.currentTime + at, o = this.ctx.createOscillator(), gn = this.ctx.createGain()
     o.type = type; o.frequency.setValueAtTime(f, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + d)
     gn.gain.setValueAtTime(g, t0); gn.gain.exponentialRampToValueAtTime(0.001, t0 + d)
-    o.connect(gn); gn.connect(this.ctx.destination); o.start(t0); o.stop(t0 + d)
+    o.connect(gn); gn.connect(this.bus ?? this.ctx.destination); o.start(t0); o.stop(t0 + d)
   }
   hover(): void { this.tone(880, 0.05, 'square', 0.05, 1100) }
   select(): void { this.tone(660, 0.08, 'square', 0.09); this.tone(990, 0.14, 'square', 0.09, 1320, 0.06) }
@@ -22,7 +44,7 @@ class Sfx {
     for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n)
     const src = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), gn = this.ctx.createGain()
     src.buffer = buf; f.type = 'lowpass'; f.frequency.value = lp; gn.gain.setValueAtTime(g, t0); gn.gain.exponentialRampToValueAtTime(0.001, t0 + d)
-    src.connect(f); f.connect(gn); gn.connect(this.ctx.destination); src.start(t0)
+    src.connect(f); f.connect(gn); gn.connect(this.bus ?? this.ctx.destination); src.start(t0)
   }
   // fight sounds
   whoosh(heavy = false): void { this.noise(heavy ? 0.22 : 0.14, 0.12, heavy ? 900 : 1600) }
