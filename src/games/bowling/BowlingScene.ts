@@ -15,6 +15,7 @@ import { bowlingPractice, type PracticeStep, type PracticeView } from './tutoria
 import { BowlingHud } from './hud/BowlingHud'
 import { BowlingWorld } from './render/BowlingWorld'
 import { playVictoryAnimation } from '../../fx/victoryAnimation'
+import { Announcer } from '../../announcer'
 import { BowlingGame } from './sim/game'
 import { TIERS } from './sim/bot'
 import { HZ } from './sim/constants'
@@ -53,6 +54,8 @@ export class BowlingScene extends Phaser.Scene {
   private steps: PracticeStep[] = []
   private stepIx = 0
   private guide: Phaser.GameObjects.GameObject[] = []
+  /** The spoken announcer for this game; silent in practice. */
+  private announcer: Announcer<'bowling'> | null = null
 
   constructor() { super('bowling') }
 
@@ -84,6 +87,7 @@ export class BowlingScene extends Phaser.Scene {
     this.hud.names = is2p ? ['PLAYER 1', 'PLAYER 2'] : ['YOU', this.houseName]
     this.hud.layout(this.scale.width, this.scale.height)
     this.hud.showCard('LOADING LANE', P.gold, `seed ${seed}`, 0)
+    this.announcer = new Announcer(this, { sport: 'bowling', practice: !!d.practice, perspective: is2p ? { mode: '2p' } : { mode: '1p' } })
     this.acc = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []; this.lastPinSfx = 0
     this.detach = this.keys.attach(window)
     this.input.keyboard!.on('keydown-ESC', () => this.togglePause())
@@ -102,17 +106,20 @@ export class BowlingScene extends Phaser.Scene {
       this.startedAt = this.time.now
       this.world.apply(this.curr, this.aim, 0)
       this.updateTurn()
+      this.announcer?.start()
     })
   }
 
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
+    this.announcer?.layout(this.scale.width, this.scale.height)
   }
 
   private togglePause(): void {
     if (this.ended) return
     this.paused = !this.paused
+    this.announcer?.pause(this.paused)
     if (this.paused) {
       sfx.back()
       this.hud.pauseOverlay(BOWLING_HELP.map((h) => ({ keys: this.bindings[h.action].map(keyLabel).join(' / '), label: h.label, hint: h.hint })), [
@@ -151,6 +158,7 @@ export class BowlingScene extends Phaser.Scene {
 
   private onEvent(e: BowlingEvent, batch: BowlingEvent[]): void {
     this.eventLog.push(JSON.stringify(e))
+    this.announcer?.event(e, () => ({ batch, standing: this.sim.standingPins().map((p) => p.index), player: this.sim.current, frame: this.sim.frame }))
     const w = this.world
     switch (e.kind) {
       case 'roll_start': sfx.whoosh(e.shot.power > 0.7); this.hud.aimReadout(null); this.updateTurn(); break
@@ -281,6 +289,7 @@ export class BowlingScene extends Phaser.Scene {
     }
     this.curr = this.sim.snapshot()
     if (this.sim.phase !== wasPhase || this.sim.current !== wasCurrent || this.sim.ball !== wasBall) this.updateTurn()
+    this.announcer?.frame(this.curr)
     if (this.steps.length && !this.sim.events.length) this.practice([])
     this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path())
     this.hud.update(this.curr, dtS)

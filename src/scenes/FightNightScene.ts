@@ -5,6 +5,7 @@ import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
 import { Book, START_CHIPS } from '../betting/book'
 import { fetchChipSummary, startingChips } from '../betting/ledger'
+import { Announcer, LOBBY_CAPTIONS } from '../announcer'
 
 export const PERSONAS: import('../games/boxing/BoxingScene').Persona[] = [
   { name: 'Knuckles McGraw', model: 'pro', style: 'a relentless brawler who walks forward and throws heavy crosses', color: P.red },
@@ -41,6 +42,7 @@ export class FightNightScene extends Phaser.Scene {
     kb.on('keydown-ESC', () => wipeTo(this, 'menu'))
     void fetch('/agent/health').then((r) => r.json()).then((h: { model: string; source: string; detail: string }) => { this.health = `agents: ${h.source === 'llm' ? `live (${h.model})` : 'offline, scripted fallback'}`; this.draw() }).catch(() => { this.health = 'agent service not running: scripted fallback (npm run agent)'; this.draw() })
     this.draw()
+    Announcer.once(this, 'card.lobby', LOBBY_CAPTIONS)
   }
   private cycle(d: number): void {
     if (this.row > 1) return

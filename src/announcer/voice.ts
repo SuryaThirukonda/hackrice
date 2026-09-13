@@ -1,15 +1,12 @@
 import { sfx } from '../fx/sfx'
 import { TAKES, type Group } from './lines'
 import { MANIFEST_VERSION, lineFile, takeFiles, type Manifest } from './manifest'
+import { audibleSpan, frameLevels, lineWindows } from './segments'
 
 export type LineStatus = 'ready' | 'loading' | 'missing'
 export interface PlayHandle { stop(fadeMs: number): void }
 
 const BASE = `${import.meta.env.BASE_URL ?? '/'}announcer/`
-/** −45 dBFS: quieter samples at a segment's edges count as silence. */
-const SILENCE = 10 ** (-45 / 20)
-/** Kept either side of the audible span so soft consonants survive trimming. */
-const EDGE_PAD_S = 0.02
 
 /**
  * The announcer's voice for the whole session: loads the committed manifest and the takes each scene needs, decodes
@@ -23,6 +20,10 @@ class Voice {
   private failed = false
   private readonly bytes = new Map<string, Promise<ArrayBuffer | null>>()
   private readonly buffers = new Map<string, AudioBuffer | null>()
+  /** Loudness per 10 ms frame of each decoded file, for finding pauses and trimming silence. */
+  private readonly levels = new Map<string, Float32Array>()
+  /** Each line's window in its take once the cuts between lines are moved into real pauses. */
+  private readonly windows = new Map<string, [number, number]>()
   private readonly trims = new Map<string, [number, number]>()
   private output: GainNode | null = null
   private volume = 0.9
@@ -46,7 +47,10 @@ class Voice {
     const file = lineFile(this.loaded, lineId)
     if (!file) return 'missing'
     if (!this.bytes.has(file)) this.fetchFile(file)
-    if (!sfx.context()) return 'missing'
+    const ctx = sfx.context()
+    if (!ctx) return 'missing'
+    // A suspended context plays nothing and never ends a clip: caption this line and try to wake audio for the next.
+    if (ctx.state !== 'running') { void ctx.resume().catch(() => {}); return 'missing' }
     const buf = this.buffers.get(file)
     return buf === undefined ? 'loading' : buf ? 'ready' : 'missing'
   }
@@ -71,13 +75,16 @@ class Voice {
     let done = false
     src.onended = () => { if (done) return; done = true; this.release(); onEnd() }
     this.duckStart()
-    src.start(ctx.currentTime, hit.from, hit.to - hit.from)
+    const t0 = ctx.currentTime, len = hit.to - hit.from
+    // A 20 ms fade at the end, so a segment that ends on a quiet but audible sample doesn't click.
+    gain.gain.setValueAtTime(1, t0); gain.gain.setValueAtTime(1, t0 + Math.max(0, len - 0.02)); gain.gain.linearRampToValueAtTime(0, t0 + len)
+    src.start(t0, hit.from, len)
     return {
       stop: (fadeMs) => {
         if (done) return
         done = true; this.release()
         const t = ctx.currentTime, end = t + Math.max(0.005, fadeMs / 1000)
-        gain.gain.setValueAtTime(gain.gain.value, t); gain.gain.linearRampToValueAtTime(0, end)
+        gain.gain.cancelScheduledValues(t); gain.gain.setValueAtTime(gain.gain.value, t); gain.gain.linearRampToValueAtTime(0, end)
         try { src.stop(end + 0.01) } catch { /* already stopped */ }
       },
     }
@@ -87,9 +94,14 @@ class Voice {
     const m = this.loaded, line = m?.lines[lineId]
     const file = m ? lineFile(m, lineId) : null
     const buf = file ? this.buffers.get(file) : null
-    if (!line || !buf) return null
+    const levels = file ? this.levels.get(file) : undefined
+    if (!line || !buf || !levels) return null
     let span = this.trims.get(lineId)
-    if (!span) { span = trim(buf, line.start, line.end); this.trims.set(lineId, span) }
+    if (!span) {
+      const w = this.windows.get(lineId)
+      span = audibleSpan(levels, buf.duration, w ? w[0] : line.start, w ? w[1] : line.end)
+      this.trims.set(lineId, span)
+    }
     return { buf, from: span[0], to: span[1] }
   }
 
@@ -116,7 +128,28 @@ class Voice {
     const data = await this.bytes.get(file)
     let buf: AudioBuffer | null = null
     if (data) { try { buf = await ctx.decodeAudioData(data.slice(0)) } catch { buf = null } }
+    if (buf) {
+      const levels = frameLevels(buf.getChannelData(0), buf.sampleRate)
+      this.levels.set(file, levels)
+      this.snap(file, buf.duration, levels)
+    }
     this.buffers.set(file, buf)
+  }
+
+  /** The manifest's segments come from timestamps that can run early: move each cut between a take's lines into a real pause. */
+  private snap(file: string, duration: number, levels: Float32Array): void {
+    const m = this.loaded
+    if (!m) return
+    for (const take of TAKES) {
+      const entry = m.takes[take.id]
+      if (!entry || entry.perLine || entry.file !== file) continue
+      const ids = take.lines.map(([id]) => id)
+      const segs = ids.map((id) => m.lines[id])
+      if (segs.some((s) => !s || s.start === null || s.end === null)) continue
+      const estimates = segs.slice(0, -1).map((s, k) => (s.end! + segs[k + 1].start!) / 2)
+      const windows = lineWindows(levels, duration, estimates)
+      if (windows) ids.forEach((id, k) => this.windows.set(id, windows[k]))
+    }
   }
 
   private out(ctx: AudioContext): GainNode {
@@ -134,21 +167,6 @@ class Voice {
     if (this.speaking > 0) return
     this.undock = setTimeout(() => { this.undock = null; if (this.speaking === 0) sfx.duck(false) }, 150)
   }
-}
-
-/** The audible span of a segment, in seconds: leading and trailing silence cut, a little padding kept. */
-function trim(buf: AudioBuffer, start: number | null, end: number | null): [number, number] {
-  const sr = buf.sampleRate
-  const a = Math.max(0, Math.floor((start ?? 0) * sr)), b = Math.min(buf.length, Math.ceil((end ?? buf.duration) * sr))
-  let first = b, last = a - 1
-  for (let c = 0; c < buf.numberOfChannels; c++) {
-    const d = buf.getChannelData(c)
-    for (let i = a; i < Math.min(b, first); i++) if (Math.abs(d[i]) > SILENCE) { first = i; break }
-    for (let i = b - 1; i > Math.max(a - 1, last); i--) if (Math.abs(d[i]) > SILENCE) { last = i; break }
-  }
-  if (last < first) return [a / sr, a / sr]
-  const pad = Math.floor(EDGE_PAD_S * sr)
-  return [Math.max(a, first - pad) / sr, Math.min(b, last + 1 + pad) / sr]
 }
 
 export const voice = new Voice()

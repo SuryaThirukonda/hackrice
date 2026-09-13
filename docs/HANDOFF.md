@@ -22,7 +22,7 @@ the opponent is still called "The House".
 | Phone pages and lab pages | React 19, separate Vite entries |
 | Server | Node 24, `tsx`, one process (`server/agent.ts`) on port 8790 |
 | Build | Vite 8, TypeScript strict with `erasableSyntaxOnly`, `noUnusedLocals`, `noUnusedParameters` |
-| Tests | vitest, 30 files, 254 tests, all deterministic; one Python test for the webcam head tracker |
+| Tests | vitest, 37 files, 323 tests, all deterministic (three check the committed announcer clips against the line catalogue); one Python test for the webcam head tracker |
 | Local data | SQLite through Node's built-in `node:sqlite`, file `data/health.sqlite` (git-ignored) |
 
 Rules that everything else depends on:
@@ -272,8 +272,9 @@ a real camera reading, the head tracker's thresholds on a real webcam (this mach
 2. **Slot security.** A per-match token in the QR URL checked at `hello`, before any public demo.
 3. **Real camera run** on a machine with a webcam, then decide how vitals feed play (the owner's decision:
    adapt bot difficulty from exertion, with a safe default when the camera is off).
-4. **ElevenLabs announcer** for all sports: speaking lock with event priority, pre-cached common lines,
-   a per-match cost ceiling. Researched in `docs/NEXT_PHASE.md`, not started.
+4. **Announcer listening pass.** Every line is generated with a stock ElevenLabs voice (README "Announcer", SPEC
+   part 17). Listen at `/announcer-review.html` and retake a bad take with
+   `npm run announcer -- generate --only <take> --seed <n>`.
 5. **The visual fix list** (three-quarter cameras, bowling backdrop and pins, golf sky and horizon, crowd
    push-back). Only the golf green window and the HUD tier were built; boxing is still first-person.
 6. **Health follow-ons from phone motion**: reaction time from a game cue to the swing, an accessibility mode
@@ -303,9 +304,12 @@ src/health/                    energy model, phone activity tracker, game-side t
 src/phone/                     React controller and join pages, motion processing, socket
 src/lab/                       motion lab, vitals lab, Trace chart
 src/agent/, src/betting/       AI corner link and executor, settings, betting book, chip ledger client
-server/                        agent.ts, service and tools (AI corners), controllerRelay, health, vitals
+src/announcer/                 preset lines, event maps, speaking rules, voice player, review page (section 15)
+server/                        agent.ts, env.ts (.env loader), service and tools (AI corners), controllerRelay,
+                               health, vitals
 scripts/                       tunnel plugin (+joinConfig), standalone tunnel, quickTunnel helper, fake phone,
-                               head_tracker.py (webcam dodges)
+                               head_tracker.py (webcam dodges), announcer/ (ElevenLabs generation CLI)
+public/announcer/              generated announcer clips and manifest.json (committed once generated)
 test/                          end-to-end phone swing, smoke, joinConfig, head tracker (Python)
 docs/                          this file, SPEC.md (code-level spec sheet, PlayCanvas guide, new-boxer recipe),
                                boxing-models.md (the seven builds), NEXT_PHASE.md, ENVIRONMENT_LAYER.md

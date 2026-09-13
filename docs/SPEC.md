@@ -81,13 +81,15 @@ These hold everywhere. Break one and something already written stops being true.
 | `index.html` | Game entry. `#game` div, PlayCanvas canvas (`canvas.pc`) sits at `z-index:0`, Phaser canvas at `z-index:1`, cursor hidden. Loads `src/main.ts`. |
 | `controller.html`, `join.html`, `motion.html`, `vitals.html` | React phone controller, join page, motion lab, vitals lab (entries in `vite.config.ts` `build.rollupOptions.input`). `controller.html` loads the Bangers and Outfit faces from Google Fonts for the comic theme. |
 | `environment-preview.html` | Dev-only static 3D review page (`?sport=boxing|bowling|golf`), loads `src/dev/environmentPreview.ts`. Not part of the production build. |
+| `announcer-review.html` | Dev-only listening page for the announcer clips, loads `src/announcer/review.ts`. Not part of the production build. See part 17. |
+| `public/announcer/` | Generated announcer clips (`<take>.mp3`) and `manifest.json`, committed; served by Vite and copied into `dist/`. Empty until the clips are generated. |
 | `vite.config.ts` | React plugin + `cloudflareTunnel()` plugin; `PROXY` map to :8790 (`/agent` ws, `^/health(/|$)`, `^/vitals(/|$)`, `^/chips(/|$)`, `/controller-ws`, `/controller-game-ws`); `allowedHosts: true`; same proxy for `preview`. |
 | `vitest.config.ts` | `src/**/*.test.ts`, `server/**/*.test.ts`, `test/**/*.test.ts`, node environment. |
-| `tsconfig.json` | See section 1. Includes `src`, `server`, `test`. |
-| `package.json` | Scripts: `dev`, `build`, `preview`, `test`, `test:watch`, `agent`, `typecheck`, `tunnel`, `fake-phone`, `head-tracker`, `test:head-tracker` (both `python3`). |
+| `tsconfig.json` | See section 1. Includes `src`, `server`, `test`, `scripts/announcer`. |
+| `package.json` | Scripts: `dev`, `build`, `preview`, `test`, `test:watch`, `agent`, `announcer` (the ElevenLabs CLI, part 17), `typecheck`, `tunnel`, `fake-phone`, `head-tracker`, `test:head-tracker` (both `python3`). |
 | `README.md` | Run sheet: phone controller, health, camera vitals, testing the controller, controls, architecture, 3D renderer, verification. |
 | `docs/` | `HANDOFF.md`, `NEXT_PHASE.md`, `ENVIRONMENT_LAYER.md`, this file. |
-| `.env` | `OPENAI_KEY`, `PRESSAGE_KEY` (double S; the loader also accepts `PRESAGE_KEY` and `PRESAGE_API_KEY`), `ELEVENLABS_KEY`. Values may have a space before `=`. |
+| `.env` | `OPENAI_KEY`, `PRESSAGE_KEY` (double S; the loader also accepts `PRESAGE_KEY` and `PRESAGE_API_KEY`), `ELEVENLABS_KEY`, and `ELEVENLABS_ANNOUNCER_VOICE` (the announcer's voice id, added by `npm run announcer -- create` or by hand). Values may have a space before `=`; `server/env.ts` trims them. |
 | `data/health.sqlite` | Created by the agent service on first run (`mkdirSync('data')`). |
 | `.env.example` | The keys above with empty values, plus `AGENT_MODEL` and `AGENT_PORT`. |
 | `test/` | `phoneSwing.test.ts` (accelerometer samples to opponent damage), `smoke.test.ts`, `joinConfig.test.ts` (vitest), and `test_head_tracker.py` (synthetic faces through the real MediaPipe detector). |
@@ -149,7 +151,8 @@ These hold everywhere. Break one and something already written stops being true.
 | `ui/pauseOverlay.ts` | `pauseOverlay(scene, rows, actions, title)`, `PauseRow`, `PauseAction` (includes the CONNECT PHONE action). A click on the dimmed backdrop runs the first action, RESUME in every sport. |
 | `fx/transitions.ts` | `wipeTo(scene, key, data)`, `isWiping()` |
 | `fx/victoryAnimation.ts` | `playVictoryAnimation({ scene, winner, is2p, spectator?, p1Name?, p2Name?, method?, sport?, onComplete })` returns `{ destroy }`: dimmer, rotating rays, confetti, slammed banner, action bursts; a click or key skips it after 850 ms and it advances by itself after 3.8 s. `is2p` names both sides and highlights the winner's half of the screen; `spectator` (Fight Night) keeps the names without the half highlight. |
-| `fx/sfx.ts` | `sfx` singleton (WebAudio, `enabled`, `unlock()`, cues: `hover`, `select`, `back`, `stamp`, `wipe`, `sparkle`, `whoosh`, `thud`, `block`, `dodge`, `parry`, `stagger`, `gassed`, `bell`, `countdown`, `knockdown`, `count`, `ko`, `win`, `crowd`) |
+| `ui/captions.ts` | `Captions` (one announcer line in the hint-bar style: `show`, `hide(afterMs)`, `clear`, `layout`, `destroy`), `CaptionPlace`, `SPORT_CAPTIONS` (W/2, H−168, wrap min(W−600, 760)), `MENU_CAPTIONS`, `LOBBY_CAPTIONS`, `CAPTION_DEPTH = 116` |
+| `fx/sfx.ts` | `sfx` singleton (WebAudio; every tone and noise goes through one game-sound gain bus; `context()`, `onUnlock(cb)`, `duck(on)` lowers the bus to 45 % under the announcer; `enabled`, `unlock()`, cues: `hover`, `select`, `back`, `stamp`, `wipe`, `sparkle`, `whoosh`, `thud`, `block`, `dodge`, `parry`, `stagger`, `gassed`, `bell`, `countdown`, `knockdown`, `count`, `ko`, `win`, `crowd`) |
 | `fx/CursorTrail.ts` | `CursorTrail` scene (`cursor`), always on top |
 
 ### `src/input/`
@@ -909,3 +912,35 @@ states would map to clips, and `poses.ts` would be bypassed for that rig.
 
 Standard checks before a commit: `npm test`, `npm run build`, one screenshot per changed scene at 1280×800 with
 the preview pane visible, and for renderer changes a before/after frame-time read on the medium tier.
+
+## 17. Announcer (`src/announcer/`, `scripts/announcer/`)
+
+Every spoken line is a preset. An offline CLI generates the catalogue with ElevenLabs into committed MP3s, and the
+game plays them with no key and no service. Without clips, or with `?voice=captions` in dev, every call shows as a
+caption only, under the same rules. The event maps are in `src/announcer/maps/`, and every line is in `lines.ts`.
+
+| File | Exports / role |
+|---|---|
+| `lines.ts` | `TAKES` (18 takes, 237 lines; one take is one generation request; the five `*.more` takes add variants to the busiest cues), `CUES` (cue id to `{ priority 1..5, lines, cooldownS?, staleS?, beat? }`; variants are `<cue>#n`), `NAME_KEYS` (`you`, `house`, `p1`, `p2`, `knuckles`, `professor`, `lou`, `maggie`), `cueOf`, `lineText`, `captionText`, `allLineIds`, `AUDIO_TAGS` |
+| `maps/shared.ts` | `Perspective` (`1p`, `2p`, or `card` with persona keys), `SportMap` (`start`, `event(e, ctx)`, `frame(view)`, `live(view)`, `colour`), `personaKey(name)`, `nameKey`, `sideKey`, `winnerCue` |
+| `maps/boxing.ts`, `maps/bowling.ts`, `maps/golf.ts` | Pure event maps with per-match memory; `BoxingCtx`, `BowlingCtx` and `isSplit(standing)`, `GolfCtx` |
+| `director.ts` | `createMap(sport, perspective)`, `SportTypes` |
+| `rules.ts` | `SpeechRules`: one voice; a higher priority interrupts with an 80 ms fade; one pending slot; stale after 2 s (4 s at priority 5); beats never queue, cut lower calls and each other, are skipped under a priority-5 line, and yield to an equal call; priority 2 waits for 1.2 s of silence and has a 15 s cooldown; colour after 12 s of silence, 30 s apart, four per match; pause clears everything. Also `requestFor(cues)` and `VariantPicker` |
+| `voice.ts` | `voice` singleton: `load(groups)`, `status(line)` (`ready`, `loading`, `missing`), `play(line, onEnd)` returning `{ stop(fadeMs) }`, `setVolume`, `duration`. Decodes after `sfx` unlocks, moves each cut between a take's lines into a real pause, trims silence, fades the last 20 ms, ducks game sound while it speaks |
+| `segments.ts` | `frameLevels` (10 ms loudness), `findPauses`, `assignCuts` (one pause per cut, in order, nearest the timestamp estimate, longer pauses preferred), `lineWindows`, `audibleSpan` (trim below −55 dBFS with 30 ms padding). The generation timestamps can run most of a second early, so cuts come from the audio |
+| `manifest.ts` | `Manifest` (`public/announcer/manifest.json`: `takes[id] { file, hash, seed, stability, chars, bytes, perLine? }`, `lines[id] { take, file?, start, end }`), `lineFile`, `takeFiles` |
+| `index.ts` | `Announcer<S>(scene, { sport, perspective?, practice?, place?, captions? })`: `start`, `event`, `frame`, `say`, `pause`, `layout`, `destroy`; follows the scene's UPDATE, PAUSE, RESUME and SHUTDOWN events. `Announcer.once(scene, cue, place)` and `Announcer.sample(scene, cue)`. Dev hook `window.__announcer { log, say, status }` |
+| `review.ts` | The `announcer-review.html` listening page |
+| `scripts/announcer/cli.ts` | `npm run announcer -- budget`, `design`, `create <id>`, `generate [--dry-run] [--only] [--force] [--seed] [--stability] [--per-line] [--max-chars]`; `main(argv, deps)` takes fetch, env and the file system as arguments for tests |
+| `scripts/announcer/elevenlabs.ts` | `call` (429 retried after 1, 2, 4, 8 and 16 s; 5xx and network errors twice; 401, 402 and 403 stop the run), `subscription`, `designVoice`, `createVoice`, `speak` (`/v1/text-to-speech/{voice}/with-timestamps`, `eleven_v3`, `mp3_44100_96`) |
+| `scripts/announcer/takes.ts` | `takeText`, `takeHash`, `defaultSeed`, `priorityOrder`, `alignIndices`, `segmentsFor` |
+| `scripts/announcer/voice.ts` | `DEFAULT_VOICE_ID` (the stock voice used unless `ELEVENLABS_ANNOUNCER_VOICE` is set), voice description, preview text, models, output format, `DEFAULT_MAX_CHARS = 4500` |
+
+Scene hooks: each sport scene creates an `Announcer` in `create()` (inert in practice), calls `start()` when its 3D
+world is ready, `event(e, ctx)` at the top of `onEvent`, `frame(this.curr)` after its step loop, `pause(this.paused)`
+in `togglePause`, and `layout` in `onResize`. Boxing also says `card.bets.next` when a round market opens,
+`card.bets.closing` at five seconds and the payout cue in `settle()`. `MainMenuScene` and `FightNightScene` say one
+line per page load, `BootScene` starts loading the shared takes, and `CreditsScene` credits ElevenLabs.
+
+Account limits found on 2026-09-13: the key lacks the `user_read` and `voices_read` permissions, and Voice Design
+through the API is refused on the free plan (`feature_not_available`).

@@ -82,6 +82,16 @@ describe('SpeechRules', () => {
     expect(r2.request(beat('count.1'), 5100)).toMatchObject({ kind: 'play', cutMs: BEAT_FADE_MS })
   })
 
+  it('lets the knockout call replace a count digit on the tenth beat, while lower calls still wait for the digit', () => {
+    const { r } = rules()
+    played(r.request(beat('count.9'), 5000))
+    expect(r.request(req(5, { cues: ['count.10', 'boxing.ko', 'win.house'] }), 6000)).toMatchObject({ kind: 'play', cutMs: BEAT_FADE_MS })
+
+    const { r: r2 } = rules()
+    played(r2.request(beat('count.8'), 5000))
+    expect(r2.request(req(4, { cues: ['boxing.getup'] }), 5000)).toEqual({ kind: 'queue' })
+  })
+
   it('makes minor calls wait for silence and respect their cooldown', () => {
     const { r } = rules()
     const a = played(r.request(req(3), 5000))
@@ -156,6 +166,13 @@ describe('VariantPicker', () => {
       expect(line).not.toBe(prev)
       prev = line
     }
+  })
+
+  it('plays every variant once before repeating any', () => {
+    let seed = 7
+    const picker = new VariantPicker(() => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 })
+    const lines = ['c#1', 'c#2', 'c#3', 'c#4']
+    for (let round = 0; round < 5; round++) expect(new Set(Array.from({ length: 4 }, () => picker.pick('c', lines))).size).toBe(4)
   })
 
   it('returns the only line every time, and null for no lines', () => {

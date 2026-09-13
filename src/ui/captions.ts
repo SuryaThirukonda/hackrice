@@ -11,7 +11,7 @@ export interface CaptionPlace {
 /** Sports: the band just above golf's club panel, swing meter and minimap, clear of every HUD at 1280×720 and up. */
 export const SPORT_CAPTIONS: CaptionPlace = { x: (W) => W / 2, y: (_W, H) => H - 168, wrap: (W) => Math.max(320, Math.min(W - 600, 760)) }
 /** Main menu: under the mascot, left of the button column. */
-export const MENU_CAPTIONS: CaptionPlace = { x: (W) => W * 0.29, y: (_W, H) => H - 64, wrap: (W) => Math.max(260, W * 0.4) }
+export const MENU_CAPTIONS: CaptionPlace = { x: (W) => W * 0.29, y: (_W, H) => H - 64, wrap: (W) => Math.max(260, W * 0.42) }
 /** Fight Night lobby: above RING THE BELL. */
 export const LOBBY_CAPTIONS: CaptionPlace = { x: (W) => W / 2, y: (_W, H) => H - 160, wrap: (W) => Math.max(320, Math.min(W - 200, 700)) }
 

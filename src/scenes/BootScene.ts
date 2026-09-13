@@ -2,12 +2,15 @@ import Phaser from 'phaser'
 import { ensureTextures } from '../ui/widgets'
 import { DISPLAY, HEX, P } from '../theme'
 import { sfx } from '../fx/sfx'
+import { voice } from '../announcer/voice'
 
 /** Generates UI textures, shows the loading beat, then starts the title. */
 export class BootScene extends Phaser.Scene {
   constructor() { super('boot') }
   create(): void {
     ensureTextures(this)
+    // The announcer's shared lines (the welcome and every result) start downloading now and decode once audio unlocks.
+    voice.load(['shared'])
     const { width: W, height: H } = this.scale
     this.cameras.main.setBackgroundColor(HEX(P.sky2))
     const label = this.add.text(W / 2, H / 2 - 40, 'LOADING THE HOUSE', { fontFamily: DISPLAY, fontSize: '40px', color: HEX(P.gold), stroke: HEX(P.ink), strokeThickness: 8 }).setOrigin(0.5)

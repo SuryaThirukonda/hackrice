@@ -129,6 +129,26 @@ prints why once instead of retrying silently.
 ignored and each snap produces the right action. Both commands download MediaPipe's face model (about
 230 KB) to `~/.cache/mediapipe` the first time.
 
+## Announcer
+
+Every game has a spoken announcer: round, frame and hole calls, big moments, results, and a few colour lines in
+quiet stretches. Every line is a preset in `src/announcer/lines.ts`. The clips are generated once with ElevenLabs
+and committed to `public/announcer/`, so the game needs no key and no service to announce. Settings has ANNOUNCER,
+ANNOUNCER VOLUME and CAPTIONS rows. Without clips, every line still shows as a caption.
+
+Regenerating needs `ELEVENLABS_KEY` in `.env`. The lines use a stock ElevenLabs voice; set
+`ELEVENLABS_ANNOUNCER_VOICE` in `.env` to use a different one. The whole catalogue costs about 7,000 of the free
+plan's 10,000 monthly credits; new lines go in new takes, so only they are generated.
+
+```bash
+npm run announcer -- generate --dry-run   # what would be generated, and its cost
+npm run announcer -- generate             # only takes whose text, voice or seed changed
+```
+
+Listen at `/announcer-review.html` on the dev server. A bad line is retaken with its whole take:
+`npm run announcer -- generate --only <take> --seed <n>`. The credits screen names ElevenLabs as the source of the
+announcer voice, which the free plan requires for published work.
+
 ## Controls
 
 | Game | Keys |
@@ -172,8 +192,9 @@ src/scenes/                 title, menus, settings, tutorial and Fight Night
 src/agent/ + server/        browser agent link, server-side OpenAI service, phone relay
 src/phone/                  React controller and join pages (the only React in the repo)
 src/lab/                    motion lab: what the phone sends, on the big screen
-scripts/                    tunnel plugin, standalone tunnel, fake phone
+scripts/                    tunnel plugin, standalone tunnel, fake phone, announcer CLI
 src/betting/                fixed-odds play-chip book
+src/announcer/              preset announcer lines, event maps, speaking rules, voice player, review page
 legacy/2d/                  archived Phaser-only pixel renderer and art
 ```
 
@@ -195,4 +216,4 @@ The superseded 2D implementation remains available under [`legacy/2d`](legacy/2d
 
 `npm test` covers deterministic sims, replay timing, keymaps, bots, betting, renderer interpolation, agent execution/service fallbacks, and smoke matches. `npm run build` performs strict TypeScript checking before the production Vite build.
 
-Development builds expose `window.__game`, `window.__advance(ms)`, and `window.__boxing` / `__bowling` / `__golf` for browser-driven verification.
+Development builds expose `window.__game`, `window.__advance(ms)`, `window.__boxing` / `__bowling` / `__golf`, and `window.__announcer` (the announcer's call log, `say(cue)`, and each line's audio status) for browser-driven verification. `?voice=captions` forces the announcer into captions-only mode.

@@ -89,6 +89,14 @@ export class CreditsScene extends Phaser.Scene {
       })
     })
 
+    // The announcer voice is made with ElevenLabs, whose free plan asks published work to credit it.
+    this.add.text(W / 2, panelY + panelH - 66, 'ANNOUNCER VOICE: ELEVENLABS · elevenlabs.io', {
+      fontFamily: FONT,
+      fontSize: '14px',
+      color: HEX(P.ink),
+      fontStyle: '900',
+    }).setOrigin(0.5).setAngle(1.5)
+
     // HackRice badge at bottom of panel
     this.add.text(W / 2, panelY + panelH - 34, '★ HACKRICE 16 · RICE UNIVERSITY ★', {
       fontFamily: FONT,

@@ -21,6 +21,7 @@ import { BoxingWorld } from './render/BoxingWorld'
 import { lerpView } from './render/interp'
 import { BoxingMatch } from './sim/match'
 import { playVictoryAnimation } from '../../fx/victoryAnimation'
+import { Announcer, personaKey } from '../../announcer'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
@@ -70,6 +71,8 @@ export class BoxingScene extends Phaser.Scene {
   private ledger = new ChipLedger()
   private betMarket = ''
   private roundsWon: [number, number] = [0, 0]
+  /** The spoken announcer for this fight; silent in practice. */
+  private announcer: Announcer<'boxing'> | null = null
 
   constructor() { super('boxing') }
 
@@ -105,6 +108,11 @@ export class BoxingScene extends Phaser.Scene {
       this.ledger.begin(this.book, [ps[0].name, ps[1].name], seed)
       this.roundsWon = [0, 0]
     }
+    this.announcer = new Announcer(this, {
+      sport: 'boxing',
+      practice: !!d.practice,
+      perspective: this.card ? { mode: 'card', a: personaKey(this.hud.names[0]), b: personaKey(this.hud.names[1]) } : is2p ? { mode: '2p' } : { mode: '1p' },
+    })
     this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.hud.showCard('LOADING RING', P.gold, `seed ${seed}`, 0)
     this.acc = 0; this.hitStop = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []
@@ -137,6 +145,7 @@ export class BoxingScene extends Phaser.Scene {
       this.ready = true
       this.startedAt = this.time.now
       this.world.apply(this.curr, 0, false)
+      this.announcer?.start()
       if (this.card) { this.hud.setHint('spectating · A/D corner · ↑↓ stake · Enter bet · Esc pause'); this.link?.strategize(this.match); this.openBetting('match') }
       else if (is2p) { this.hud.setHint('P1: WASD / Space / J / K / Phone 1  ·  P2: Arrows / U / I / O / Phone 2 · Esc pause') }
     })
@@ -145,11 +154,13 @@ export class BoxingScene extends Phaser.Scene {
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height, this.is2p)
     this.world?.resize(this.scale.width, this.scale.height)
+    this.announcer?.layout(this.scale.width, this.scale.height)
   }
 
   private togglePause(): void {
     if (this.ended) return
     this.paused = !this.paused
+    this.announcer?.pause(this.paused)
     if (this.paused) {
       sfx.back()
       this.hud.pauseOverlay(BOXING_HELP.map((h) => ({ keys: this.bindings[h.action].map(keyLabel).join(' / '), label: h.label, hint: h.hint })), [
@@ -164,6 +175,7 @@ export class BoxingScene extends Phaser.Scene {
 
   private onEvent(e: SimEvent): void {
     this.eventLog.push(JSON.stringify(e))
+    this.announcer?.event(e, () => ({ tick: this.match.tick, round: this.match.round, rounds: this.match.rounds, roundWinner: e.kind === 'bell' && e.end ? this.roundWinner() : undefined }))
     const w = this.world
     switch (e.kind) {
       case 'countdown': sfx.countdown(e.n); this.hud.countdownNumber(e.n); break
@@ -366,7 +378,11 @@ export class BoxingScene extends Phaser.Scene {
     if (this.paused || this.ended) { this.world.apply(this.curr, deltaMs / 1000, this.match.a.hp <= 0); this.hud.update(this.curr, deltaMs / 1000); return }
     if (this.betting) {
       this.betLeft -= deltaMs / 1000
-      if (this.betLeft <= 0) this.closeBetting(); else if (Math.ceil(this.betLeft + deltaMs / 1000) !== Math.ceil(this.betLeft)) this.drawBet()
+      if (this.betLeft <= 0) this.closeBetting()
+      else if (Math.ceil(this.betLeft + deltaMs / 1000) !== Math.ceil(this.betLeft)) {
+        this.drawBet()
+        if (Math.ceil(this.betLeft) === 5 && !this.betPlaced) this.announcer?.say('card.bets.closing')
+      }
       this.world.apply(this.curr, deltaMs / 1000, false); this.hud.update(this.curr, deltaMs / 1000); return
     }
     if (this.link && this.match.phase === 'fighting') {
@@ -396,6 +412,7 @@ export class BoxingScene extends Phaser.Scene {
       this.acc -= STEP_MS
       if (this.hitStop > 0) { this.acc = 0; break }
     }
+    this.announcer?.frame(this.curr)
     const view = lerpView(this.prev, this.curr, Math.min(1, this.acc / STEP_MS))
     this.world.apply(view, deltaMs / 1000, this.match.a.hp <= 0 && this.match.phase !== 'fighting')
     this.hud.update(view, deltaMs / 1000)
@@ -409,6 +426,7 @@ export class BoxingScene extends Phaser.Scene {
     if (!this.book) return
     const m = this.book.openMarket(kind, this.match.round, this.form())
     this.betMarket = m.id; this.betting = true; this.betLeft = 15; this.betPlaced = null
+    if (kind === 'round') this.announcer?.say('card.bets.next') // the match window's call rides on the corner introductions
     this.betStake = Math.min(this.betStake, Math.max(10, this.book.balance))
     this.drawBet()
   }
@@ -441,6 +459,7 @@ export class BoxingScene extends Phaser.Scene {
       const paid = r.paid
       this.hud.showCard(paid > 0 ? `+${paid} CHIPS` : 'BET LOST', paid > 0 ? P.green : P.red, `${this.hud.names[winner === 'a' ? 0 : 1]} ${winner === 'draw' ? 'draw, refunded' : 'takes it'} · balance ${this.book.balance}`, 1800)
       if (paid > 0) sfx.win()
+      if (winner !== 'draw') this.announcer?.say(paid > 0 ? 'card.payout.won' : 'card.payout.lost')
     }
   }
   private roundWinner(): Corner | 'draw' {
