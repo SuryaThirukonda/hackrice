@@ -36,7 +36,9 @@ export class HealthTracker {
     // starts at the bell, not in the lobby.
     controllerInput.drainActivity(controller)
     this.starting = post<{ id: number }>('/health/session', { sport, controller, startedAt: Date.now(), weightKg: loadSettings().weightKg, source: 'keyboard' })
-      .then((r) => { if (r && !this.ended) this.id = r.id })
+      // The session can finish before the create request resolves. Keep the id in that case so
+      // `end()` can still flush and close the record instead of silently dropping a short match.
+      .then((r) => { if (r) this.id = r.id })
   }
 
   /** Forward whatever the phone reported since last frame, in small batches. */
@@ -64,10 +66,12 @@ export class HealthTracker {
   /** Close the record. Resolves with the line the results card can show, or null when nothing was stored. */
   async end(): Promise<SessionSummaryLine | null> {
     if (this.ended) return null
+    // Drain activity while the tracker is still live. Marking ended first makes `pump()` return
+    // early and loses the last phone epochs (particularly noticeable in quick boxing rounds).
+    this.pump(Number.POSITIVE_INFINITY)
     this.ended = true
     await this.starting
     if (this.id === null) return null
-    this.pump(Number.POSITIVE_INFINITY)
     if (this.pending.epochs.length || this.pending.roms.length) await post(`/health/session/${this.id}/add`, this.pending)
     const row = await post<{ id: number; activeSeconds: number; activeMinutes: number; kcal: number | null; motionLoad: number; energyConfidence: string; swings: number; romMean: number; romMax: number; source: 'phone' | 'keyboard' }>(
       `/health/session/${this.id}/finish`, { endedAt: Date.now(), source: this.sawMovement ? 'phone' : 'keyboard' })
