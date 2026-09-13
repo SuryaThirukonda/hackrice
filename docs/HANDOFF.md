@@ -70,8 +70,7 @@ Keys dispatched from scripts must be DOM `KeyboardEvent`s with `keyCode` set, or
 ## 4. The games
 
 ### Boxing (`src/games/boxing/`)
-Three rounds against a bot tier (rookie, pro, champ) or a sparring dummy. Health, stamina (punches and
-blocks spend it, idle refills it), guard, slips, ducks, step in and out, knockdowns with a count, KO and
+Three rounds against a bot tier (rookie, pro, champ) or a sparring dummy. Health, stamina (punches, blocks and dodges spend it; it refills at 18/s whenever the fighter is not mid-punch, footwork is free, and a dodge that evades a punch pays back more than it cost), guard, slips, ducks, step in and out, knockdowns with a count, KO and
 decision. Keyboard: `J` jab, `K` cross, `Space`/`S` block, `A`/`D` step, `Q`/`E` sway, `W` duck, arrows in
 and out, `Esc` pause, `H` help. The renderer draws an anatomical opponent rig (`render/OpponentRig.ts`)
 and first-person player arms (`render/PlayerArms.ts`); a knockdown drops the rig to the canvas.

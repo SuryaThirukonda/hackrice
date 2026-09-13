@@ -353,15 +353,17 @@ describe('fight feel: bot pressure, cadence, stamina economy', () => {
     expect(perMinute('champ').ppm).toBeGreaterThan(perMinute('rookie').ppm)
     expect(perMinute('champ').ppm).toBeLessThan(36) // refill is 18/s and footwork is free, so a champ boxes at pace
   })
-  it('stamina is a real limiter: a run of jabs is refused before the 14th, and a long guard drains the bar slowly', () => {
+  it('stamina is a real limiter: a long run of jabs is refused, and a long guard drains the bar slowly', () => {
     const m = fighting(); place(m, 2.5) // out of reach so nothing lands; only costs matter
     let refused = 0, thrown = 0
-    for (let i = 0; i < 14; i++) {
+    // Refill is quick between exchanges but pauses while a punch is in flight, so a fighter who never
+    // stops jabbing still runs dry: thirty attempts at 9 stamina each cannot all be paid for.
+    for (let i = 0; i < 30; i++) {
       const ev = run(m, 42, once(cmd({ punch: 'jab' }))) // one jab per 42 ticks (its full windup + active + recover)
       if (ev.some((e) => e.kind === 'gassed')) refused++
       if (ev.some((e) => e.kind === 'windup')) thrown++
     }
-    expect(thrown).toBeLessThanOrEqual(13) // regen pauses while a punch is in flight, so spam still runs dry
+    expect(thrown).toBeLessThanOrEqual(24)
     expect(refused).toBeGreaterThanOrEqual(1)
     const g = fighting(); place(g, 2.5)
     const s0 = g.a.stamina
