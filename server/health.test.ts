@@ -45,6 +45,7 @@ describe('HealthStore', () => {
     expect(db.sessions()).toEqual([]); expect(db.summary(0).today.sessions).toBe(0)
     db.close()
   })
+})
 
 describe('chips', () => {
   it('keeps every fight, bet and chip movement, and the balance is the last ledger row', () => {
