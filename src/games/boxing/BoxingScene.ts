@@ -21,6 +21,7 @@ import { BoxingWorld } from './render/BoxingWorld'
 import { lerpView } from './render/interp'
 import { BoxingMatch } from './sim/match'
 import { playVictoryAnimation } from '../../fx/victoryAnimation'
+import { Announcer, personaKey } from '../../announcer'
 import { TIERS } from './sim/tiers'
 import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
@@ -39,6 +40,7 @@ export class BoxingScene extends Phaser.Scene {
   private padB = boxingControllerState()
   private match!: BoxingMatch
   private hud!: BoxingHud
+  private announcer!: Announcer<'boxing'>
   private world: BoxingWorld | null = null
   private keys = new KeyState()
   private detach: (() => void) | null = null
@@ -106,6 +108,19 @@ export class BoxingScene extends Phaser.Scene {
       this.roundsWon = [0, 0]
     }
     this.hud.layout(this.scale.width, this.scale.height, this.is2p)
+    this.announcer = new Announcer(this, {
+      sport: 'boxing',
+      practice: !!d.practice,
+      perspective: this.is2p
+        ? { mode: '2p' }
+        : this.card
+          ? {
+              mode: 'card',
+              a: personaKey(d.personas?.[0]?.name),
+              b: personaKey(d.personas?.[1]?.name),
+            }
+          : { mode: '1p' },
+    })
     this.hud.showCard('LOADING RING', P.gold, `seed ${seed}`, 0)
     this.acc = 0; this.hitStop = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []
     this.detach = this.keys.attach(window)
@@ -136,6 +151,7 @@ export class BoxingScene extends Phaser.Scene {
       this.hud.clearCard()
       this.ready = true
       this.startedAt = this.time.now
+      this.announcer.start()
       this.world.apply(this.curr, 0, false)
       if (this.card) { this.hud.setHint('spectating · A/D corner · ↑↓ stake · Enter bet · Esc pause'); this.link?.strategize(this.match); this.openBetting('match') }
       else if (is2p) { this.hud.setHint('P1: WASD / Space / J / K / Phone 1  ·  P2: Arrows / U / I / O / Phone 2 · Esc pause') }
@@ -144,12 +160,14 @@ export class BoxingScene extends Phaser.Scene {
 
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height, this.is2p)
+    this.announcer?.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
   private togglePause(): void {
     if (this.ended) return
     this.paused = !this.paused
+    this.announcer?.pause(this.paused)
     if (this.paused) {
       sfx.back()
       this.hud.pauseOverlay(BOXING_HELP.map((h) => ({ keys: this.bindings[h.action].map(keyLabel).join(' / '), label: h.label, hint: h.hint })), [
@@ -164,6 +182,12 @@ export class BoxingScene extends Phaser.Scene {
 
   private onEvent(e: SimEvent): void {
     this.eventLog.push(JSON.stringify(e))
+    this.announcer?.event(e, () => ({
+      tick: this.match.tick,
+      round: this.match.round,
+      rounds: this.match.rounds,
+      roundWinner: this.roundWinner(),
+    }))
     const w = this.world
     switch (e.kind) {
       case 'countdown': sfx.countdown(e.n); this.hud.countdownNumber(e.n); break
@@ -315,6 +339,7 @@ export class BoxingScene extends Phaser.Scene {
   update(_t: number, deltaMs: number): void {
     this.health.pump(); this.badge?.update()
     if (!this.ready || !this.world) return
+    this.announcer?.frame(this.curr)
     const keyboard = boxingCommand(this.keys, this.bindingsP1)
     // Player 2's punches are press edges too, so their command must be read before this frame's edges are cleared.
     const keyboardB = this.is2p ? boxingCommandP2(this.keys) : null

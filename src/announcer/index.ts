@@ -23,7 +23,7 @@ export interface AnnouncerOptions<S extends Sport | 'menu'> {
   captions?: boolean
 }
 
-export interface AnnouncerLogEntry { at: number; cue: string; line?: string; kind: 'play' | 'caption' | 'cut' | 'skip' | 'drop' | 'queue' | 'stale' | 'cleared'; reason?: string }
+export interface AnnouncerLogEntry { at: number; cue: string; line?: string; kind: 'play' | 'caption' | 'cut' | 'skip' | 'drop' | 'queue' | 'stale' | 'cleared' | 'replaced'; reason?: string }
 
 const LINE_GAP_MS = 150
 const CAPTION_MS_PER_CHAR = 60

@@ -5,6 +5,7 @@ import { wipeTo } from '../fx/transitions'
 import { openControllerConnect } from './ControllerScene'
 import { loadSettings } from '../agent/sliders'
 import { formatActive } from '../health/energy'
+import { Announcer, MENU_CAPTIONS } from '../announcer'
 
 /** Home menu: big playful logo on a tilted comic panel, a mascot chip bouncing, stacked comic buttons that slide in. */
 export class MainMenuScene extends Phaser.Scene {
@@ -46,6 +47,7 @@ export class MainMenuScene extends Phaser.Scene {
       return b
     })
     new MenuNav(this, buttons, (i) => items[i][3]())
+    Announcer.once(this, 'menu.welcome', MENU_CAPTIONS)
     void this.goalCard(W, H)
   }
   /** Today's activity goal, read from the local health service. Silent when that service is off. */

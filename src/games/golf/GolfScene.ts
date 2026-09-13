@@ -16,6 +16,7 @@ import { playVictoryAnimation } from '../../fx/victoryAnimation'
 import { GolfWorld, type AimState } from './render/GolfWorld'
 import { CLUBS, CLUB_LIST, FULL_CLUBS, GolfRound, HZ, LIE_MUL, Rng, TIERS, courseById, simulateShot, surfaceAt, type CourseId } from './sim'
 import type { BotParams, Club, GolfEvent, GolfSnapshot, Player, Surface } from './sim/types'
+import { Announcer } from '../../announcer'
 
 export interface GolfSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId }
 
@@ -72,6 +73,7 @@ export class GolfScene extends Phaser.Scene {
   private practiceUi: GolfPracticeUi = { clubChanges: 0, aimTurnedDeg: 0, swings: 0 }
   private guide: Phaser.GameObjects.GameObject[] = []
   private nHoles = 3
+  private announcer!: Announcer<'golf'>
 
   constructor() { super('golf') }
 
@@ -98,6 +100,11 @@ export class GolfScene extends Phaser.Scene {
     this.hud.setCourseName(course.name)
     this.hud.setNames(is2p ? 'PLAYER 1' : 'YOU', is2p ? 'PLAYER 2' : (d.practice ? 'YOU (BALL B)' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`))
     this.hud.layout(this.scale.width, this.scale.height)
+    this.announcer = new Announcer(this, {
+      sport: 'golf',
+      practice: !!d.practice,
+      perspective: { mode: this.is2p ? '2p' : '1p' },
+    })
     const k = (a: keyof GolfBindings) => this.bindings[a].map(keyLabel).join('/')
     this.hud.setHint(`${k('clubUp')}/${k('clubDown')} club · ${k('aimLeft')}/${k('aimRight')} aim · ${k('swing')} swing ×3 · ${k('view')} map · Esc pause · H help`)
     this.hud.showCard('LOADING COURSE', P.gold, `${course.name.toLowerCase()} · seed ${seed}`, 0)
@@ -125,6 +132,7 @@ export class GolfScene extends Phaser.Scene {
         this.world.show(this.scale.width, this.scale.height)
         this.world.apply(this.curr, this.aimState(), 0)
       } catch (err) { console.error('golf world failed', err); this.world = null }
+      this.announcer.start()
       this.hud.clearCard()
       this.ready = true
       this.onEvent({ kind: 'wind', x: this.round.wind.x, z: this.round.wind.z })
@@ -133,12 +141,14 @@ export class GolfScene extends Phaser.Scene {
 
   onResize(): void {
     this.hud.layout(this.scale.width, this.scale.height)
+    this.announcer?.layout(this.scale.width, this.scale.height)
     this.world?.resize(this.scale.width, this.scale.height)
   }
 
   private togglePause(): void {
     if (this.ended) return
     this.paused = !this.paused
+    this.announcer?.pause(this.paused)
     if (this.paused) {
       sfx.back()
       this.hud.pauseOverlay(GOLF_HELP.map((h) => ({ keys: this.bindings[h.action].map(keyLabel).join(' / '), label: h.label, hint: h.hint })), [
@@ -234,8 +244,15 @@ export class GolfScene extends Phaser.Scene {
 
   private onEvent(e: GolfEvent): void {
     this.eventLog.push(JSON.stringify(e))
-    const mine = 'player' in e && (this.is2p || e.player === 'a' || this.practice)
     const par = this.round.holeData.par
+    this.announcer?.event(e, () => ({
+      par,
+      hole: this.round.hole,
+      nHoles: this.nHoles,
+      windMax: this.round.windRange?.max ?? 0,
+      strokes: 'strokes' in e ? e.strokes : ('player' in e ? this.round.balls[e.player]?.strokes ?? 0 : 0),
+    }))
+    const mine = 'player' in e && (this.is2p || e.player === 'a' || this.practice)
     switch (e.kind) {
       case 'wind': {
         const h = this.round.holeData, d = Math.round(Math.hypot(h.cup.x - h.tee.x, h.cup.z - h.tee.z))
@@ -326,6 +343,7 @@ export class GolfScene extends Phaser.Scene {
   update(t: number, deltaMs: number): void {
     this.health.pump(); this.badge?.update()
     if (!this.ready) return
+    this.announcer?.frame(this.curr)
     const dtS = Math.min(deltaMs, 100) / 1000
     const inp = golfInput(this.keys, this.bindings)
     this.keys.endFrame()
