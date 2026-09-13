@@ -132,6 +132,8 @@ legacy/2d/                  archived Phaser-only pixel renderer and art
 
 The simulation is the authority. Renderers consume snapshots and events; they never resolve hits, contacts, scores, hazards, or bot choices. A renderer replacement therefore cannot change replay determinism or game physics.
 
+The code-level reference (every module and export, the PlayCanvas toolkit and its rules, and the recipe for adding new boxer looks) is [`docs/SPEC.md`](docs/SPEC.md).
+
 ## 3D renderer
 
 - A shared PlayCanvas canvas sits behind Phaser's transparent UI canvas.

@@ -263,7 +263,8 @@ src/lab/                       motion lab, vitals lab, Trace chart
 src/agent/, src/betting/       AI corner link and executor, settings, betting book, chip ledger client
 server/                        agent.ts, service and tools (AI corners), controllerRelay, health, vitals
 scripts/                       tunnel plugin, standalone tunnel, quickTunnel helper, fake phone
-docs/                          this file, NEXT_PHASE.md (research and decisions), ENVIRONMENT_LAYER.md
+docs/                          this file, SPEC.md (code-level spec sheet, PlayCanvas guide, new-boxer recipe),
+                               NEXT_PHASE.md (research and decisions), ENVIRONMENT_LAYER.md
 legacy/2d/                     the archived Phaser-only pixel renderer
 data/                          health.sqlite (git-ignored)
 ```
