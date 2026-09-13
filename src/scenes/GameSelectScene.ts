@@ -64,7 +64,7 @@ export class GameSelectScene extends Phaser.Scene {
     if (!this.scene.isActive() || !this.cards[i] || this.cards[i].list.length < 3) return
     const g = GAMES.find((x) => this.cards[i] && x.name.toUpperCase() === (this.cards[i].list[2] as Phaser.GameObjects.Text).text)!
     sfx.select(); this.tweens.add({ targets: this.cards[i], scale: 0.9, duration: 60, yoyo: true, onComplete: () => {
-      if (g.id === 'boxing' || g.id === 'bowling' || g.id === 'golf') wipeTo(this, 'prefight', { game: g.id, mode: this.mode === 'card' ? 'card' : '1p' })
+      if (g.id === 'boxing' || g.id === 'bowling' || g.id === 'golf') wipeTo(this, 'prefight', { game: g.id, mode: this.mode === '2p' ? '2p' : this.mode === 'card' ? 'card' : '1p' })
       else wipeTo(this, 'placeholder', { title: g.name.toUpperCase(), sub: `${this.mode.toUpperCase()} · coming next`, color: g.color })
     } })
   }

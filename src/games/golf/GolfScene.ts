@@ -16,7 +16,7 @@ import { GolfWorld, type AimState } from './render/GolfWorld'
 import { CLUBS, CLUB_LIST, FULL_CLUBS, GolfRound, HZ, LIE_MUL, Rng, TIERS, courseById, simulateShot, surfaceAt, type CourseId } from './sim'
 import type { BotParams, Club, GolfEvent, GolfSnapshot, Player, Surface } from './sim/types'
 
-export interface GolfSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId }
+export interface GolfSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean; holes?: number[]; course?: CourseId }
 
 const STEP_MS = 1000 / HZ
 const AIM_RATE = 32       // deg/s while a key is held
@@ -75,13 +75,15 @@ export class GolfScene extends Phaser.Scene {
   constructor() { super('golf') }
 
   private get practice(): boolean { return !!this.data3.practice }
+  private get is2p(): boolean { return this.data3.mode === '2p' }
 
   init(d: GolfSceneData): void { this.data3 = d ?? {} }
 
   create(): void {
     const d = this.data3
+    const is2p = this.is2p
     const seed = d.seed ?? Math.floor(Math.random() * 1e9)
-    const bot = d.practice ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
+    const bot = d.practice || is2p ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
     const course = courseById(d.course)
     this.round = new GolfRound({ seed, holes: d.holes ?? course.holes, windRange: course.wind, botA: null, botB: bot })
     this.nHoles = this.round.holeList.length
@@ -93,7 +95,7 @@ export class GolfScene extends Phaser.Scene {
     this.stepIx = 0; this.practiceUi = { clubChanges: 0, aimTurnedDeg: 0, swings: 0 }
     this.hud = new GolfHud(this)
     this.hud.setCourseName(course.name)
-    this.hud.setNames('YOU', d.practice ? 'YOU (BALL B)' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`)
+    this.hud.setNames(is2p ? 'PLAYER 1' : 'YOU', is2p ? 'PLAYER 2' : (d.practice ? 'YOU (BALL B)' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`))
     this.hud.layout(this.scale.width, this.scale.height)
     const k = (a: keyof GolfBindings) => this.bindings[a].map(keyLabel).join('/')
     this.hud.setHint(`${k('clubUp')}/${k('clubDown')} club · ${k('aimLeft')}/${k('aimRight')} aim · ${k('swing')} swing ×3 · ${k('view')} map · Esc pause · H help`)
@@ -148,8 +150,8 @@ export class GolfScene extends Phaser.Scene {
 
   private quit(): void { wipeTo(this, 'menu') }
 
-  /** Is the human on the shot right now? In practice both balls are the player's. */
-  private myTurn(): boolean { return this.round.phase === 'aim' && (this.practice || this.round.current === 'a') }
+  /** Is the human on the shot right now? In practice or 2P both balls are human. */
+  private myTurn(): boolean { return this.round.phase === 'aim' && (this.practice || this.is2p || this.round.current === 'a') }
   private mySurface(): Surface { return surfaceAt(this.round.holeData, this.round.balls[this.round.current].pos) }
   private headingToCup(p: Player): number {
     const b = this.round.balls[p].pos, c = this.round.holeData.cup
@@ -171,6 +173,11 @@ export class GolfScene extends Phaser.Scene {
     const allowed = allowedClubs(surf)
     if (!allowed.includes(this.club)) this.club = allowed[allowed.length - 1]
     this.meter.reset(); this.topView = false; this.previewDirty = true
+    if (this.is2p) {
+      const pName = p === 'a' ? 'PLAYER 1' : 'PLAYER 2'
+      const col = p === 'a' ? P.blue : P.red
+      this.hud.burst(`${pName}'S SHOT`, col, 50)
+    }
   }
 
   private cycleClub(dir: 1 | -1): void {
@@ -226,7 +233,7 @@ export class GolfScene extends Phaser.Scene {
 
   private onEvent(e: GolfEvent): void {
     this.eventLog.push(JSON.stringify(e))
-    const mine = 'player' in e && (e.player === 'a' || this.practice)
+    const mine = 'player' in e && (this.is2p || e.player === 'a' || this.practice)
     const par = this.round.holeData.par
     switch (e.kind) {
       case 'wind': {
@@ -235,21 +242,43 @@ export class GolfScene extends Phaser.Scene {
         this.hud.showCard(`HOLE ${this.round.hole + 1}`, P.gold, `par ${par} · ${d} m · wind ${Math.hypot(e.x, e.z).toFixed(1)} m/s`, 1600)
         break
       }
-      case 'shot': sfx.whoosh(e.club !== 'putter' && e.power > 0.6); if (!mine) this.hud.burst(`${this.hud.names[1]}: ${CLUB_NAMES[e.club]}`, P.red, 40); break
+      case 'shot': {
+        sfx.whoosh(e.club !== 'putter' && e.power > 0.6)
+        if (this.is2p) {
+          const pName = e.player === 'a' ? 'PLAYER 1' : 'PLAYER 2'
+          const col = e.player === 'a' ? P.blue : P.red
+          this.hud.burst(`${pName}: ${CLUB_NAMES[e.club]}`, col, 40)
+        } else if (!mine) {
+          this.hud.burst(`${this.hud.names[1]}: ${CLUB_NAMES[e.club]}`, P.red, 40)
+        }
+        break
+      }
       case 'bounce': if (e.surface !== 'green') sfx.thud(0.25); break
       case 'in_water': sfx.knockdown(); this.hud.burst('IN THE WATER', P.cyan, 64); break
       case 'out_of_bounds': sfx.stagger(); this.hud.burst('OUT OF BOUNDS', P.red, 64); break
       case 'on_green': if (mine) { sfx.sparkle(); this.hud.burst('ON THE GREEN', P.green, 50) } break
       case 'holed': {
         const [word, color] = this.scoreWord(e.strokes, par)
-        if (mine) { sfx.win(); this.hud.burst('HOLED!', P.gold, 70); this.time.delayedCall(500, () => this.hud.burst(word, color, 64)) }
-        else { sfx.count(); this.hud.burst(`${this.hud.names[1]}: ${word}`, color, 46) }
+        if (this.is2p) {
+          const pName = e.player === 'a' ? 'PLAYER 1' : 'PLAYER 2'
+          sfx.win(); this.hud.burst(`${pName} HOLED!`, P.gold, 70); this.time.delayedCall(500, () => this.hud.burst(word, color, 64))
+        } else if (mine) {
+          sfx.win(); this.hud.burst('HOLED!', P.gold, 70); this.time.delayedCall(500, () => this.hud.burst(word, color, 64))
+        } else {
+          sfx.count(); this.hud.burst(`${this.hud.names[1]}: ${word}`, color, 46)
+        }
         break
       }
-      case 'pick_up': sfx.gassed(); this.hud.burst(mine ? 'PICK UP' : `${this.hud.names[1]} PICKS UP`, P.orange, 52); break
+      case 'pick_up': {
+        sfx.gassed()
+        const pName = e.player === 'a' ? this.hud.names[0] : this.hud.names[1]
+        this.hud.burst(`${pName} PICKS UP`, P.orange, 52)
+        break
+      }
       case 'hole_end': {
         const a = e.scores.a, b = e.scores.b
-        this.hud.showCard(`HOLE ${e.hole + 1} DONE`, a < b ? P.green : a > b ? P.red : P.blue, `you ${a} (${toParText(a - par)}) · ${this.hud.names[1].toLowerCase()} ${b} (${toParText(b - par)})`, 1800)
+        const n1 = this.hud.names[0].toLowerCase(), n2 = this.hud.names[1].toLowerCase()
+        this.hud.showCard(`HOLE ${e.hole + 1} DONE`, a < b ? P.green : a > b ? P.red : P.blue, `${n1} ${a} (${toParText(a - par)}) · ${n2} ${b} (${toParText(b - par)})`, 1800)
         break
       }
       case 'round_end': this.time.delayedCall(600, () => this.finish()); break
@@ -264,13 +293,22 @@ export class GolfScene extends Phaser.Scene {
     this.hud.clearCard(); this.world?.setPreview(null)
     const r = this.round.result(), sc = this.round.scorecard()
     const youWin = r?.winner === 'a'
-    if (youWin) sfx.win()
+    const draw = r?.winner === 'draw'
+    if (youWin || (this.is2p && r?.winner === 'b')) sfx.win()
+    const n1 = this.hud.names[0].toLowerCase(), n2 = this.hud.names[1].toLowerCase()
     const lines = [
-      `you ${sc.totals.a} (${toParText(sc.toPar.a)}) · ${this.hud.names[1].toLowerCase()} ${sc.totals.b} (${toParText(sc.toPar.b)})`,
+      `${n1} ${sc.totals.a} (${toParText(sc.toPar.a)}) · ${n2} ${sc.totals.b} (${toParText(sc.toPar.b)})`,
       sc.holes.map((h) => `H${h.hole + 1} ${h.strokes.a}-${h.strokes.b}`).join('  ·  '),
       `seed ${this.round.seed}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : r?.winner === 'draw' ? P.blue : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
+    let titleColor = youWin ? P.green : draw ? P.blue : P.red
+    if (this.is2p) {
+      if (youWin) { title = 'PLAYER 1 WINS!'; titleColor = P.green }
+      else if (r?.winner === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.blue }
+      else { title = 'DRAW'; titleColor = P.gold }
+    }
+    this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
   }
 
   update(t: number, deltaMs: number): void {
@@ -279,9 +317,10 @@ export class GolfScene extends Phaser.Scene {
     const dtS = Math.min(deltaMs, 100) / 1000
     const inp = golfInput(this.keys, this.bindings)
     this.keys.endFrame()
-    // Drained every frame, in or out of turn, so a swing thrown during the House's shot never waits in
-    // the queue to fire the moment the player's turn begins. The keyboard wins any field it is using.
-    const remote = controllerGolfCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'golf'), this.pad)
+    const currentController = (this.is2p && this.round.current === 'b' && controllerInput.connected('controller_2'))
+      ? 'controller_2'
+      : 'controller_1'
+    const remote = controllerGolfCommand(controllerInput.stick(currentController), controllerInput.drain(currentController, 'golf'), this.pad)
     this.pad = { clubArmed: remote.clubArmed }
     if (this.paused || this.ended) { this.world?.apply(this.curr, this.aimState(), dtS); this.hud.update(this.curr, this.hudState(), dtS); return }
 
@@ -297,14 +336,24 @@ export class GolfScene extends Phaser.Scene {
       }
       if (inp.view) { this.topView = !this.topView; sfx.hover() }
       this.meter.update(dtS)
-      if (inp.swing) {
+      if (inp.swing || remote.command.stopOscillation) {
         this.meter.press()
         if (this.meter.state === 'power') { sfx.hover(); this.practiceUi.swings++ } else if (this.meter.state === 'accuracy') sfx.select(); else if (this.meter.state === 'done') sfx.stamp()
       }
-      // phone: A arms, B cancels, and an armed swing carries the power straight into the shot
-      if (remote.command.arm && this.meter.state === 'idle') { this.meter.arm(); sfx.select(); this.hud.burst('ARMED · SWING', P.green, 40) }
-      if (remote.command.cancel && this.meter.state === 'armed') { this.meter.cancel(); sfx.back() }
-      if (remote.command.swingPower !== null && this.meter.fromSwing(remote.command.swingPower)) { sfx.stamp(); this.practiceUi.swings++ }
+      // phone: bottom arms/auto-starts, cancel resets, stopOscillation locks power & accuracy
+      if (remote.command.arm && (this.meter.state === 'idle' || this.meter.state === 'armed')) {
+        this.meter.arm()
+        sfx.select()
+        this.hud.burst('ARMED · SWING OR STOP', P.green, 40)
+      }
+      if (remote.command.cancel && (this.meter.state === 'armed' || this.meter.state === 'power' || this.meter.state === 'accuracy')) {
+        this.meter.cancel()
+        sfx.back()
+      }
+      if (remote.command.swingPower !== null && this.meter.fromSwing(remote.command.swingPower)) {
+        sfx.stamp()
+        this.practiceUi.swings++
+      }
       if (this.meter.state === 'done') this.fire()
     } else this.aiming = false
     this.updatePreview(t)

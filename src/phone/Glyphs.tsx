@@ -62,3 +62,18 @@ export const Busy = (): React.ReactElement => (
     <circle cx="19" cy="12" r="1.9" fill="currentColor" stroke="none" />
   </SVG>
 )
+
+/** A, stop oscillation: square symbol */
+export const Stop = (): React.ReactElement => (
+  <SVG size={22}><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" /></SVG>
+)
+
+/** B, arm & start countdown timer */
+export const Timer = (): React.ReactElement => (
+  <SVG size={24}>
+    <circle cx="12" cy="13" r="8" />
+    <path d="M12 9v4l2.5 2" />
+    <path d="M10 2h4" />
+  </SVG>
+)
+

@@ -24,14 +24,25 @@ import { HZ } from './sim/constants'
 import type { BotParams, Command, SimEvent, Snapshot } from './sim/types'
 
 export interface Persona { name: string; style: string; color: number }
-export interface BoxingSceneData { mode?: '1p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
+export interface BoxingSceneData { mode?: '1p' | '2p' | 'card'; tier?: keyof typeof TIERS; bot?: BotParams; seed?: number; practice?: boolean; personas?: [Persona, Persona] }
 
 const STEP_MS = 1000 / HZ
+
+function p2BoxingKeyboard(keys: KeyState): Command {
+  const fwd = keys.isDown('ArrowUp') ? 1 : keys.isDown('ArrowDown') ? -1 : 0
+  const dodge: Command['dodge'] = keys.isDown('ArrowLeft') ? 'swayL' : keys.isDown('ArrowRight') ? 'swayR' : null
+  const block = keys.isDown('KeyO') || keys.isDown('Numpad0') || keys.isDown('Digit0')
+  let punch: Command['punch'] = null
+  if (keys.justPressed('KeyU') || keys.justPressed('Numpad4') || keys.justPressed('Numpad1')) punch = 'jab'
+  else if (keys.justPressed('KeyI') || keys.justPressed('Numpad5') || keys.justPressed('Numpad2') || keys.justPressed('KeyL')) punch = 'cross'
+  return { forward: fwd, strafe: 0, dodge, block, punch }
+}
 
 /** First-person 3D boxing: Phaser owns input and simulation; PlayCanvas renders behind it. */
 export class BoxingScene extends Phaser.Scene {
   private data3!: BoxingSceneData
   private pad = boxingControllerState()
+  private padB = boxingControllerState()
   private match!: BoxingMatch
   private hud!: BoxingHud
   private world: BoxingWorld | null = null
@@ -66,13 +77,15 @@ export class BoxingScene extends Phaser.Scene {
   constructor() { super('boxing') }
 
   private get card(): boolean { return this.data3.mode === 'card' }
+  private get is2p(): boolean { return this.data3.mode === '2p' }
 
   init(d: BoxingSceneData): void { this.data3 = d ?? {} }
 
   create(): void {
     const d = this.data3
+    const is2p = this.is2p
     const seed = d.seed ?? Math.floor(Math.random() * 1e9)
-    const bot = d.practice ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
+    const bot = (d.practice || is2p) ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
     this.match = new BoxingMatch({ seed, botB: d.mode === 'card' ? TIERS.pro : bot, botA: d.mode === 'card' ? TIERS.pro : null })
     this.prev = this.curr = this.match.snapshot()
     // class fields outlive scene restarts: clear everything that belongs to a previous fight (a Fight Night link must not drive a 1P match)
@@ -83,7 +96,7 @@ export class BoxingScene extends Phaser.Scene {
     this.steps = d.practice ? boxingPractice(this.bindings) : []
     this.stepIx = 0
     this.hud = new BoxingHud(this)
-    this.hud.names = ['YOU', d.practice ? 'SPARRING DUMMY' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`]
+    this.hud.names = is2p ? ['PLAYER 1', 'PLAYER 2'] : ['YOU', d.practice ? 'SPARRING DUMMY' : `THE HOUSE (${(d.tier ?? 'rookie').toUpperCase()})`]
     if (this.card) {
       const ps = d.personas ?? [{ name: 'Blue', style: 'a brawler', color: P.blue }, { name: 'Red', style: 'a counter-puncher', color: P.red }]
       this.hud.names = [ps[0].name, ps[1].name]
@@ -105,12 +118,14 @@ export class BoxingScene extends Phaser.Scene {
     const w = (window as unknown as { __boxing?: BoxingScene }); w.__boxing = this
     // Phaser reuses scene instances, so the pad latch and any queued phone events must be reset per visit.
     this.pad = boxingControllerState()
+    this.padB = boxingControllerState()
     controllerInput.setSport('boxing')
     // The match's movement record. Ends with the match, or when the scene is left any other way.
     this.health = new HealthTracker('boxing')
     this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     controllerInput.clear('controller_1')
+    controllerInput.clear('controller_2')
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
       engine.setQuality(loadSettings().quality)
@@ -121,6 +136,7 @@ export class BoxingScene extends Phaser.Scene {
       this.startedAt = this.time.now
       this.world.apply(this.curr, 0, false)
       if (this.card) { this.hud.setHint('spectating · A/D corner · ↑↓ stake · Enter bet · Esc pause'); this.link?.strategize(this.match); this.openBetting('match') }
+      else if (is2p) { this.hud.setHint('P1: WASD / Space / J / K / Phone 1  ·  P2: Arrows / U / I / O / Phone 2 · Esc pause') }
     })
   }
 
@@ -206,6 +222,7 @@ export class BoxingScene extends Phaser.Scene {
     this.hud.clearKnockdownCount()
     const r = this.match.getResult()
     const youWin = r?.winner === 'a'
+    const draw = r?.winner === 'draw'
     const m = this.match
     if (this.card && r) {
       if (r.by === 'ko') { const rid = `round${r.round}`; if (this.book?.markets.some((x) => x.id === rid && !x.settled)) this.book.settle(rid, r.winner) }
@@ -222,14 +239,22 @@ export class BoxingScene extends Phaser.Scene {
       }
       return
     }
-    if (youWin) { sfx.win(); this.world?.confetti() }
+    if (youWin || (this.is2p && r?.winner === 'b')) { sfx.win(); this.world?.confetti() }
+    const n1 = this.hud.names[0].toLowerCase(), n2 = this.hud.names[1].toLowerCase()
     const lines = [
       `${r?.by === 'ko' ? 'by knockout' : r?.by === 'decision' ? 'on points' : 'a draw'}${r?.by === 'ko' ? ` in round ${r.round}` : ''}`,
-      `you: ${m.a.landed}/${m.a.thrown} landed · ${Math.round(m.a.dealtTotal)} damage`,
-      `house: ${m.b.landed}/${m.b.thrown} landed · ${Math.round(m.b.dealtTotal)} damage`,
+      `${n1}: ${m.a.landed}/${m.a.thrown} landed · ${Math.round(m.a.dealtTotal)} damage`,
+      `${n2}: ${m.b.landed}/${m.b.thrown} landed · ${Math.round(m.b.dealtTotal)} damage`,
       `seed ${m.seedValue}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r?.winner === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
+    let titleColor = youWin ? P.green : draw ? P.blue : P.red
+    if (this.is2p) {
+      if (youWin) { title = 'PLAYER 1 WINS!'; titleColor = P.blue }
+      else if (r?.winner === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.red }
+      else { title = 'DRAW'; titleColor = P.gold }
+    }
+    this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
   }
 
   update(_t: number, deltaMs: number): void {
@@ -241,6 +266,9 @@ export class BoxingScene extends Phaser.Scene {
     // falls through to the phone, then to the head tracker.
     const remote = controllerBoxingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'boxing'), this.pad, controllerInput.connected('controller_1'))
     this.pad = { blocking: remote.blocking, slipArmed: remote.slipArmed }
+
+    const remoteB = controllerBoxingCommand(controllerInput.stick('controller_2'), controllerInput.drain('controller_2', 'boxing'), this.padB, controllerInput.connected('controller_2'))
+    this.padB = { blocking: remoteB.blocking, slipArmed: remoteB.slipArmed }
 
     const headEvents = controllerInput.drain('head_tracker', 'boxing')
     let headDodge: Command['dodge'] = null
@@ -261,6 +289,17 @@ export class BoxingScene extends Phaser.Scene {
       // the power must follow whichever source actually threw, or a keyboard jab inherits the phone's swing
       punchPower: keyboard.punch !== null ? undefined : remote.command.punchPower,
     }
+
+    const keyboardB = this.is2p ? p2BoxingKeyboard(this.keys) : null
+    const cB: Command | null = this.is2p ? {
+      forward: (keyboardB?.forward !== 0 ? keyboardB?.forward : remoteB.command.forward) ?? 0,
+      strafe: (keyboardB?.strafe !== 0 ? keyboardB?.strafe : remoteB.command.strafe) ?? 0,
+      block: (keyboardB?.block || remoteB.command.block) ?? false,
+      punch: keyboardB?.punch ?? remoteB.command.punch,
+      dodge: keyboardB?.dodge ?? remoteB.command.dodge,
+      punchPower: keyboardB?.punch !== null ? undefined : remoteB.command.punchPower,
+    } : null
+
     // Visual indicators for remote actions
     if (keyboard.punch === null && remote.command.punch !== null && !this.paused && !this.ended && !this.betting) this.hud.phonePunch()
     if (headDodge !== null && keyboard.dodge === null && remote.command.dodge === null && !this.paused && !this.ended && !this.betting) {
@@ -290,6 +329,8 @@ export class BoxingScene extends Phaser.Scene {
         const ea = this.link.corners.a.exec, eb = this.link.corners.b.exec
         this.match.step(ea.isLate(t) ? null : ea.command(t), eb.isLate(t) ? null : eb.command(t))
         this.link.noteEvents(this.match.events)
+      } else if (this.is2p && cB) {
+        this.match.step(first ? c : heldOnly(c), first ? cB : heldOnly(cB))
       } else this.match.step(first ? c : heldOnly(c))
       first = false
       this.curr = this.match.snapshot()

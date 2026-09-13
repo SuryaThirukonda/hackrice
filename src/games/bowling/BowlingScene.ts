@@ -19,7 +19,7 @@ import { TIERS } from './sim/bot'
 import { HZ } from './sim/constants'
 import type { BotParams, BowlingEvent, Snapshot } from './sim/types'
 
-export interface BowlingSceneData { mode?: '1p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean }
+export interface BowlingSceneData { mode?: '1p' | '2p'; bot?: BotParams; tier?: keyof typeof TIERS; seed?: number; practice?: boolean }
 
 const STEP_MS = 1000 / HZ
 
@@ -57,13 +57,15 @@ export class BowlingScene extends Phaser.Scene {
 
   init(d: BowlingSceneData): void { this.data3 = d ?? {} }
 
+  private get is2p(): boolean { return this.data3.mode === '2p' }
   private get houseName(): string { return this.data3.practice ? 'PRACTICE' : `THE HOUSE (${(this.data3.tier ?? 'rookie').toUpperCase()})` }
 
   create(): void {
     const d = this.data3
+    const is2p = this.is2p
     const seed = d.seed ?? Math.floor(Math.random() * 1e9)
     this.seed = seed
-    const bot = d.practice ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
+    const bot = (d.practice || is2p) ? null : (d.bot ?? TIERS[d.tier ?? 'rookie'])
     this.sim = new BowlingGame({ seed, botB: bot })
     this.curr = this.sim.snapshot()
     const settings = loadSettings()
@@ -78,7 +80,7 @@ export class BowlingScene extends Phaser.Scene {
     this.badge?.destroy(); this.badge = healthBadge(this, this.health, 30, 96)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end(); this.badge?.destroy(); this.badge = null })
     this.hud = new BowlingHud(this)
-    this.hud.names = ['YOU', this.houseName]
+    this.hud.names = is2p ? ['PLAYER 1', 'PLAYER 2'] : ['YOU', this.houseName]
     this.hud.layout(this.scale.width, this.scale.height)
     this.hud.showCard('LOADING LANE', P.gold, `seed ${seed}`, 0)
     this.acc = 0; this.paused = false; this.ended = false; this.ready = false; this.eventLog = []; this.lastPinSfx = 0
@@ -129,8 +131,15 @@ export class BowlingScene extends Phaser.Scene {
     const g = this.sim
     if (g.phase === 'game_end') { this.hud.setTurn(''); return }
     const ball = g.frame === 10 ? `BALL ${g.ball}` : g.ball === 1 ? 'FIRST BALL' : 'SECOND BALL'
-    if (g.bot()) this.hud.setTurn(`THE HOUSE ROLLS · FRAME ${g.frame}`, P.red)
-    else this.hud.setTurn(`YOUR ROLL · FRAME ${g.frame} · ${ball}`, P.gold)
+    if (this.is2p) {
+      const pName = g.current === 'a' ? 'PLAYER 1' : 'PLAYER 2'
+      const col = g.current === 'a' ? P.gold : P.blue
+      this.hud.setTurn(`${pName}'S ROLL · FRAME ${g.frame} · ${ball}`, col)
+    } else if (g.bot()) {
+      this.hud.setTurn(`THE HOUSE ROLLS · FRAME ${g.frame}`, P.red)
+    } else {
+      this.hud.setTurn(`YOUR ROLL · FRAME ${g.frame} · ${ball}`, P.gold)
+    }
   }
 
   private release(power: number): void {
@@ -143,7 +152,7 @@ export class BowlingScene extends Phaser.Scene {
     this.eventLog.push(JSON.stringify(e))
     const w = this.world
     switch (e.kind) {
-      case 'roll_start': if (e.player === 'b') sfx.whoosh(e.shot.power > 0.7); this.hud.aimReadout(null); this.updateTurn(); break
+      case 'roll_start': sfx.whoosh(e.shot.power > 0.7); this.hud.aimReadout(null); this.updateTurn(); break
       case 'gutter': sfx.thud(0.4); this.hud.burst('GUTTER', P.purple, 52); break
       case 'pin_hit': {
         const now = this.time.now
@@ -155,8 +164,20 @@ export class BowlingScene extends Phaser.Scene {
       case 'pins_down':
         if (!batch.some((x) => x.kind === 'strike' || x.kind === 'spare')) { if (e.count > 0) this.hud.burst(`${e.count} DOWN`, e.count >= 7 ? P.orange : P.cyan, 56); sfx.stamp() }
         break
-      case 'strike': sfx.win(); sfx.crowd(0.4, 1.2); w?.strikeFx(); w?.shake(0.8); this.hud.burst('STRIKE!', e.player === 'a' ? P.gold : P.red, 92); break
-      case 'spare': sfx.sparkle(); sfx.crowd(0.25, 0.8); w?.cheer(); w?.sweepDust(); this.hud.burst('SPARE!', e.player === 'a' ? P.green : P.red, 76); break
+      case 'strike': {
+        sfx.win(); sfx.crowd(0.4, 1.2); w?.strikeFx(); w?.shake(0.8)
+        const col = this.is2p ? (e.player === 'a' ? P.gold : P.blue) : (e.player === 'a' ? P.gold : P.red)
+        const prefix = this.is2p ? (e.player === 'a' ? 'P1 ' : 'P2 ') : ''
+        this.hud.burst(`${prefix}STRIKE!`, col, 92)
+        break
+      }
+      case 'spare': {
+        sfx.sparkle(); sfx.crowd(0.25, 0.8); w?.cheer(); w?.sweepDust()
+        const col = this.is2p ? (e.player === 'a' ? P.green : P.blue) : (e.player === 'a' ? P.green : P.red)
+        const prefix = this.is2p ? (e.player === 'a' ? 'P1 ' : 'P2 ') : ''
+        this.hud.burst(`${prefix}SPARE!`, col, 76)
+        break
+      }
       case 'frame_end': sfx.stamp(); break
       case 'game_end': sfx.bell(2); this.time.delayedCall(900, () => this.finish()); break
       default: break
@@ -170,15 +191,24 @@ export class BowlingScene extends Phaser.Scene {
     this.hud.clearCard(); this.hud.meter(null); this.hud.aimReadout(null); this.hud.setTurn('')
     const r = this.sim.winner(), sb = this.sim.scoreboard()
     const youWin = r === 'a'
-    if (youWin) sfx.win()
+    const draw = r === 'draw'
+    if (youWin || (this.is2p && r === 'b')) sfx.win()
     const strikes = (rolls: number[][]) => rolls.filter((f) => f[0] === 10).length
+    const n1 = this.hud.names[0].toLowerCase(), n2 = this.hud.names[1].toLowerCase()
     const lines = [
-      `you ${sb.a.total} · house ${sb.b.total}`,
-      `you: ${strikes(this.sim.rolls.a)} strikes`,
-      `house: ${strikes(this.sim.rolls.b)} strikes`,
+      `${n1} ${sb.a.total} · ${n2} ${sb.b.total}`,
+      `${n1}: ${strikes(this.sim.rolls.a)} strikes`,
+      `${n2}: ${strikes(this.sim.rolls.b)} strikes`,
       `seed ${this.seed}`,
     ]
-    this.hud.result(youWin ? 'YOU WIN!' : r === 'draw' ? 'DRAW' : 'THE HOUSE WINS', lines, youWin ? P.green : P.red, () => this.scene.restart(this.data3), () => this.quit())
+    let title = youWin ? 'YOU WIN!' : draw ? 'DRAW' : 'THE HOUSE WINS'
+    let titleColor = youWin ? P.green : draw ? P.blue : P.red
+    if (this.is2p) {
+      if (youWin) { title = 'PLAYER 1 WINS!'; titleColor = P.green }
+      else if (r === 'b') { title = 'PLAYER 2 WINS!'; titleColor = P.blue }
+      else { title = 'DRAW'; titleColor = P.gold }
+    }
+    this.hud.result(title, lines, titleColor, () => this.scene.restart(this.data3), () => this.quit())
   }
 
   update(_t: number, deltaMs: number): void {
@@ -188,8 +218,15 @@ export class BowlingScene extends Phaser.Scene {
     if (inp.sheet) { sfx.hover(); this.hud.toggleSheet() }
     this.keys.endFrame()
     const dtS = Math.min(deltaMs, 100) / 1000
-    // Drained every frame so nothing thrown during the House's roll fires at the player's next turn.
-    const remote = controllerBowlingCommand(controllerInput.stick('controller_1'), controllerInput.drain('controller_1', 'bowling'), this.pad, controllerInput.connected('controller_1'))
+    const currentController = (this.is2p && this.sim.current === 'b' && controllerInput.connected('controller_2'))
+      ? 'controller_2'
+      : 'controller_1'
+    const remote = controllerBowlingCommand(
+      controllerInput.stick(currentController),
+      controllerInput.drain(currentController, 'bowling'),
+      this.pad,
+      controllerInput.connected(currentController)
+    )
     this.pad = { hookArmed: remote.hookArmed, armed: remote.armed }
     if (this.paused || this.ended) { this.world.apply(this.curr, this.humanTurn ? this.swayed() : null, dtS, this.path()); this.hud.update(this.curr, dtS); return }
     // aim phase: adjust the shot, charge and release
@@ -205,6 +242,10 @@ export class BowlingScene extends Phaser.Scene {
         // phone: B armed the throw, and this swing is the release; power comes from the swing speed
         this.release(remote.command.swingPower)
       } else if (remote.command.arm && !this.charging) { sfx.select(); this.hud.burst('ARMED · SWING', P.blue, 44) }
+      else if (remote.command.lock && this.pad.armed && !this.charging) {
+        // blue button press while armed also releases
+        this.release(0.8)
+      }
       else if (inp.meterPress && !this.charging) {
         // stage 2: a fresh press starts the charge
         this.charging = true; this.chargeStart = this.time.now
