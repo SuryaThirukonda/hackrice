@@ -189,12 +189,12 @@ Options:
       const filePath = resolve(ANNOUNCER_DIR, file)
       const lineHash = sha1(`${text}:${voiceId}:${modelId}:${STABILITY}:${SIMILARITY_BOOST}`)
 
-      // Check if already cached and valid
+      // Check if already cached and valid. Each line keeps its own hash; the take's hash only ever matched the
+      // last line synthesized in that take, so comparing against it re-synthesized nearly every line.
       const existingLine = manifest.lines[lineId]
-      const existingTake = manifest.takes[take.id]
       const fileExists = existsSync(filePath)
 
-      if (!force && fileExists && existingLine && existingTake?.hash === lineHash) {
+      if (!force && fileExists && existingLine?.hash === lineHash) {
         skippedCount++
         continue
       }
@@ -217,6 +217,7 @@ Options:
         manifest.lines[lineId] = {
           take: take.id,
           file,
+          hash: lineHash,
           start: null,
           end: null,
         }

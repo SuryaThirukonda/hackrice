@@ -21,6 +21,8 @@ export interface ManifestLine {
   take: string
   /** Set for per-line takes: the line's own file. */
   file?: string
+  /** The generator's hash of this line's text, voice, model and settings; a match means its clip is current. */
+  hash?: string
   /** Segment in seconds; null means the start or end of the file. */
   start: number | null
   end: number | null
