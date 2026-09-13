@@ -7,7 +7,7 @@ import { P } from '../../../theme'
 import { EYE_H } from '../sim/constants'
 import { Entity } from 'playcanvas'
 import type { Snapshot } from '../sim/types'
-import { OpponentRig } from './OpponentRig'
+import { OpponentRig, type BoxerModel } from './OpponentRig'
 import { PlayerArms } from './PlayerArms'
 import { RingScene } from './RingScene'
 import { opponentPose, playerArmPose } from './poses'
@@ -30,14 +30,14 @@ export class BoxingWorld {
   private stepPhase = 0
   private t = 0
   private engine: Engine3D
-  constructor(engine: Engine3D, oppColor = P.red, spectator = false) {
+  constructor(engine: Engine3D, oppColor = P.red, spectator = false, model: BoxerModel = 'beginner') {
     this.engine = engine
     this.spectator = spectator
     this.root = engine.newWorld('boxing')
     const batch = { stat: engine.batchGroup('ring-static', false, 60), crowd: engine.batchGroup('ring-crowd', true, 60) }
     this.ring = new RingScene(this.root, engine.app.graphicsDevice, batch)
     this.fx = new Fx(this.root)
-    this.opp = new OpponentRig(this.root, oppColor, P.blue, engine.app.graphicsDevice)
+    this.opp = new OpponentRig(this.root, oppColor, P.red, engine.app.graphicsDevice, model)
     engine.camera.parent?.removeChild(engine.camera)
     this.cam = new CameraRig(this.root, engine.camera, EYE_H)
     this.arms = new PlayerArms(engine.camera, P.blue, engine.app.graphicsDevice)
