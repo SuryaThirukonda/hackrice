@@ -12,8 +12,8 @@ import { AdaptationEngine } from '../wellness/adaptation'
  *
  * Nothing starts until the person in front of the camera says so. The page turns the reading on and
  * off in the local service, shows the SDK's own guidance while it settles, and then the numbers it
- * calls stable. Pulse and breathing are the headline readings; heart-rate variability is shown and
- * labelled as an uncleared metric. All of it is a wellness reading, none of it a diagnosis.
+ * calls stable. Pulse and breathing are the product readings; advanced cardio metrics are shown as
+ * intentionally excluded. All of it is a wellness reading, none of it a diagnosis.
  */
 type ControllerId = 'controller_1' | 'controller_2'
 interface Movement { swingsPerMinute: number; intensity: number; motionLoad: number; trace: number[]; swings: number; activeSeconds: number; sport: HealthSport }
@@ -110,7 +110,7 @@ export default function VitalsLab(): React.ReactElement {
     {!offline && !running && <section className="consent">
       <h2>Before the camera starts</h2>
       <ul>
-        <li><strong>What is measured:</strong> pulse rate and breathing rate from small colour and motion changes in the face and chest, plus heart-rate variability, which is an uncleared research metric.</li>
+        <li><strong>What is measured:</strong> pulse rate and breathing rate from small colour and motion changes in the face and chest. Arterial-pressure and HRV models are not requested.</li>
         <li><strong>What it needs:</strong> one person, still, face and upper chest visible, decent light, about a metre from the laptop camera. It cannot read while you are swinging the phone; use it between rounds.</li>
         <li><strong>Where it goes:</strong> frames stay on this laptop and are never stored. The SDK sends preprocessed signal data to Presage's physiology service to compute the readings. Stable readings are kept in the local health database.</li>
         <li><strong>What it is not:</strong> a medical device, a diagnosis, or advice. The vendor states these readings are for general wellness and information only.</li>
@@ -184,12 +184,12 @@ export default function VitalsLab(): React.ReactElement {
       </article>
 
       <article className="card">
-        <h2>Heart-rate variability <small>RMSSD, ms · not a cleared metric</small></h2>
+        <h2>Advanced cardio <small>excluded from product sensing</small></h2>
         <div className="vital-row">
           <div className="vital"><span className="vital-big">{state?.hrv ? Math.round(state.hrv.rmssd) : '—'}</span><span className="vital-label">rmssd</span></div>
           <div className="vital"><span className="vital-big">{state?.hrv ? Math.round(state.hrv.sdnn) : '—'}</span><span className="vital-label">sdnn</span></div>
         </div>
-        <p className="hint">Higher generally goes with being rested. Shown for interest; the vendor has not had this metric cleared and neither should you treat it as more than that.</p>
+        <p className="hint">HRV and arterial-pressure models are not requested. They are not needed for Tempo's wellness loop and never affect adaptation.</p>
       </article>
 
       <article className="card card-wide">

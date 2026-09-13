@@ -7,8 +7,8 @@
  * Presage's physiology API, and that is stated on the consent screen.
  *
  * What is shown as a headline reading: pulse rate and breathing rate, both gated on the SDK's own
- * `stable` flag and a confidence floor. Heart-rate variability is shown labelled as an uncleared
- * metric. Everything is a wellness reading; nothing here diagnoses anything.
+ * `stable` flag and a confidence floor. Advanced cardio metrics are deliberately not requested by
+ * the product. Everything is a wellness reading; nothing here diagnoses anything.
  *
  * `applyMetrics` is a pure reducer over the decoded metrics message so it can be tested without a
  * camera, and a synthetic source drives the same reducer for demos on machines without one.
@@ -49,6 +49,16 @@ export interface VitalsState {
 }
 
 export const MIN_CONFIDENCE = 40
+
+/** Hand-picked SDK MetricType codes for Tempo's product path. The cardio bundle also includes
+ * ARTERIAL_PRESSURE_TRACE (16), which loads a separate phasic-BP model and is outside Tempo's
+ * wellness scope. Requesting the whole bundle can fail an otherwise valid pulse session when that
+ * model is not provisioned. HRV (17) is likewise excluded from product adaptation. */
+export const REQUESTED_WELLNESS_METRICS = Object.freeze([
+  0,  // CHEST_BREATHING: supplies the breathing waveform
+  2,  // BREATHING_RATE
+  15, // PULSE_RATE
+])
 
 /** Video devices the OS exposes. Only Linux enumerates them as files; elsewhere the SDK is the only way to know. */
 export function listCameras(): { checked: boolean; devices: string[] } {
@@ -211,7 +221,7 @@ export class VitalsBridge {
     const statusNames = Object.fromEntries(Object.entries(mod.ProcessingStatus).map(([k, v]) => [v, k.replace(/^k/, '').toLowerCase()]))
     let sdk: Sdk | null = null
     try {
-      sdk = new mod.SmartSpectraSDK({ apiKey: key, requestedMetrics: [...new Set([...mod.breathingMetrics, ...mod.cardioMetrics])], enableTelemetry: false, enableAccumulatedOutput: false })
+      sdk = new mod.SmartSpectraSDK({ apiKey: key, requestedMetrics: [...REQUESTED_WELLNESS_METRICS], enableTelemetry: false, enableAccumulatedOutput: false })
       sdk.on('processingStatus', ((status: number) => { const name = statusNames[status] ?? `status ${status}`; this.state.status = name === 'running' ? 'running' : this.state.status === 'error' ? 'error' : 'starting'; this.state.validation = name }) as never)
       sdk.on('validationStatus', ((code: number, _ts: number, hint: string) => { this.state.validation = validationNames[code] ?? `code ${code}`; this.state.guidance = hint || (this.state.validation === 'Ok' ? 'Good measurement' : this.state.validation) }) as never)
       sdk.on('metrics', ((buf: Buffer) => { try { this.ingest(mod.decodeMetrics(buf) as DecodedMetrics) } catch (e) { this.state.guidance = `could not decode metrics: ${(e as Error).message}` } }) as never)

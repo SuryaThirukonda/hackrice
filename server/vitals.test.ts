@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { applyMetrics, demoMetrics, emptyVitals, listCameras, toMs, VitalsBridge } from './vitals'
+import { applyMetrics, demoMetrics, emptyVitals, listCameras, REQUESTED_WELLNESS_METRICS, toMs, VitalsBridge } from './vitals'
 
 const us = (ms: number): number => ms * 1000
 const pulse = (value: number, at: number, stable = true, confidence = 90) => ({ cardio: { pulseRate: [{ value, stable, confidence, timestamp: us(at) }] } })
 
 describe('vitals reducer', () => {
+  it('requests only the wellness MVP metrics, never arterial-pressure or HRV models', () => {
+    expect(REQUESTED_WELLNESS_METRICS).toEqual([0, 2, 15])
+    expect(REQUESTED_WELLNESS_METRICS).not.toContain(16)
+    expect(REQUESTED_WELLNESS_METRICS).not.toContain(17)
+  })
   it('only shows a pulse the SDK calls stable and confident, but always shows the raw sensor value', () => {
     const s = emptyVitals()
     applyMetrics(s, pulse(71, 1_700_000_000_000, false, 90), 1_700_000_000_000)

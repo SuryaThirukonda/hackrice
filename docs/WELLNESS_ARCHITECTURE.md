@@ -24,7 +24,7 @@ Sources: [Node API reference](https://smartspectra.presagetech.com/docs/nodejs/a
 
 - Pulse is a 12-second average, valid from 40–110 BPM. `stable` corresponds to the vendor's accepted pulse error threshold (confidence >=40), but Tempo also requires valid framing, supported range, and freshness.
 - Breathing is a 30-second average, 5–40 breaths/min. It needs a stable camera, a stationary player, visible face and chest, good illumination, and confidence >=45. Talking, body motion, dark/striped clothing, or handheld capture can invalidate it.
-- HRV is a 60-second window; confidence is zero until the window completes. The payload may include RMSSD, mean NN, SDNN and Baevsky index. Tempo displays HRV only in diagnostics and never requires or uses it for adaptation.
+- HRV is a 60-second window; confidence is zero until the window completes. The payload may include RMSSD, mean NN, SDNN and Baevsky index. Tempo's schema can decode it, but the product does not request HRV or arterial-pressure models and never uses them for adaptation.
 - The SDK validation codes include OK, no face, multiple faces, off-center/incorrect-size/too-close/too-far/too-high/too-low/non-forward face, too dark/bright, chest not visible, camera tuning, low frame rate and excessive motion. Consumer UI maps these to short positioning guidance and never exposes raw SDK errors.
 - Large head/body/camera motion and flickering illumination can produce inaccurate pulse/HRV values even with high confidence. Therefore confidence alone is never sufficient.
 - SDK telemetry is aggregate, opt-out and excludes frames, metric values and stable identifiers. Tempo sets `enableTelemetry:false`. SmartSpectra still authenticates and performs its documented remote service work; the UI claims only that Tempo stores no frames, not that all processing is offline.
@@ -33,7 +33,7 @@ MVP selection: starting pulse and recovery pulse are the physiology inputs. Brea
 
 ## Quality gate and failure modes
 
-`PhysiologyState` normalizes connection, lifecycle phase, validation, pulse, breathing, optional HRV and timestamp. A pulse is usable only when value is finite and 40–110 BPM, SDK `stable` is true, confidence is at least 40, validation is not an invalid framing/motion state, and the sample is no more than five seconds old. Breathing additionally requires 5–40 brpm and confidence >=45; HRV requires stability, confidence >=50 and a completed window.
+`PhysiologyState` normalizes connection, lifecycle phase, validation, pulse, breathing, optional HRV and timestamp. The live product requests only chest breathing, breathing rate, and pulse rate. A pulse is usable only when value is finite and 40–110 BPM, SDK `stable` is true, confidence is at least 40, validation is not an invalid framing/motion state, and the sample is no more than five seconds old. Breathing additionally requires 5–40 brpm and confidence >=45; optional diagnostic HRV data would require stability, confidence >=50 and a completed window.
 
 `PRESAGE_MODE=live|mock|off` is supported. Mock drives the same reducer; off reports unavailable. Missing key, camera, permission, credits, service, stable data, or range-valid data never blocks gameplay. Fallback is phone motion plus authoritative game performance.
 

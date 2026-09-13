@@ -83,7 +83,7 @@ reaches the browser. Frames are not stored; the SDK sends preprocessed signal da
 Note that `npm install` fetches the SDK's native runtime for every platform, a few hundred megabytes.
 
 Pulse is the MVP signal (about 12 still seconds). Breathing is opportunistic (about 30 seconds), while
-HRV and expression outputs remain diagnostic-only and do not influence gameplay. The subject must be
+HRV, arterial-pressure, and expression models are not requested and do not influence gameplay. The subject must be
 still, so sensing is used only at check-in and recovery boundaries, never mid-swing. `PRESAGE_MODE`
 selects `live`, `mock`, or `off`; unavailable or low-quality physiology falls back to motion and game
 performance without blocking the session. These are wellness readings by the vendor's own terms, not
