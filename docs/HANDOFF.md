@@ -1,6 +1,6 @@
 # Tempo — handoff
 
-Everything the project does as of commit `912d811`, how it fits together, how to run and verify it, and
+Everything the project does as of commit `82bf868`, how it fits together, how to run and verify it, and
 what is still open. Written for someone who has never opened this repo. Read `README.md` for the short
 version; this is the long one.
 
@@ -22,7 +22,7 @@ the opponent is still called "The House".
 | Phone pages and lab pages | React 19, separate Vite entries |
 | Server | Node 24, `tsx`, one process (`server/agent.ts`) on port 8790 |
 | Build | Vite 8, TypeScript strict with `erasableSyntaxOnly`, `noUnusedLocals`, `noUnusedParameters` |
-| Tests | vitest, 26 files, 238 tests, all deterministic |
+| Tests | vitest, 28 files, 245 tests, all deterministic |
 | Local data | SQLite through Node's built-in `node:sqlite`, file `data/health.sqlite` (git-ignored) |
 
 Rules that everything else depends on:
@@ -42,7 +42,7 @@ Rules that everything else depends on:
 npm install          # also fetches Presage's native runtime for every platform, a few hundred MB
 npm run agent        # server on :8790: AI corners, phone relay, health and vitals routes
 npm run dev          # game on http://localhost:5174, starts a Cloudflare quick tunnel for phones
-npm test             # 238 tests
+npm test             # 245 tests
 npm run build        # strict typecheck, then the production bundle
 ```
 
@@ -76,7 +76,19 @@ and out, `Esc` pause, `H` help. The renderer draws an anatomical opponent rig (`
 and first-person player arms (`render/PlayerArms.ts`); a knockdown drops the rig to the canvas.
 
 Bot tiers live in `sim/tiers.ts`. They were lowered deliberately; the suite pins floors (a rookie must
-throw more than four punches a minute, a champ must defend more than a rookie).
+throw more than four punches a minute, a champ must defend more than a rookie) and a ceiling raised to
+match the pace (a champ under 36 punches a minute).
+
+Pace rules, all in the sim and tested (`sim/pace.test.ts`): stamina refills at 40 per second in every
+state except the punch itself (windup, active, recover) and being down, at half rate with the guard held;
+footwork is free; only punches, absorbed blocks and dodges spend stamina; a dodge that evades a punch
+pays back 12 for its cost of 4; between rounds the bar gains 45. Bots have no retreat mode at all, the AI
+corners have no step-out action and their broke fallback is block and duck, and two fighters cannot back
+away in the same tick: the one with less stamina keeps the step, ties go to the blue corner
+(`resolveBackSteps` in `sim/match.ts`, deterministic and replayable). The corner service throws nothing
+under 15 stamina and may script 60 percent of what it has (`server/tools.ts`). Measured over three
+simulated pairings, average stamina sat between 88 and 97, no fighter dropped under 20, nobody backed
+up, no punch was refused, and every fight ended by knockout in round one.
 
 ### Bowling (`src/games/bowling/`)
 Ten frames against a bot. Aim phase: the release line sweeps; a tap locks it, hold and release for
@@ -95,6 +107,15 @@ preview and shortens any shot that would end in water or out of bounds (`sim/bot
 Two AI fighters, fixed-odds play-chip betting. Chips, bets and every chip movement are written to the local SQLite database through `/chips/*` (`src/betting/ledger.ts`, tables `fights`, `bets`, `chip_ledger` in `server/health.ts`); `localStorage` keeps a copy for offline play and the lobby reconciles to the server's balance. Corners can
 be driven by an OpenAI model through the agent service with a short, formatted, stamina-aware prompt
 (`server/service.ts`, `server/tools.ts`); without a key or service, deterministic scripted corners take over.
+
+Chip history routes on the service: `GET /chips/summary` (balance, fights, bets won and lost, staked and
+returned, net, best and worst balance, bailouts, today's net, recent fights and bets), `GET /chips/ledger`,
+`POST /chips/fight` then `/chips/fight/:id/bet`, `/settle`, `/finish`, and `DELETE /chips` to reset the
+stack to 500 with the history kept. The lobby (`src/scenes/FightNightScene.ts`) takes the server's balance
+as the next stack and shows the record; the boxing scene ships the fight, each bet, each settled market
+with its chip movements, and the final line (`src/betting/ledger.ts`). Tables `fights`, `bets` and
+`chip_ledger` sit in `data/health.sqlite`; the balance is the last ledger row. A running agent needs a
+restart to serve these routes after pulling.
 
 ## 5. Phone controller
 
@@ -186,8 +207,8 @@ machine (a ThinkPad P14s Gen 6 AMD) exposes no video device, so no real reading 
 
 One HTTP server on :8790 with manual WebSocket upgrade routing: `/agent/ws` for the AI corner link,
 `/controller-ws` and `/controller-game-ws` for the relay, everything else destroyed. HTTP routes: `/agent/*`
-(health and act), `/health/*`, `/vitals/*`. `.env` is read at start; values reach the browser never.
-Vite proxies `/agent`, `^/health(/|$)`, `^/vitals(/|$)` and both socket paths to :8790; the anchors keep
+(health and act), `/health/*`, `/vitals/*`, `/chips/*`. `.env` is read at start; values reach the browser never.
+Vite proxies `/agent`, `^/health(/|$)`, `^/vitals(/|$)`, `^/chips(/|$)` and both socket paths to :8790; the anchors keep
 the lab pages (`/vitals.html`) from being captured by the API prefix.
 
 ## 8. Verification
@@ -195,7 +216,9 @@ the lab pages (`/vitals.html`) from being captured by the API prefix.
 - `npm test`: sims, replay timing, keymaps, phone mappings, bots and tier floors, betting, renderer
   interpolation, agent execution and fallbacks, relay over real sockets, controller client, join-link
   resolution, the energy model, the phone activity tracker, the SQLite store, the vitals reducer and demo
-  bridge, and an end-to-end test from accelerometer samples to opponent damage (`test/phoneSwing.test.ts`).
+  bridge, the boxing pace rules (`src/games/boxing/sim/pace.test.ts`), the chip tables and the ledger
+  client (`server/health.test.ts`, `src/betting/ledger.test.ts`), and an end-to-end test from
+  accelerometer samples to opponent damage (`test/phoneSwing.test.ts`).
 - Browser checks used during development: the game at `:5174` with the dev hooks, the fake phone against the
   live relay, the motion lab's trigger-line trace, the connect screen's QR bytes compared against a fresh
   encoding, the vitals lab in demo mode.
@@ -237,7 +260,7 @@ src/input/                     keys, controller client (relay), joinLink (tunnel
 src/health/                    energy model, phone activity tracker, game-side tracker, live badge
 src/phone/                     React controller and join pages, motion processing, socket
 src/lab/                       motion lab, vitals lab, Trace chart
-src/agent/, src/betting/       AI corner link and executor, settings, betting book
+src/agent/, src/betting/       AI corner link and executor, settings, betting book, chip ledger client
 server/                        agent.ts, service and tools (AI corners), controllerRelay, health, vitals
 scripts/                       tunnel plugin, standalone tunnel, quickTunnel helper, fake phone
 docs/                          this file, NEXT_PHASE.md (research and decisions), ENVIRONMENT_LAYER.md
@@ -254,3 +277,15 @@ data/                          health.sqlite (git-ignored)
 - Bots easier across the board; art procedural only; boxing, bowling and golf were to move to three-quarter
   cameras (not yet done).
 - Quality over deadline scoping; no artificial limits on what is built.
+
+## 12. Changes since the previous revision of this document (`36458cf`)
+
+- **Boxing pace** (`4b10dcd`, `75d9b49`, `464acdf`): the stamina model rewritten as described in section 4.
+  Why: a Fight Night screencast showed both stamina bars pinned at a sliver for a whole round, because the
+  old rule refilled only an idle fighter with the guard down and drained a held guard, and both corners
+  held block. Bot retreat and the corners' step-out were removed at the owner's request; the tier fields
+  `retreatStamina` and `retreatTicks` no longer exist; the difficulty sliders build bot parameters without them.
+- **Chips in SQLite** (`a3398d8`, `82bf868`): fights, bets and chip movements recorded through `/chips/*`,
+  with the lobby reconciling to the server's balance. Verified live on a temporary port.
+- **Counts**: 28 test files, 245 tests, 25 commits on `main`. The two most recent commits may still be
+  ahead of `origin/main` until the owner pushes; this machine holds no GitHub credentials.
