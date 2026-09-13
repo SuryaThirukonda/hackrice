@@ -60,6 +60,21 @@ export class HealthStore {
       create table if not exists swings (session_id integer not null references sessions(id) on delete cascade, rom real not null);
       create table if not exists vitals (at integer not null, pulse real, breathing real, hrv_rmssd real, confidence real not null);
       create index if not exists vitals_at on vitals(at);
+      create table if not exists fights (
+        id integer primary key autoincrement, started_at integer not null, ended_at integer, seed integer not null,
+        name_a text not null, name_b text not null, winner text, by text, round integer,
+        chips_before integer not null, chips_after integer, bets_won integer not null default 0, bets_lost integer not null default 0, net integer not null default 0
+      );
+      create table if not exists bets (
+        id integer primary key autoincrement, fight_id integer not null references fights(id) on delete cascade, at integer not null,
+        market text not null, kind text not null, round integer not null, corner text not null, stake integer not null, odds real not null,
+        result text not null default 'open', paid integer
+      );
+      create table if not exists chip_ledger (
+        id integer primary key autoincrement, fight_id integer references fights(id) on delete cascade, at integer not null,
+        reason text not null, amount integer not null, balance integer not null
+      );
+      create index if not exists chip_ledger_at on chip_ledger(at);
     `)
   }
 
@@ -148,6 +163,64 @@ export class HealthStore {
       .map((r) => { const x = r as Record<string, number | null>; return { at: Number(x.at), pulse: x.pulse, breathing: x.breathing, hrvRmssd: x.hrv_rmssd } })
   }
   clear(): void { this.db.exec('delete from vitals; delete from swings; delete from epochs; delete from sessions;') }
+
+  // ---- chips: every fight, every bet, every chip movement ----
+
+  /** The running balance is the last ledger row; with no history it is the starting stack. */
+  chipBalance(startChips: number): number {
+    const r = this.db.prepare('select balance from chip_ledger order by id desc limit 1').get() as { balance: number } | undefined
+    return r ? Number(r.balance) : startChips
+  }
+  startFight(f: { startedAt: number; seed: number; nameA: string; nameB: string; chipsBefore: number }): number {
+    const r = this.db.prepare('insert into fights (started_at, seed, name_a, name_b, chips_before) values (?, ?, ?, ?, ?)').run(f.startedAt, f.seed, f.nameA, f.nameB, f.chipsBefore)
+    return Number(r.lastInsertRowid)
+  }
+  recordBet(fightId: number, b: { at: number; market: string; kind: string; round: number; corner: string; stake: number; odds: number }): number {
+    const r = this.db.prepare('insert into bets (fight_id, at, market, kind, round, corner, stake, odds) values (?, ?, ?, ?, ?, ?, ?, ?)').run(fightId, b.at, b.market, b.kind, b.round, b.corner, b.stake, b.odds)
+    return Number(r.lastInsertRowid)
+  }
+  /** A market resolved: the bets' outcomes and the chip movements the book logged for it. */
+  settleMarket(fightId: number, market: string, winner: string, bets: { corner: string; stake: number; paid: number }[], ledger: { at: number; reason: string; amount: number; balance: number }[]): void {
+    const upd = this.db.prepare("update bets set result = ?, paid = ? where id = (select id from bets where fight_id = ? and market = ? and corner = ? and stake = ? and result = 'open' order by id limit 1)")
+    for (const b of bets) upd.run(winner === 'draw' ? 'draw' : b.paid > 0 ? 'won' : 'lost', b.paid, fightId, market, b.corner, b.stake)
+    this.appendLedger(fightId, ledger)
+  }
+  appendLedger(fightId: number | null, ledger: { at: number; reason: string; amount: number; balance: number }[]): void {
+    const ins = this.db.prepare('insert into chip_ledger (fight_id, at, reason, amount, balance) values (?, ?, ?, ?, ?)')
+    for (const e of ledger) ins.run(fightId, e.at, e.reason, Math.round(e.amount), Math.round(e.balance))
+  }
+  finishFight(fightId: number, r: { endedAt: number; winner: string; by: string; round: number; chipsAfter: number; betsWon: number; betsLost: number; net: number }): void {
+    this.db.prepare('update fights set ended_at = ?, winner = ?, by = ?, round = ?, chips_after = ?, bets_won = ?, bets_lost = ?, net = ? where id = ?')
+      .run(r.endedAt, r.winner, r.by, r.round, r.chipsAfter, r.betsWon, r.betsLost, r.net, fightId)
+  }
+  chipSummary(startChips: number, now = Date.now()): ChipSummary {
+    const balance = this.chipBalance(startChips)
+    const fights = this.db.prepare('select * from fights where ended_at is not null order by ended_at desc').all() as Record<string, unknown>[]
+    const bets = this.db.prepare("select * from bets where result != 'open' order by at desc").all() as Record<string, unknown>[]
+    const peak = this.db.prepare('select max(balance) as m, min(balance) as n from chip_ledger').get() as { m: number | null; n: number | null } | undefined
+    const bailouts = Number((this.db.prepare("select count(*) as c from chip_ledger where reason = 'bailout'").get() as { c: number }).c)
+    const won = bets.filter((b) => b.result === 'won').length, lost = bets.filter((b) => b.result === 'lost').length
+    const staked = bets.reduce((s, b) => s + Number(b.stake), 0), returned = bets.reduce((s, b) => s + Number(b.paid ?? 0), 0)
+    const day = (ms: number): string => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+    const today = day(now)
+    const todayNet = fights.filter((f) => day(Number(f.ended_at)) === today).reduce((s, f) => s + Number(f.net), 0)
+    return {
+      balance, startChips, fights: fights.length, betsWon: won, betsLost: lost, staked, returned, net: returned - staked,
+      best: peak?.m ?? balance, worst: peak?.n ?? balance, bailouts, todayNet,
+      recentFights: fights.slice(0, 10).map((f) => ({ id: Number(f.id), endedAt: Number(f.ended_at), nameA: String(f.name_a), nameB: String(f.name_b), winner: String(f.winner ?? ''), by: String(f.by ?? ''), round: Number(f.round ?? 0), chipsBefore: Number(f.chips_before), chipsAfter: Number(f.chips_after ?? f.chips_before), net: Number(f.net) })),
+      recentBets: bets.slice(0, 20).map((b) => ({ at: Number(b.at), market: String(b.market), corner: String(b.corner), stake: Number(b.stake), odds: Number(b.odds), result: String(b.result), paid: Number(b.paid ?? 0) })),
+    }
+  }
+  chipLedger(limit = 200): { at: number; reason: string; amount: number; balance: number; fightId: number | null }[] {
+    return (this.db.prepare('select * from chip_ledger order by id desc limit ?').all(limit) as Record<string, unknown>[])
+      .map((r) => ({ at: Number(r.at), reason: String(r.reason), amount: Number(r.amount), balance: Number(r.balance), fightId: r.fight_id === null ? null : Number(r.fight_id) })).reverse()
+  }
+  /** Back to the starting stack, with the history kept and a grant row that says so. */
+  resetChips(startChips: number, now = Date.now()): number {
+    const current = this.chipBalance(startChips)
+    this.appendLedger(null, [{ at: now, reason: 'grant', amount: startChips - current, balance: startChips }])
+    return startChips
+  }
   close(): void { this.db.close() }
 }
 
@@ -159,6 +232,13 @@ function toRow(r: Record<string, unknown>): SessionRow {
     activeSeconds: n('active_seconds'), activeMinutes: n('active_minutes'), kcal: n('kcal'), meanIntensity: n('mean_intensity'), peakAcceleration: n('peak_accel'),
     swings: n('swings'), romMean: n('rom_mean'), romMax: n('rom_max'), fatigue: n('fatigue'),
   }
+}
+
+export interface ChipSummary {
+  balance: number; startChips: number; fights: number; betsWon: number; betsLost: number; staked: number; returned: number; net: number
+  best: number; worst: number; bailouts: number; todayNet: number
+  recentFights: { id: number; endedAt: number; nameA: string; nameB: string; winner: string; by: string; round: number; chipsBefore: number; chipsAfter: number; net: number }[]
+  recentBets: { at: number; market: string; corner: string; stake: number; odds: number; result: string; paid: number }[]
 }
 
 export type { ActivitySummary }

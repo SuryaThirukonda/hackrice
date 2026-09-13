@@ -92,7 +92,7 @@ touches the drawn cup, at any speed, no lip-out (`sim/flight.ts` `CUP_R`). The b
 preview and shortens any shot that would end in water or out of bounds (`sim/bot.ts`).
 
 ### Fight Night (`src/scenes/FightNightScene.ts`, `src/betting/`)
-Two AI fighters, fixed-odds play-chip betting, chips and record persisted in `localStorage`. Corners can
+Two AI fighters, fixed-odds play-chip betting. Chips, bets and every chip movement are written to the local SQLite database through `/chips/*` (`src/betting/ledger.ts`, tables `fights`, `bets`, `chip_ledger` in `server/health.ts`); `localStorage` keeps a copy for offline play and the lobby reconciles to the server's balance. Corners can
 be driven by an OpenAI model through the agent service with a short, formatted, stamina-aware prompt
 (`server/service.ts`, `server/tools.ts`); without a key or service, deterministic scripted corners take over.
 

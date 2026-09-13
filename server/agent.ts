@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage } from 'node:http'
 import { mkdirSync } from 'node:fs'
 import { HealthStore } from './health'
 import { VitalsBridge, listCameras } from './vitals'
+import { START_CHIPS } from '../src/betting/book'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import OpenAI from 'openai'
@@ -62,6 +63,32 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && path === '/vitals/history') return json(res, 200, health.vitalsHistory(Date.now() - Math.max(1, Math.min(24 * 60, Number(q.get('minutes') ?? 30))) * 60_000))
     if (req.method === 'POST' && path === '/vitals/start') { const b = await readJson(req); return json(res, 200, await vitals.start({ cameraIndex: Number.isFinite(Number(b.cameraIndex)) ? Number(b.cameraIndex) : 0, demo: b.demo === true })) }
     if (req.method === 'POST' && path === '/vitals/stop') return json(res, 200, await vitals.stop())
+    if (req.method === 'OPTIONS') return json(res, 204, {})
+    return json(res, 404, { error: 'not_found' })
+  }
+  if (url.startsWith('/chips')) {
+    const path = new URL(url, 'http://localhost').pathname
+    const q = new URL(url, 'http://localhost').searchParams
+    const m = /^\/chips\/fight\/(\d+)\/(bet|settle|finish)$/.exec(path)
+    const n = (v: unknown, d = 0): number => (Number.isFinite(Number(v)) ? Number(v) : d)
+    const rows = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter((x) => x && typeof x === 'object') as Record<string, unknown>[] : [])
+    const ledgerOf = (v: unknown) => rows(v).slice(0, 500).map((e) => ({ at: n(e.at, Date.now()), reason: String(e.reason ?? 'grant').slice(0, 16), amount: n(e.amount), balance: n(e.balance) }))
+    if (req.method === 'GET' && path === '/chips/summary') return json(res, 200, health.chipSummary(START_CHIPS))
+    if (req.method === 'GET' && path === '/chips/ledger') return json(res, 200, health.chipLedger(Math.max(1, Math.min(2000, n(q.get('limit'), 200)))))
+    if (req.method === 'POST' && path === '/chips/fight') {
+      const b = await readJson(req)
+      const id = health.startFight({ startedAt: n(b.startedAt, Date.now()), seed: n(b.seed), nameA: String(b.nameA ?? 'A').slice(0, 40), nameB: String(b.nameB ?? 'B').slice(0, 40), chipsBefore: n(b.chipsBefore, START_CHIPS) })
+      return json(res, 200, { id, balance: health.chipBalance(START_CHIPS) })
+    }
+    if (req.method === 'POST' && m) {
+      const id = Number(m[1]); const b = await readJson(req)
+      if (m[2] === 'bet') return json(res, 200, { id: health.recordBet(id, { at: n(b.at, Date.now()), market: String(b.market ?? '').slice(0, 24), kind: String(b.kind ?? 'match').slice(0, 8), round: n(b.round), corner: String(b.corner ?? 'a').slice(0, 1), stake: n(b.stake), odds: n(b.odds, 1) }) })
+      if (m[2] === 'settle') { health.settleMarket(id, String(b.market ?? '').slice(0, 24), String(b.winner ?? 'draw').slice(0, 4), rows(b.bets).map((x) => ({ corner: String(x.corner ?? 'a').slice(0, 1), stake: n(x.stake), paid: n(x.paid) })), ledgerOf(b.ledger)); return json(res, 200, { ok: true, balance: health.chipBalance(START_CHIPS) }) }
+      health.appendLedger(id, ledgerOf(b.ledger))
+      health.finishFight(id, { endedAt: n(b.endedAt, Date.now()), winner: String(b.winner ?? 'draw').slice(0, 4), by: String(b.by ?? '').slice(0, 12), round: n(b.round), chipsAfter: n(b.chipsAfter), betsWon: n(b.betsWon), betsLost: n(b.betsLost), net: n(b.net) })
+      return json(res, 200, { ok: true, balance: health.chipBalance(START_CHIPS) })
+    }
+    if (req.method === 'DELETE' && path === '/chips') return json(res, 200, { balance: health.resetChips(START_CHIPS) })
     if (req.method === 'OPTIONS') return json(res, 204, {})
     return json(res, 404, { error: 'not_found' })
   }

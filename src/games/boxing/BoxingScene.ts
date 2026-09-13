@@ -15,6 +15,7 @@ import { DISPLAY, HEX } from '../../theme'
 import { AgentLink } from '../../agent/AgentLink'
 import { Book, type Corner, type Form } from '../../betting/book'
 import { loadChips, loadRecord, saveChips, saveRecord } from '../../scenes/FightNightScene'
+import { ChipLedger } from '../../betting/ledger'
 import { BoxingHud } from './hud/BoxingHud'
 import { BoxingWorld } from './render/BoxingWorld'
 import { lerpView } from './render/interp'
@@ -60,6 +61,7 @@ export class BoxingScene extends Phaser.Scene {
   private betStake = 50
   private betLeft = 0
   private betPlaced: string | null = null
+  private ledger = new ChipLedger()
   private betMarket = ''
   private roundsWon: [number, number] = [0, 0]
 
@@ -90,6 +92,8 @@ export class BoxingScene extends Phaser.Scene {
       this.link = new AgentLink([`${ps[0].name}, ${ps[0].style}`, `${ps[1].name}, ${ps[1].style}`])
       this.link.onTaunt = (side, text) => this.hud.taunt(side, text)
       this.book = new Book(loadChips())
+      this.ledger = new ChipLedger()
+      this.ledger.begin(this.book, [ps[0].name, ps[1].name], seed)
       this.roundsWon = [0, 0]
     }
     this.hud.layout(this.scale.width, this.scale.height)
@@ -194,10 +198,11 @@ export class BoxingScene extends Phaser.Scene {
     const youWin = r?.winner === 'a'
     const m = this.match
     if (this.card && r) {
-      if (r.by === 'ko') { const rid = `round${r.round}`; if (this.book?.markets.some((x) => x.id === rid && !x.settled)) this.book.settle(rid, r.winner) }
+      if (r.by === 'ko') { const rid = `round${r.round}`; if (this.book?.markets.some((x) => x.id === rid && !x.settled)) this.settle(rid, r.winner) }
       this.settle('match1', r.winner)
       if (this.book) {
         const rec = loadRecord(); rec.fights++; rec.won += this.book.won; rec.lost += this.book.lost; rec.net += this.book.net; rec.best = Math.max(rec.best, this.book.balance); saveRecord(rec); saveChips(this.book.balance)
+        this.ledger.finish(this.book, { winner: r.winner, by: r.by, round: r.round })
         this.time.delayedCall(2000, () => {
           this.hud.result(r.winner === 'draw' ? 'DRAW' : `${this.hud.names[r.winner === 'a' ? 0 : 1].toUpperCase()} WINS`, [
             `${r.by === 'ko' ? `by knockout in round ${r.round}` : r.by === 'decision' ? 'on points' : 'a draw'}`,
@@ -299,7 +304,7 @@ export class BoxingScene extends Phaser.Scene {
     else if (code === 'Enter') {
       const r = this.book.place(this.betMarket, this.betCorner, this.betStake)
       this.betPlaced = r.ok ? `${this.betStake} on ${this.hud.names[this.betCorner === 'a' ? 0 : 1]}` : r.reason ?? 'no'
-      if (r.ok) { sfx.stamp(); saveChips(this.book.balance); this.time.delayedCall(700, () => this.closeBetting()) } else sfx.back()
+      if (r.ok) { sfx.stamp(); saveChips(this.book.balance); this.ledger.placed(this.book, this.betMarket, this.betCorner, this.betStake); this.time.delayedCall(700, () => this.closeBetting()) } else sfx.back()
     } else if (code === 'Space') { this.closeBetting(); return }
     else return
     sfx.hover(); this.drawBet()
@@ -309,6 +314,7 @@ export class BoxingScene extends Phaser.Scene {
     if (!this.book) return
     const r = this.book.settle(id, winner)
     saveChips(this.book.balance)
+    this.ledger.settled(this.book, id, winner, r.bets)
     if (r.bets.length) {
       const paid = r.paid
       this.hud.showCard(paid > 0 ? `+${paid} CHIPS` : 'BET LOST', paid > 0 ? P.green : P.red, `${this.hud.names[winner === 'a' ? 0 : 1]} ${winner === 'draw' ? 'draw, refunded' : 'takes it'} · balance ${this.book.balance}`, 1800)

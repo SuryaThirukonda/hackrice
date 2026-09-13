@@ -12,7 +12,10 @@ npm test
 npm run build
 ```
 
-Without the agent service or an API key, Fight Night uses deterministic scripted corners.
+Without the agent service or an API key, Fight Night uses deterministic scripted corners. With the
+service up, every Fight Night fight, bet and chip movement is written to the local SQLite database
+(`data/health.sqlite`), the lobby shows the running record, and the same chip stack follows you across
+reloads and browsers. `DELETE /chips` resets the stack to 500 and keeps the history.
 
 ## Phone controller
 

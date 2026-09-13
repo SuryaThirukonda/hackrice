@@ -4,6 +4,7 @@ import { DISPLAY, FONT, HEX, P } from '../theme'
 import { wipeTo } from '../fx/transitions'
 import { sfx } from '../fx/sfx'
 import { Book, START_CHIPS } from '../betting/book'
+import { fetchChipSummary, startingChips } from '../betting/ledger'
 
 export const PERSONAS: { name: string; style: string; color: number }[] = [
   { name: 'Knuckles McGraw', style: 'a relentless brawler who walks forward and throws heavy crosses', color: P.red },
@@ -67,7 +68,17 @@ export class FightNightScene extends Phaser.Scene {
       add(this.add.text(W / 2 + 40, y + 46, p.style, { fontFamily: FONT, fontSize: '15px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
     }
     const rec = loadRecord()
-    add(this.add.text(W / 2, 470, `chips ${loadChips()}  ·  fights ${rec.fights}  ·  bets won ${rec.won} lost ${rec.lost}  ·  net ${rec.net >= 0 ? '+' : ''}${rec.net}`, { fontFamily: FONT, fontSize: '16px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+    const line = add(this.add.text(W / 2, 470, `chips ${loadChips()}  ·  fights ${rec.fights}  ·  bets won ${rec.won} lost ${rec.lost}  ·  net ${rec.net >= 0 ? '+' : ''}${rec.net}`, { fontFamily: FONT, fontSize: '16px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
+    // The chip history lives in the local database when the service is up: take its balance as the stack
+    // for the next fight and show the record it keeps, so the same chips follow you across reloads.
+    void fetchChipSummary().then((s) => {
+      if (!s || !this.scene.isActive()) return
+      saveChips(startingChips(s, loadChips()))
+      saveRecord({ fights: s.fights, won: s.betsWon, lost: s.betsLost, net: s.net, best: s.best })
+      line.setText(`chips ${s.balance}  ·  fights ${s.fights}  ·  bets won ${s.betsWon} lost ${s.betsLost}  ·  net ${s.net >= 0 ? '+' : ''}${s.net}  ·  best ${s.best}  ·  today ${s.todayNet >= 0 ? '+' : ''}${s.todayNet}${s.bailouts ? `  ·  bailouts ${s.bailouts}` : ''}`)
+      const recent = s.recentBets.slice(0, 4).map((b) => `${b.result === 'won' ? '+' + b.paid : b.result === 'lost' ? '-' + b.stake : '±0'} on ${b.corner === 'a' ? 'blue' : 'red'} ${b.market}`).join('  ·  ')
+      if (recent) add(this.add.text(W / 2, 496, `recent: ${recent}`, { fontFamily: FONT, fontSize: '13px', color: HEX(0x5a4632), fontStyle: '900' }).setOrigin(0.5))
+    })
     add(this.add.text(W / 2, 500, this.health, { fontFamily: FONT, fontSize: '15px', color: HEX(P.ink), fontStyle: '900' }).setOrigin(0.5))
     const go = add(new ComicButton(this, W / 2, H - 100, 'RING THE BELL', () => this.start(), { color: this.row === 2 ? P.red : P.green, w: 380, h: 66, size: 30 }))
     if (this.row === 2) go.setScale(1.06)
