@@ -185,6 +185,17 @@ describe('controller relay over real sockets', () => {
     await shut(later, game)
   })
 
+  it('forwards movement summaries to the game and drops malformed ones', async () => {
+    const game = await open('/controller-game-ws')
+    const phone = await open('/controller-ws')
+    await hello(phone, 'controller_1')
+    const delivered = next(game, (m) => m.type === 'activity')
+    phone.send(JSON.stringify({ v: 1, type: 'activity', controllerId: 'controller_1', seq: 3, epochs: 'nope', roms: [] })) // malformed: ignored
+    phone.send(JSON.stringify({ v: 1, type: 'activity', controllerId: 'controller_1', seq: 4, epochs: [{ t: 0, mean: 2, peak: 6, swings: 1, rotation: 80 }], roms: [95] }))
+    expect(await delivered).toMatchObject({ type: 'activity', controllerId: 'controller_1', epochs: [{ t: 0, mean: 2 }], roms: [95] })
+    await shut(phone, game)
+  })
+
   it('answers ping with pong so the phone can measure round trip', async () => {
     const phone = await open('/controller-ws')
     await hello(phone, 'controller_1')

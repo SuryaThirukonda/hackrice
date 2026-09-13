@@ -152,5 +152,7 @@ export const CONTROLLER_CONFIG = {
     gestureFlashMs: 700,
     attemptCountdownSeconds: 3,
     attemptCaptureMs: 2_000,
+    /** How often the phone sends its one-second movement summaries to the game. */
+    activityReportMs: 5_000,
   },
 } as const

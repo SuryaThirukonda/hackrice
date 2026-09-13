@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { HealthTracker, summaryLine } from '../../health/tracker'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
@@ -50,6 +51,7 @@ export class GolfScene extends Phaser.Scene {
   private curr!: GolfSnapshot
   private paused = false
   private ended = false
+  private health!: HealthTracker
   private ready = false
   private eventLog: string[] = []
   private bindings: GolfBindings = GOLF_KEYS
@@ -98,6 +100,9 @@ export class GolfScene extends Phaser.Scene {
     this.meter.reset(); this.topView = false; this.aiming = false; this.previewShown = false; this.previewDirty = true
     this.detach = this.keys.attach(window)
     controllerInput.setSport('golf')
+    // The match's movement record. Ends with the match, or when the scene is left any other way.
+    this.health = new HealthTracker('golf')
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end() })
     controllerInput.clear('controller_1')
     this.pad = golfControllerState()
     this.input.keyboard!.on('keydown-ESC', () => this.togglePause())
@@ -252,6 +257,7 @@ export class GolfScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
+    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard(); this.world?.setPreview(null)
     const r = this.round.result(), sc = this.round.scorecard()
     const youWin = r?.winner === 'a'
@@ -265,6 +271,7 @@ export class GolfScene extends Phaser.Scene {
   }
 
   update(t: number, deltaMs: number): void {
+    this.health.pump()
     if (!this.ready) return
     const dtS = Math.min(deltaMs, 100) / 1000
     const inp = golfInput(this.keys, this.bindings)

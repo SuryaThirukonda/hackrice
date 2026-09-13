@@ -81,6 +81,8 @@ export class ControllerRelay {
         if (!gestures.has(String(packet.gesture)) || !this.acceptEvent(claimed, packet.eventId)) return
       } else if (packet.type === 'action') {
         if (!actions.has(String(packet.action)) || !this.acceptEvent(claimed, packet.eventId)) return
+      } else if (packet.type === 'activity') {
+        if (!Array.isArray(packet.epochs) || !Array.isArray(packet.roms) || packet.epochs.length > 120 || packet.roms.length > 120) return
       } else if (packet.type !== 'motion') return
       slot.lastSequence = sequence
       this.broadcastGames({ ...packet, sport: this.activeSport })

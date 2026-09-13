@@ -3,3 +3,5 @@ dist/
 .env
 # written by `npm run tunnel`; the quick-tunnel hostname changes every run
 public/join-config.json
+# local movement history (SQLite), never shared
+data/

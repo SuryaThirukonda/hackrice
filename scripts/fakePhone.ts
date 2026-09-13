@@ -12,6 +12,7 @@ import { WebSocket } from 'ws'
 import { CONTROLLER_CONFIG, type Sport } from '../src/phone/config'
 import { MotionProcessor, type DetectedGesture, type Vector3 } from '../src/phone/motionProcessor'
 import type { Sample } from '../src/phone/sample'
+import { ActivityTracker } from '../src/health/activity'
 
 const arg = (name: string, fallback: string): string => {
   const i = process.argv.indexOf(`--${name}`)
@@ -28,6 +29,7 @@ const sample = (t: number, a: Vector3 = [0, 0, 0], r: Vector3 = [0, 0, 0]): Samp
   [t, a[0], a[1], a[2], a[0], a[1] + 9.81, a[2], r[0], r[1], r[2], 0, 90, 0]
 
 const processor = new MotionProcessor(sport)
+const activity = new ActivityTracker()
 const socket = new WebSocket(url)
 let seq = 0
 let clock = 0
@@ -40,6 +42,7 @@ const metrics = (): Record<string, number> => ({ sensorHz: 60, rttNow: 12, rttMe
 
 processor.setGestureHandler((gesture: DetectedGesture) => {
   events += 1
+  activity.noteSwing(gesture.t, gesture.duration)
   send({
     type: 'gesture', seq: next(), eventId: `fake-${events}`, t: gesture.t, gesture: gesture.gesture,
     power: gesture.power, direction: gesture.direction, axis: gesture.dominantAxis,
@@ -52,6 +55,7 @@ processor.setGestureHandler((gesture: DetectedGesture) => {
 /** Push one reading through the detector and mirror it onto the wire, as the phone does. */
 const push = (a: Vector3, r: Vector3): void => {
   const motion = processor.push(sample(clock, a, r))
+  activity.push(motion.t, motion.accelerationMagnitude, motion.rotationMagnitude, motion.intervalMs)
   send({ type: 'motion', seq: next(), t: clock, a: motion.acceleration, r: motion.rotation, interval: DT, sport, metrics: metrics() })
   clock += DT
 }
@@ -70,6 +74,9 @@ socket.on('open', () => {
     idle += 1
     push([0.5 * Math.sin(idle * 0.22), 0.3 * Math.cos(idle * 0.15), 0.4 * Math.sin(idle * 0.1)], [6 * Math.sin(idle * 0.19), 4, 3])
   }, DT)
+
+  // the health record: one-second movement summaries every five seconds, as the handset sends them
+  setInterval(() => { const { epochs, roms } = activity.drain(); if (epochs.length || roms.length) send({ type: 'activity', seq: next(), epochs, roms }) }, 5000)
 
   let round = 0
   setInterval(() => {

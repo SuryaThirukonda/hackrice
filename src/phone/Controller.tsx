@@ -27,6 +27,7 @@ import {
 } from './motionProcessor'
 import { TiltStickProcessor, type StickSnapshot } from './tiltStick'
 import { Arrow, Busy, Cancel, Duck, Pip, Play, Power, Shield } from './Glyphs'
+import { ActivityTracker } from '../health/activity'
 import './controller.css'
 import './play.css'
 
@@ -142,6 +143,8 @@ export default function Controller() {
   const sourceRef = useRef<MotionSource | null>(null)
   const telemetryRef = useRef(debugMode)
   const flashTimerRef = useRef<number | null>(null)
+  const activityRef = useRef(new ActivityTracker())
+  const activityTimerRef = useRef<number | null>(null)
   const attemptIntervalRef = useRef<number | null>(null)
   const attemptTimeoutRef = useRef<number | null>(null)
   const attemptPhaseRef = useRef<AttemptPhase>('idle')
@@ -185,6 +188,8 @@ export default function Controller() {
 
   useEffect(() => {
     processor.setGestureHandler((gesture) => {
+      // every detected swing contributes its range of motion, published or not
+      activityRef.current.noteSwing(gesture.t, gesture.duration)
       if (sportRef.current === 'boxing') {
         publishGesture(gesture)
       } else if (
@@ -214,6 +219,9 @@ export default function Controller() {
       socketRef.current?.sendAction('block_end', 'boxing')
       blockingRef.current = false
     }
+    if (activityTimerRef.current !== null) { window.clearInterval(activityTimerRef.current); activityTimerRef.current = null }
+    const tail = activityRef.current.flush()
+    socketRef.current?.sendActivity(tail.epochs, tail.roms)
     socketRef.current?.disconnect()
     if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current)
     if (attemptIntervalRef.current !== null) window.clearInterval(attemptIntervalRef.current)
@@ -249,6 +257,8 @@ export default function Controller() {
       await source.start((sample) => {
         const processed = processor.push(sample)
         tiltStick.push(sample)
+        // the health record: one-second movement summaries, folded here at full rate
+        activityRef.current.push(processed.t, processed.accelerationMagnitude, processed.rotationMagnitude, processed.intervalMs)
         const socket = socketRef.current
         socket?.setSensorHz(processed.sensorHz)
         if (telemetryRef.current) socket?.sendMotion(processed)
@@ -302,6 +312,11 @@ export default function Controller() {
     socket.setSensorHz(processor.getSnapshot().sensorHz)
     socketRef.current = socket
     socket.connect()
+    if (activityTimerRef.current !== null) window.clearInterval(activityTimerRef.current)
+    activityTimerRef.current = window.setInterval(() => {
+      const { epochs, roms } = activityRef.current.drain()
+      socketRef.current?.sendActivity(epochs, roms)
+    }, CONTROLLER_CONFIG.ui.activityReportMs)
   }
 
   const turnOnController = async () => {

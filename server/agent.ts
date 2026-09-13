@@ -1,5 +1,7 @@
 // Node agent service: keeps the OpenAI key server-side. HTTP + WebSocket on :8790.
-import { createServer } from 'node:http'
+import { createServer, type IncomingMessage } from 'node:http'
+import { mkdirSync } from 'node:fs'
+import { HealthStore } from './health'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import OpenAI from 'openai'
@@ -35,8 +37,48 @@ const json = (res: import('node:http').ServerResponse, code: number, body: unkno
   res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' })
   res.end(JSON.stringify(body))
 }
+// Local movement history for the health tab. Lives beside the repo in data/, which is git-ignored.
+mkdirSync('data', { recursive: true })
+const health = new HealthStore('data/health.sqlite')
+const readJson = (req: IncomingMessage): Promise<Record<string, unknown>> => new Promise((resolve) => {
+  let raw = ''
+  req.on('data', (chunk: Buffer) => { raw += chunk.toString('utf8'); if (raw.length > 1_000_000) req.destroy() })
+  req.on('end', () => { try { const v: unknown = JSON.parse(raw || '{}'); resolve(v && typeof v === 'object' ? v as Record<string, unknown> : {}) } catch { resolve({}) } })
+  req.on('error', () => resolve({}))
+})
+const sportOf = (v: unknown): 'boxing' | 'bowling' | 'golf' | null => (v === 'boxing' || v === 'bowling' || v === 'golf' ? v : null)
+
 const server = createServer(async (req, res) => {
   const url = req.url ?? '/'
+  if (url.startsWith('/health')) {
+    const path = new URL(url, 'http://localhost').pathname
+    const q = new URL(url, 'http://localhost').searchParams
+    const m = /^\/health\/session\/(\d+)\/(add|finish)$/.exec(path)
+    if (req.method === 'GET' && path === '/health/summary') return json(res, 200, health.summary(Date.now(), Math.max(1, Math.min(90, Number(q.get('days') ?? 7)))))
+    if (req.method === 'GET' && path === '/health/sessions') return json(res, 200, health.sessions(Math.max(1, Math.min(500, Number(q.get('limit') ?? 50)))))
+    if (req.method === 'POST' && path === '/health/session') {
+      const b = await readJson(req); const sport = sportOf(b.sport)
+      if (!sport) return json(res, 400, { error: 'sport' })
+      const weight = Number(b.weightKg); const started = Number(b.startedAt)
+      const id = health.start({ sport, controller: String(b.controller ?? 'controller_1').slice(0, 32), startedAt: Number.isFinite(started) ? started : Date.now(), weightKg: Number.isFinite(weight) && weight > 0 ? weight : 70, source: b.source === 'phone' ? 'phone' : 'keyboard' })
+      return json(res, 200, { id })
+    }
+    if (req.method === 'POST' && m) {
+      const id = Number(m[1]); const b = await readJson(req)
+      if (!health.row(id)) return json(res, 404, { error: 'session' })
+      if (m[2] === 'add') {
+        const epochs = (Array.isArray(b.epochs) ? b.epochs : []).slice(0, 3600).map((e) => { const r = e as Record<string, unknown>; return { t: Number(r.t) || 0, mean: Number(r.mean) || 0, peak: Number(r.peak) || 0, swings: Number(r.swings) || 0, rotation: Number(r.rotation) || 0 } })
+        const roms = (Array.isArray(b.roms) ? b.roms : []).slice(0, 2000).map((r) => Number(r) || 0)
+        health.add(id, epochs, roms)
+        return json(res, 200, { ok: true })
+      }
+      const ended = Number(b.endedAt)
+      return json(res, 200, health.finish(id, Number.isFinite(ended) ? ended : Date.now(), b.source === 'phone' ? 'phone' : b.source === 'keyboard' ? 'keyboard' : undefined))
+    }
+    if (req.method === 'DELETE' && path === '/health') { health.clear(); return json(res, 200, { ok: true }) }
+    if (req.method === 'OPTIONS') return json(res, 204, {})
+    return json(res, 404, { error: 'not_found' })
+  }
   if (req.method === 'OPTIONS') return json(res, 204, {})
   if (url.startsWith('/agent/health')) return json(res, 200, await service.health())
   if (url.startsWith('/agent/act') && req.method === 'POST') {

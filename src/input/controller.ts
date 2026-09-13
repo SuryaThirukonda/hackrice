@@ -1,4 +1,6 @@
 export type ControllerSport = 'boxing' | 'bowling' | 'golf'
+/** One second of phone movement, as the phone summarises it (see src/health/energy.ts). */
+export interface ActivityEpoch { t: number; mean: number; peak: number; swings: number; rotation: number }
 export type ControllerId = 'controller_1' | 'controller_2'
 
 export interface ControllerStick {
@@ -62,6 +64,8 @@ export class ControllerInput {
   private activeSport: ControllerSport = 'bowling'
   private sticks = new Map<ControllerId, { x: number; y: number; receivedAt: number }>()
   private online = new Set<ControllerId>()
+  /** Movement summaries waiting for the health tracker, per controller. */
+  private activity = new Map<ControllerId, { epochs: ActivityEpoch[]; roms: number[] }>()
   private events: ControllerEvent[] = []
   private seen = new Set<string>()
   private seenOrder: string[] = []
@@ -100,6 +104,13 @@ export class ControllerInput {
    *  freshness: a phone that is idle on the D-pad still has its guard up. */
   connected(id: ControllerId): boolean { return this.online.has(id) }
 
+  /** Everything the phone has reported about its movement since the last drain. */
+  drainActivity(id: ControllerId): { epochs: ActivityEpoch[]; roms: number[] } {
+    const out = this.activity.get(id) ?? { epochs: [], roms: [] }
+    this.activity.delete(id)
+    return out
+  }
+
   /** True while the game's own socket to the relay is open. When this is false no phone can reach the
    *  game at all, however good its tunnel is, so the connect screen says to start the agent service. */
   linked(): boolean { return this.socket?.readyState === WebSocket.OPEN }
@@ -107,9 +118,11 @@ export class ControllerInput {
   clear(id?: ControllerId): void {
     if (id) {
       this.sticks.delete(id)
+      this.activity.delete(id)
       this.events = this.events.filter((event) => event.controllerId !== id)
     } else {
       this.sticks.clear()
+      this.activity.clear()
       this.online.clear()
       this.events = []
     }
@@ -142,6 +155,19 @@ export class ControllerInput {
     }
     const id = controllerId(packet.controllerId)
     if (!id) return
+    if (packet.type === 'activity') {
+      const bucket = this.activity.get(id) ?? { epochs: [], roms: [] }
+      for (const raw of Array.isArray(packet.epochs) ? packet.epochs : []) {
+        const e = raw as Record<string, unknown>
+        bucket.epochs.push({ t: Math.max(0, finite(e.t)), mean: Math.max(0, finite(e.mean)), peak: Math.max(0, finite(e.peak)), swings: Math.max(0, Math.round(finite(e.swings))), rotation: Math.max(0, finite(e.rotation)) })
+      }
+      for (const r of Array.isArray(packet.roms) ? packet.roms : []) bucket.roms.push(Math.max(0, finite(r)))
+      // a phone that reports for an hour while no match is running must not grow without bound
+      if (bucket.epochs.length > 3600) bucket.epochs.splice(0, bucket.epochs.length - 3600)
+      if (bucket.roms.length > 2000) bucket.roms.splice(0, bucket.roms.length - 2000)
+      this.activity.set(id, bucket)
+      return
+    }
     if (packet.type === 'stick') {
       if (!Array.isArray(packet.stick) || packet.stick.length < 2) return
       let x = clamp(finite(packet.stick[0]), -1, 1)

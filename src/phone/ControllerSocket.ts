@@ -171,6 +171,19 @@ export class ControllerSocket {
     }
   }
 
+  /** Movement summaries for the health record: whole seconds and per-swing rotations, a few numbers a
+   *  second instead of the raw stream. Sequenced like stick state; a lost report only loses those seconds. */
+  sendActivity(epochs: readonly { t: number; mean: number; peak: number; swings: number; rotation: number }[], roms: readonly number[]): boolean {
+    if (!this.canSend() || (epochs.length === 0 && roms.length === 0)) return false
+    return this.sendSequenced({
+      v: CONTROLLER_CONFIG.socket.protocolVersion,
+      type: 'activity',
+      controllerId: this.controllerId,
+      epochs: epochs.map((e) => ({ t: Math.round(e.t), mean: rounded(e.mean), peak: rounded(e.peak), swings: e.swings, rotation: rounded(e.rotation) })),
+      roms: roms.map((r) => rounded(r)),
+    })
+  }
+
   sendMotion(motion: ProcessedMotion): boolean {
     if (!this.canSend()) return false
     const now = performance.now()

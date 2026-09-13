@@ -33,13 +33,14 @@ export class MainMenuScene extends Phaser.Scene {
       ['FIGHT NIGHT', P.orange, 'two AI fighters, bet your chips', () => wipeTo(this, 'fightnight')],
       ['HOST A GAME', P.blue, 'projector, host and rail links', () => wipeTo(this, 'placeholder', { title: 'HOST A GAME', sub: 'projector · host · rail · coming in the full build' })],
       ['CONNECT A PHONE', P.magenta, 'scan a QR to use a phone as a controller', () => openControllerConnect(this)],
+      ['HEALTH', P.teal, 'active minutes, calories and range of motion', () => wipeTo(this, 'health')],
       ['HOW TO PLAY', P.green, 'controls and a guided practice', () => wipeTo(this, 'tutorial', { game: 'boxing', from: 'menu' })],
       ['SETTINGS', P.cyan, 'sound and key bindings', () => wipeTo(this, 'settings')],
       ['CREDITS', P.purple, 'HackRice 16', () => wipeTo(this, 'placeholder', { title: 'CREDITS', sub: 'made at HackRice 16 · original art and audio' })],
     ]
     const buttons = items.map(([t, c, sub, cb], i) => {
-      const b = new ComicButton(this, W * 0.72 + W, H * 0.16 + i * 86, t, cb, { color: c, sub, w: 440, h: 80 })
-      this.tweens.add({ targets: b, x: W * 0.72, duration: 500, delay: 120 + i * 90, ease: 'Back.Out' })
+      const b = new ComicButton(this, W * 0.72 + W, H * 0.13 + i * 76, t, cb, { color: c, sub, w: 440, h: 70 })
+      this.tweens.add({ targets: b, x: W * 0.72, duration: 500, delay: 120 + i * 80, ease: 'Back.Out' })
       return b
     })
     new MenuNav(this, buttons, (i) => items[i][3]())

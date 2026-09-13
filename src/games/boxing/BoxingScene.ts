@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { HealthTracker, summaryLine } from '../../health/tracker'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { controllerInput } from '../../input/controller'
@@ -41,6 +42,7 @@ export class BoxingScene extends Phaser.Scene {
   private curr!: Snapshot
   private paused = false
   private ended = false
+  private health!: HealthTracker
   private ready = false
   private startedAt = 0
   private eventLog: string[] = []
@@ -102,6 +104,9 @@ export class BoxingScene extends Phaser.Scene {
     // Phaser reuses scene instances, so the pad latch and any queued phone events must be reset per visit.
     this.pad = boxingControllerState()
     controllerInput.setSport('boxing')
+    // The match's movement record. Ends with the match, or when the scene is left any other way.
+    this.health = new HealthTracker('boxing')
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end() })
     controllerInput.clear('controller_1')
     void Engine3D.get().then((engine) => {
       if (!this.scene.isActive()) return
@@ -180,6 +185,7 @@ export class BoxingScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
+    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard()
     const r = this.match.getResult()
     const youWin = r?.winner === 'a'
@@ -210,6 +216,7 @@ export class BoxingScene extends Phaser.Scene {
   }
 
   update(_t: number, deltaMs: number): void {
+    this.health.pump()
     if (!this.ready || !this.world) return
     const keyboard = boxingCommand(this.keys, this.bindings)
     this.keys.endFrame()

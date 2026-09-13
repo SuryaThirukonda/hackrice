@@ -174,6 +174,15 @@ Research and decide:
 - **Cost.** Every line is a paid synthesis. Decide a per-match ceiling.
 - The browser must never see `ELEVENLABS_KEY`; audio has to be served from the agent service.
 
+## 3b. Health tab — DONE (motion only)
+
+`src/health/energy.ts` (MET model, tested), `src/health/activity.ts` (phone-side one-second epochs and
+per-swing rotation, tested), `server/health.ts` (SQLite via `node:sqlite` at `data/health.sqlite`, tested),
+`src/health/tracker.ts` (one record per match, ended on finish or scene shutdown), `/health/*` routes on the
+agent service, and `src/scenes/HealthScene.ts` behind the menu's HEALTH item. The phone sends an `activity`
+packet every five seconds; the relay forwards it like the others. Presage readings would attach to the same
+session rows when that bridge exists.
+
 ## 4. Presage health monitoring
 
 This is the item needing the most research, and the most care.

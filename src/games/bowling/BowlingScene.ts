@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { HealthTracker, summaryLine } from '../../health/tracker'
 import { Engine3D } from '../../engine3d/Engine3D'
 import { sfx } from '../../fx/sfx'
 import { wipeTo } from '../../fx/transitions'
@@ -39,6 +40,7 @@ export class BowlingScene extends Phaser.Scene {
   private power: number | null = null
   private paused = false
   private ended = false
+  private health!: HealthTracker
   private ready = false
   private startedAt = 0
   private lastPinSfx = 0
@@ -69,6 +71,9 @@ export class BowlingScene extends Phaser.Scene {
     this.stepIx = 0
     this.aim = defaultAim(); this.charging = false; this.power = null; this.meter.reset()
     controllerInput.setSport('bowling'); controllerInput.clear('controller_1'); this.pad = bowlingControllerState()
+    // The match's movement record. Ends with the match, or when the scene is left any other way.
+    this.health = new HealthTracker('bowling')
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { void this.health.end() })
     this.hud = new BowlingHud(this)
     this.hud.names = ['YOU', this.houseName]
     this.hud.layout(this.scale.width, this.scale.height)
@@ -158,6 +163,7 @@ export class BowlingScene extends Phaser.Scene {
   private finish(): void {
     if (this.ended) return
     this.ended = true
+    void this.health.end().then((line) => { if (line && this.scene.isActive()) this.hud.setHint(summaryLine(line)) })
     this.hud.clearCard(); this.hud.meter(null); this.hud.aimReadout(null); this.hud.setTurn('')
     const r = this.sim.winner(), sb = this.sim.scoreboard()
     const youWin = r === 'a'
@@ -173,6 +179,7 @@ export class BowlingScene extends Phaser.Scene {
   }
 
   update(_t: number, deltaMs: number): void {
+    this.health.pump()
     if (!this.ready || !this.world) return
     const inp = bowlingInput(this.keys, this.bindings, this.meter)
     if (inp.sheet) { sfx.hover(); this.hud.toggleSheet() }

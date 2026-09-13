@@ -52,6 +52,18 @@ says so: a phone on that address gets the D-pad and the buttons, but not the swi
 
 `npm run tunnel` starts a tunnel on its own, for a production server or a host that is not Vite.
 
+## Health
+
+The main menu's **HEALTH** tab shows what the last week of play did: active minutes, an estimated
+calorie figure, swing counts, a per-sport breakdown, a range-of-motion trend across sessions, and the
+last session's effort curve. It all comes from the phone's motion sensors: the phone folds its 60 Hz
+readings into one-second summaries and measures each swing's rotation, and sends a few numbers every
+five seconds. Each match becomes a session in a local SQLite database (`data/health.sqlite`, kept by
+the agent service and never shared). Keyboard-only matches are recorded as such, with no movement.
+
+Active minutes and swings are measured. Calories use the standard MET-based formula with a body weight
+set on the tab (70 kg by default) and are estimates. Nothing here is a medical measurement.
+
 ## Testing the controller
 
 <http://localhost:5174/motion.html> is a motion lab for the big screen, because you cannot read a

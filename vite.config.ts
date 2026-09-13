@@ -6,6 +6,7 @@ import { cloudflareTunnel } from './scripts/tunnelPlugin.mjs'
 /** The agent service on :8790 owns the OpenAI bot and the phone relay; the browser never sees its key. */
 const PROXY = {
   '/agent': { target: 'http://localhost:8790', ws: true, changeOrigin: true },
+  '/health': { target: 'http://localhost:8790', changeOrigin: true },
   '/controller-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
   '/controller-game-ws': { target: 'ws://localhost:8790', ws: true, changeOrigin: true },
 }
