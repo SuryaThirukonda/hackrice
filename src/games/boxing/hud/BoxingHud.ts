@@ -23,7 +23,7 @@ export class BoxingHud {
   private countBurst?: Phaser.GameObjects.Graphics
   private countNum?: Phaser.GameObjects.Text
   private countSub?: Phaser.GameObjects.Text
-  private ghostA = 100; private ghostB = 100
+  private ghostA = 1; private ghostB = 1
   private timerPanel!: Phaser.GameObjects.Graphics
   private punchWashA!: Phaser.GameObjects.Rectangle
   private punchRingA!: Phaser.GameObjects.Arc
@@ -124,16 +124,17 @@ export class BoxingHud {
     const W = this.W
     this.gassedFlashA = Math.max(0, this.gassedFlashA - dt)
     this.gassedFlashB = Math.max(0, this.gassedFlashB - dt)
-    this.ghostA += (v.a.hp - this.ghostA) * Math.min(1, dt * 2.5)
-    this.ghostB += (v.b.hp - this.ghostB) * Math.min(1, dt * 2.5)
+    const hpA = v.a.hp / v.a.maxHp, hpB = v.b.hp / v.b.maxHp
+    this.ghostA += (hpA - this.ghostA) * Math.min(1, dt * 2.5)
+    this.ghostB += (hpB - this.ghostB) * Math.min(1, dt * 2.5)
     this.bars.clear()
     const bw = this.is2p ? Math.min(360, W * 0.5 - 60) : Math.min(420, W * 0.36)
     const hpCol = (r: number) => (r > 0.5 ? P.green : r > 0.25 ? P.gold : P.red)
     const p1X = this.is2p ? 24 : 30
     const p2X = W - (this.is2p ? 24 : 30) - bw
-    this.bar(p1X, 48, bw, 28, v.a.hp / 100, this.ghostA / 100, hpCol(v.a.hp / 100), false)
+    this.bar(p1X, 48, bw, 28, hpA, this.ghostA, hpCol(hpA), false)
     this.stamina(p1X, 82, bw, v.a.stamina, v.a.guard, false, this.gassedFlashA)
-    this.bar(p2X, 48, bw, 28, v.b.hp / 100, this.ghostB / 100, hpCol(v.b.hp / 100), true)
+    this.bar(p2X, 48, bw, 28, hpB, this.ghostB, hpCol(hpB), true)
     this.stamina(p2X, 82, bw, v.b.stamina, v.b.guard, true, this.gassedFlashB)
     // knockdown pips
     const pipA = this.is2p ? 34 : 40

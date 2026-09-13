@@ -1,4 +1,4 @@
-import { CANCEL_WINDOW, COUNTDOWN_STEP, COUNT_TICKS, DODGE_COOLDOWN, DODGE_STAMINA, DODGE_TICKS, DT, FRAME, GETUP_COUNT, GETUP_STAMINA, GETUP_TICKS, GUARD_MOVE_MUL, GUARD_RECOVER_STAMINA, HEAD_DUCK, HEAD_SWAY, KD_LIMIT_ROUND, MOVE_BACK, MOVE_FWD, MOVE_STRAFE, PUNCH_CARRY, REGEN_GUARD_MUL, REGEN_IDLE, REST_S, REST_STAMINA, ROUNDS, ROUND_S, STAMINA_MAX, START_DIST, SWAY_SLIDE, ticks } from './constants'
+import { BOT_HP_MAX, CANCEL_WINDOW, COUNTDOWN_STEP, COUNT_TICKS, DODGE_COOLDOWN, DODGE_STAMINA, DODGE_TICKS, DT, FRAME, GETUP_COUNT, GETUP_STAMINA, GETUP_TICKS, GUARD_MOVE_MUL, HP_MAX, GUARD_RECOVER_STAMINA, HEAD_DUCK, HEAD_SWAY, KD_LIMIT_ROUND, MOVE_BACK, MOVE_FWD, MOVE_STRAFE, PUNCH_CARRY, REGEN_GUARD_MUL, REGEN_IDLE, REST_S, REST_STAMINA, ROUNDS, ROUND_S, STAMINA_MAX, START_DIST, SWAY_SLIDE, ticks } from './constants'
 import { Bot } from './bot'
 import { canMove, createFighter, setState } from './fighter'
 import { clampRopes, dist, facing, integrate, rightOf, separate } from './physics'
@@ -44,8 +44,8 @@ export class BoxingMatch {
     this.rounds = cfg.rounds ?? ROUNDS
     this.roundTicks = ticks(cfg.roundS ?? ROUND_S)
     this.restTicks = ticks(cfg.restS ?? REST_S)
-    this.a = createFighter('a', { x: 0, z: -START_DIST / 2 })
-    this.b = createFighter('b', { x: 0, z: START_DIST / 2 })
+    this.a = createFighter('a', { x: 0, z: -START_DIST / 2 }, cfg.botA ? BOT_HP_MAX : HP_MAX)
+    this.b = createFighter('b', { x: 0, z: START_DIST / 2 }, cfg.botB ? BOT_HP_MAX : HP_MAX)
     this.botA = cfg.botA ? new Bot(cfg.botA) : null
     this.botB = cfg.botB ? new Bot(cfg.botB) : null
     this.beginCountdown()
@@ -254,7 +254,7 @@ export class BoxingMatch {
     return {
       pos: { x: f.pos.x, z: f.pos.z }, head: { x: f.headOffset.x, y: f.headOffset.y }, state: f.state,
       progress: f.stateTotal > 0 ? 1 - f.stateT / f.stateTotal : 1, punch: f.punch, dodge: f.dodgeKind,
-      hp: f.hp, stamina: f.stamina, guard: f.guard, kd: f.kdRound, moving: f.moving, momentum: f.momentum,
+      hp: f.hp, maxHp: f.maxHp, stamina: f.stamina, guard: f.guard, kd: f.kdRound, moving: f.moving, momentum: f.momentum,
     }
   }
 

@@ -79,6 +79,9 @@ export const KD_MARKS = [60, 30]
 export const KD_LIMIT_ROUND = 3
 export const GETUP_TICKS = 30
 export const HP_MAX = 100
+/** Bot-controlled fighters (the House, both Fight Night corners) start with more health so their fights run longer.
+ *  Their knockdown marks scale with it, so a knockdown still lands at the same fraction of the bar. */
+export const BOT_HP_MAX = 120
 
 // feel flags
 export const HITSTOP: Record<PunchKind, number> = { jab: 0, cross: 4 }

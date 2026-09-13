@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BoxingMatch } from './match'
-import { REGEN_IDLE, REGEN_GUARD_MUL, BODY_GAP, BLOCK_DMG_MUL, DODGE_COOLDOWN, DT, FRAME, FRICTION, GUARD_RECOVER_STAMINA, HZ, RING_HALF, START_DIST, STAGGER_DMG, STAMINA_MAX } from './constants'
+import { BLOCK_DMG_MUL, BODY_GAP, BOT_HP_MAX, DODGE_COOLDOWN, DT, FRAME, FRICTION, GUARD_RECOVER_STAMINA, HP_MAX, HZ, REGEN_GUARD_MUL, REGEN_IDLE, RING_HALF, STAGGER_DMG, STAMINA_MAX, START_DIST } from './constants'
 import { TIERS } from './tiers'
 import { Rng } from './rng'
 import { cmd, IDLE, type Command, type SimEvent } from './types'
@@ -296,6 +296,14 @@ describe('rounds, knockdowns, KO', () => {
 })
 
 describe('bots', () => {
+  it('bot-controlled fighters start with more health and proportionally scaled knockdown marks', () => {
+    const m = new BoxingMatch({ seed: 1, botA: null, botB: TIERS.rookie })
+    expect([m.a.hp, m.a.maxHp, m.a.marks]).toEqual([HP_MAX, HP_MAX, [60, 30]])
+    expect([m.b.hp, m.b.maxHp, m.b.marks]).toEqual([BOT_HP_MAX, BOT_HP_MAX, [72, 36]])
+    expect(m.snapshot().b.maxHp).toBe(BOT_HP_MAX)
+    const card = new BoxingMatch({ seed: 1, botA: TIERS.pro, botB: TIERS.pro })
+    expect([card.a.maxHp, card.b.maxHp]).toEqual([BOT_HP_MAX, BOT_HP_MAX])
+  })
   it('a rookie closes distance and throws within 600 ticks', () => {
     const m = new BoxingMatch({ seed: 5, botA: null, botB: TIERS.rookie })
     while (m.phase === 'countdown') m.step(IDLE)
@@ -332,7 +340,7 @@ describe('bots', () => {
       while (!m.over && n < HZ * 400) {
         m.step(); n++
         for (const f of [m.a, m.b]) {
-          const bad = Number.isNaN(f.pos.x + f.pos.z + f.hp + f.stamina) || f.hp < 0 || f.hp > 100 || f.stamina < 0 || f.stamina > STAMINA_MAX || Math.abs(f.pos.x) > RING_HALF + 1e-9 || Math.abs(f.pos.z) > RING_HALF + 1e-9
+          const bad = Number.isNaN(f.pos.x + f.pos.z + f.hp + f.stamina) || f.hp < 0 || f.hp > f.maxHp || f.stamina < 0 || f.stamina > STAMINA_MAX || Math.abs(f.pos.x) > RING_HALF + 1e-9 || Math.abs(f.pos.z) > RING_HALF + 1e-9
           if (bad) throw new Error(`invariant broken seed ${seed} tick ${n}: ${JSON.stringify(f)}`)
         }
       }

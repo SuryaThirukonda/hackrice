@@ -19,6 +19,7 @@ export interface Fighter {
   headOffset: { x: number; y: number }
   headTarget: { x: number; y: number }
   hp: number
+  maxHp: number
   stamina: number
   state: FighterState
   stateT: number      // ticks left in the current state
@@ -73,7 +74,7 @@ export interface MatchConfig { seed: number; rounds?: number; roundS?: number; r
 
 export interface FighterView {
   pos: V2; head: { x: number; y: number }; state: FighterState; progress: number; punch: PunchKind; dodge: DodgeKind
-  hp: number; stamina: number; guard: boolean; kd: number; moving: number; momentum: number
+  hp: number; maxHp: number; stamina: number; guard: boolean; kd: number; moving: number; momentum: number
 }
 export interface Snapshot {
   tick: number; phase: Phase; round: number; clock: number; count: number

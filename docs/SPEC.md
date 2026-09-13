@@ -300,7 +300,7 @@ and stat counters, `moving`); `SimEvent` union (`windup`, `punch` with result `h
 | Damage | `MOMENTUM_DMG 0.5`, `MOMENTUM_KNOCK 0.6`, `STAGGER_BONUS 1.25`, `BLOCK_DMG_MUL 0.15`, `BLOCK_KNOCK_MUL 0.35`, `GUARD_BREAK_STAGGER 66`, `GUARD_RECOVER_STAMINA 15`, `STAGGER_DMG 11`, `STAGGER_TICKS 42` |
 | Dodge | `DODGE_TICKS 30`, `DODGE_IFRAMES 22`, `DODGE_COOLDOWN 54`, `DODGE_STAMINA 4`, `DODGE_REWARD 12`, `SWAY_SLIDE 1.0`, `HEAD_SWAY 0.35`, `HEAD_DUCK 0.35`, `HEAD_LERP 0.25` |
 | Stamina | `STAMINA_MAX 100`, `REGEN_IDLE 40` per second, `REGEN_GUARD_MUL 0.5`, `FATIGUE_KNEE 30`, `GETUP_STAMINA 40`, `REST_STAMINA 45` |
-| Rounds | `ROUNDS 3`, `ROUND_S 90`, `REST_S 8`, `COUNTDOWN_STEP 1 s`, `COUNT_TICKS 1 s`, `GETUP_COUNT 8`, `KD_MARKS [60, 30]`, `KD_LIMIT_ROUND 3`, `GETUP_TICKS 30`, `HP_MAX 100` |
+| Rounds | `ROUNDS 3`, `ROUND_S 90`, `REST_S 8`, `COUNTDOWN_STEP 1 s`, `COUNT_TICKS 1 s`, `GETUP_COUNT 8`, `KD_MARKS [60, 30]`, `KD_LIMIT_ROUND 3`, `GETUP_TICKS 30`, `HP_MAX 100`, `BOT_HP_MAX 120` (bot-controlled fighters; their knockdown marks scale to 72 and 36) |
 | Feel | `HITSTOP { jab 0, cross 4 }`, `HITSTOP_STAGGER 8`, `SHAKE { jab 0.25, cross 0.6 }` |
 
 **Tick order (`match.ts` `step(cmdA, cmdB)`).** Reset `events`/`flags`; `tick++`; if not `fighting` run
